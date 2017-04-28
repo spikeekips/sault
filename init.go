@@ -1,0 +1,4 @@
+package sault
+
+func init() {
+}
