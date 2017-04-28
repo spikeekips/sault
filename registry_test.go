@@ -632,6 +632,7 @@ client_private_key = "{{.host.ClientPrivateKey}}"
 
 func TestRegistrySync(t *testing.T) {
 	registry := registrySetup()
+	defer os.Remove(registry.(*FileRegistry).Path)
 
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
