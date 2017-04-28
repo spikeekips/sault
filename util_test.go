@@ -34,6 +34,8 @@ func TestParseLogLevel(t *testing.T) {
 
 func TestParseLogOutput(t *testing.T) {
 	outputFile, _ := ioutil.TempFile("/tmp/", "sault-test")
+	defer os.Remove(outputFile.Name())
+
 	os.Remove(outputFile.Name())
 
 	{
