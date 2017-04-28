@@ -119,7 +119,10 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 
 	config.setDefault()
 
-	log.Debugf("loaded config: %s", strings.TrimSpace(config.String()))
+	log.Debugf(`loaded config:
+--------------------------------------------------------------------------------
+%s
+--------------------------------------------------------------------------------`, strings.TrimSpace(config.String()))
 
 	return config, nil
 }
