@@ -91,7 +91,7 @@ func init() {
 		// last config directory will be `BaseDirectory`
 		BaseDirectory = d
 
-		files, err := filepath.Glob(sault.BaseJoin(d, "sault*.conf"))
+		files, err := filepath.Glob(sault.BaseJoin(d, "*.conf"))
 		if err != nil {
 			msg := "failed to load config files from `%s`: %v"
 			if isTolerated {
@@ -100,10 +100,16 @@ func init() {
 				log.Fatalf(msg, valFlagConfigDirs, err)
 			}
 		}
+		// prevent to load hidden files.
+		files = sault.StringFilter(
+			files,
+			func(s string) bool {
+				return string([]rune(filepath.Base(s))[0]) != "."
+			},
+		)
 		configFiles = append(configFiles, files...)
 	}
 
-	fmt.Println(BaseDirectory)
 	{
 		var err error
 
@@ -140,7 +146,10 @@ func init() {
 }
 
 func main() {
-	log.Debugf("Config:\n%v", config.ToJSON())
+	log.Infof(`loaded Config:
+--------------------------------------------------------------------------------
+%s
+--------------------------------------------------------------------------------`, config.String())
 
 	if err := config.Validate(); err != nil {
 		log.Errorf("%v", err)
