@@ -11,7 +11,7 @@ For security reason, sault only supports the public key authentication for the u
 ## Build
 
 ```
-$ go build -v cmd/sault.go
+$ go install
 ```
 
 ## Test
@@ -23,7 +23,7 @@ $ go test ./... -v
 ## Run
 
 ```
-$ ./sault
+$ sault
 ```
 
 ## Configuration

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/spikeekips/sault"
+	"github.com/spikeekips/sault/lib"
 )
 
 var config *sault.Config
