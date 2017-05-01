@@ -15,7 +15,7 @@ import (
 	"github.com/naoina/toml"
 )
 
-var availableLogFormats = [2]string{
+var AvailableLogFormats = [2]string{
 	"json",
 	"text",
 }
@@ -88,8 +88,7 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 	var configFile string
 	for _, configFile = range args["Configs"].([]string) {
 		b, _ := ioutil.ReadFile(configFile)
-		log.Infof("config file, `%s` read", configFile)
-		log.Debugf(`config file, '%s':
+		log.Debugf(`config file, '%s' read:
 --------------------------------------------------------------------------------
 %s
 --------------------------------------------------------------------------------`,
@@ -102,19 +101,18 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 		}
 		bw := bytes.NewBuffer([]byte{})
 		toml.NewEncoder(bw).Encode(config)
-		log.Debugf("config file, `%s` loaded", configFile)
 	}
 
 	config.baseDirectory, _ = filepath.Abs(args["BaseDirectory"].(string))
 
-	if logFormat, ok := args["Log.Format"]; ok && logFormat.(string) != "" {
+	if logFormat, ok := args["LogFormat"]; ok && logFormat.(string) != "" {
 		config.Log.Format = logFormat.(string)
 	}
-	if logLevel, ok := args["Log.Level"]; ok && logLevel.(string) != "" {
+	if logLevel, ok := args["LogLevel"]; ok && logLevel.(string) != "" {
 		config.Log.Level = logLevel.(string)
 	}
-	if logOutput, ok := args["Log.Output"]; ok && logOutput.(string) != "" {
-		config.Log.Output = args["Log.Output"].(string)
+	if logOutput, ok := args["LogOutput"]; ok && logOutput.(string) != "" {
+		config.Log.Output = args["LogOutput"].(string)
 	}
 
 	config.setDefault()
@@ -202,7 +200,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validateLogFormat() error {
-	for _, f := range availableLogFormats {
+	for _, f := range AvailableLogFormats {
 		if f == c.Log.Format {
 			return nil
 		}
