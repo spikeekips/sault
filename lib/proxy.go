@@ -23,7 +23,7 @@ func (p *Proxy) Run() error {
 		return err
 	}
 
-	log.Infof("listen %s", ":8022")
+	log.Infof("listen %s", listener.Addr().String())
 
 	defer listener.Close()
 
