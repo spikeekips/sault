@@ -13,8 +13,8 @@ type proxyConnection struct {
 	net.Conn
 	proxy *Proxy
 
-	sshServerConfig *ssh.ServerConfig
-	innerClient     *ssh.Client
+	sshServerConfig *saultSsh.ServerConfig
+	innerClient     *saultSsh.Client
 
 	userData          UserRegistryData
 	hostData          HostRegistryData
@@ -24,7 +24,7 @@ type proxyConnection struct {
 func (pc *proxyConnection) String() {
 }
 
-func (pc *proxyConnection) publicKeyCallback(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key saultSsh.PublicKey) (*saultSsh.Permissions, error) {
 	manualAccountName, hostName, err := ParseAccountName(conn.User())
 	if err != nil {
 		return nil, errors.New("authentication failed, but something wrong; empty `conn.User()`")
@@ -59,7 +59,7 @@ func (pc *proxyConnection) publicKeyCallback(conn ssh.ConnMetadata, key ssh.Publ
 }
 
 func (pc *proxyConnection) handleNewConnection() error {
-	conn, newChannels, requests, err := ssh.NewServerConn(pc, pc.sshServerConfig)
+	conn, newChannels, requests, err := saultSsh.NewServerConn(pc, pc.sshServerConfig)
 	if err != nil {
 		log.Debugf("proxy.serve: %v", err)
 		return err
@@ -76,7 +76,7 @@ func (pc *proxyConnection) handleNewConnection() error {
 
 	pc.innerClient = innerClient
 
-	go ssh.DiscardRequests(requests)
+	go saultSsh.DiscardRequests(requests)
 
 	for newChannel := range newChannels {
 		go func() {
@@ -90,7 +90,7 @@ func (pc *proxyConnection) handleNewConnection() error {
 	return nil
 }
 
-func (pc *proxyConnection) handleChannel(newChannel ssh.NewChannel) error {
+func (pc *proxyConnection) handleChannel(newChannel saultSsh.NewChannel) error {
 	proxyChannel, proxyRequests, err := newChannel.Accept()
 	if err != nil {
 		log.Errorf("Could not accept server channel: %v", err)
@@ -113,9 +113,9 @@ func (pc *proxyConnection) handleChannel(newChannel ssh.NewChannel) error {
 
 	var requestOrigin string
 	for {
-		var request *ssh.Request
-		var toChannel ssh.Channel
-		var fromChannel ssh.Channel
+		var request *saultSsh.Request
+		var toChannel saultSsh.Channel
+		var fromChannel saultSsh.Channel
 
 		select {
 		case request = <-proxyRequests:
@@ -162,7 +162,7 @@ func (pc *proxyConnection) handleChannel(newChannel ssh.NewChannel) error {
 	return nil
 }
 
-func (pc *proxyConnection) createInnerClient() (*ssh.Client, error) {
+func (pc *proxyConnection) createInnerClient() (*saultSsh.Client, error) {
 	signer, err := pc.hostData.ClientPrivateKey.GetSigner()
 	if err != nil {
 		log.Errorf("fail to load inner client key: %v", err)
@@ -175,15 +175,15 @@ func (pc *proxyConnection) createInnerClient() (*ssh.Client, error) {
 		signer = pc.proxy.Config.Server.globalClientKeySigner
 		log.Debugf("ClientPrivateKey for host is missing, so GlobalClientKeySigner will be used")
 	}
-	innerClientConfig := &ssh.ClientConfig{
+	innerClientConfig := &saultSsh.ClientConfig{
 		User: pc.hostData.DefaultAccount,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
+		Auth: []saultSsh.AuthMethod{
+			saultSsh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
 	}
 
-	innerClient, err := ssh.Dial("tcp", pc.hostData.GetFullAddress(), innerClientConfig)
+	innerClient, err := saultSsh.Dial("tcp", pc.hostData.GetFullAddress(), innerClientConfig)
 	if err != nil {
 		return nil, err
 	}

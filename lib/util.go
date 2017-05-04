@@ -20,7 +20,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-func GetPrivateKeySigner(keyFilePath string) (ssh.Signer, error) {
+func GetPrivateKeySigner(keyFilePath string) (saultSsh.Signer, error) {
 	b, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
 		return nil, err
@@ -29,8 +29,8 @@ func GetPrivateKeySigner(keyFilePath string) (ssh.Signer, error) {
 	return GetPrivateKeySignerFromString(string(b))
 }
 
-func GetPrivateKeySignerFromString(s string) (ssh.Signer, error) {
-	signer, err := ssh.ParsePrivateKey([]byte(s))
+func GetPrivateKeySignerFromString(s string) (saultSsh.Signer, error) {
+	signer, err := saultSsh.ParsePrivateKey([]byte(s))
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func ParseLogOutput(output string, level string) (io.Writer, error) {
 	}
 }
 
-func ParsePublicKeyFromString(s string) (ssh.PublicKey, error) {
+func ParsePublicKeyFromString(s string) (saultSsh.PublicKey, error) {
 	body := s
 	f := strings.Fields(s)
 	if len(f) < 2 {
@@ -84,7 +84,7 @@ func ParsePublicKeyFromString(s string) (ssh.PublicKey, error) {
 		return nil, err
 	}
 
-	return ssh.ParsePublicKey([]byte(key))
+	return saultSsh.ParsePublicKey([]byte(key))
 }
 
 func ParseAccountName(s string) (userName, hostName string, err error) {
@@ -119,8 +119,8 @@ func GetAuthorizedKeyFromString(publicKey string) (string, error) {
 	return GetAuthorizedKeyFromPublicKey(parsed), nil
 }
 
-func GetAuthorizedKeyFromPublicKey(publicKey ssh.PublicKey) string {
-	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(publicKey)))
+func GetAuthorizedKeyFromPublicKey(publicKey saultSsh.PublicKey) string {
+	return strings.TrimSpace(string(saultSsh.MarshalAuthorizedKey(publicKey)))
 }
 
 func GetUUID() string {
@@ -145,12 +145,12 @@ func EncodePrivateKey(privateKey *rsa.PrivateKey) ([]byte, error) {
 }
 
 func EncodePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
-	pub, err := ssh.NewPublicKey(publicKey)
+	pub, err := saultSsh.NewPublicKey(publicKey)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	return ssh.MarshalAuthorizedKey(pub), nil
+	return saultSsh.MarshalAuthorizedKey(pub), nil
 }
 
 // StringFilter was from https://gobyexample.com/collection-functions

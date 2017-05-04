@@ -36,9 +36,9 @@ var availableRegistryType = []string{
 type ConfigServer struct {
 	Bind                  string
 	HostKeyPath           string
-	hostKeySigner         ssh.Signer
+	hostKeySigner         saultSsh.Signer
 	GlobalClientKeyPath   string
-	globalClientKeySigner ssh.Signer
+	globalClientKeySigner saultSsh.Signer
 }
 
 type ConfigLog struct {

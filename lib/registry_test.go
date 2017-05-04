@@ -141,7 +141,7 @@ func TestUserRegistryData(t *testing.T) {
 	userData, _ := registry.AddUser(userName, publicKeyString)
 	addedAuthorizedKey := userData.GetAuthorizedKey()
 
-	authorizedKeyString := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(userData.GetPublicKey())))
+	authorizedKeyString := strings.TrimSpace(string(saultSsh.MarshalAuthorizedKey(userData.GetPublicKey())))
 	if addedAuthorizedKey != authorizedKeyString {
 		t.Errorf("wrong userData.publicKey, `%v`", addedAuthorizedKey)
 	}

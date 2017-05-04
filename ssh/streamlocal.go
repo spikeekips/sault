@@ -1,4 +1,4 @@
-package ssh
+package saultSsh
 
 import (
 	"errors"

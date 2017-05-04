@@ -18,10 +18,10 @@ type UserRegistryData struct {
 	User      string // must be unique
 	PublicKey string
 
-	parsedPublicKey ssh.PublicKey
+	parsedPublicKey saultSsh.PublicKey
 }
 
-func (u *UserRegistryData) GetPublicKey() ssh.PublicKey {
+func (u *UserRegistryData) GetPublicKey() saultSsh.PublicKey {
 	if u.parsedPublicKey == nil {
 		parsed, err := ParsePublicKeyFromString(u.PublicKey)
 		if err != nil {
@@ -61,7 +61,7 @@ func (d Base64ClientPrivateKey) MarshalText() ([]byte, error) {
 	return []byte(encodedClientPrivateKey), nil
 }
 
-func (d Base64ClientPrivateKey) GetSigner() (ssh.Signer, error) {
+func (d Base64ClientPrivateKey) GetSigner() (saultSsh.Signer, error) {
 	if string(d) == "" {
 		return nil, nil
 	}
@@ -108,9 +108,9 @@ type Registry interface {
 	Sync() error
 	GetUserCount() int
 	GetUserByUserName(userName string) (UserRegistryData, error)
-	GetUserByPublicKey(publicKey ssh.PublicKey) (UserRegistryData, error)
+	GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
 	GetHostByHostName(hostName string) (HostRegistryData, error)
-	GetConnectedByPublicKeyAndHostName(publicKey ssh.PublicKey, hostName, targetAccount string) (
+	GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
 		UserRegistryData,
 		HostRegistryData,
 		error,
@@ -225,7 +225,7 @@ func (r *FileRegistry) GetUserByPublicKeyString(publicKey string) (UserRegistryD
 	return r.GetUserByPublicKey(parsedPublicKey)
 }
 
-func (r *FileRegistry) GetUserByPublicKey(publicKey ssh.PublicKey) (UserRegistryData, error) {
+func (r *FileRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error) {
 	authorizedKey := GetAuthorizedKeyFromPublicKey(publicKey)
 
 	var matchedUserData *UserRegistryData
@@ -262,7 +262,7 @@ func (r *FileRegistry) GetHostByHostName(hostName string) (HostRegistryData, err
 	return *matchedHostData, nil
 }
 
-func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey ssh.PublicKey, hostName, targetAccount string) (
+func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
 	UserRegistryData,
 	HostRegistryData,
 	error,

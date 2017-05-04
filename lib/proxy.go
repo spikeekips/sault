@@ -58,8 +58,8 @@ func (p *Proxy) Run() error {
 func (p *Proxy) newConnection(conn net.Conn) (*proxyConnection, error) {
 	proxyConnection := &proxyConnection{Conn: conn, proxy: p}
 
-	// `ssh.ServerConfig` for proxy server
-	sshServerConfig := &ssh.ServerConfig{
+	// `saultSsh.ServerConfig` for proxy server
+	sshServerConfig := &saultSsh.ServerConfig{
 		PublicKeyCallback: proxyConnection.publicKeyCallback,
 	}
 

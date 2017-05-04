@@ -1,71 +1,73 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
 
 	log "github.com/Sirupsen/logrus"
 	sault "github.com/spikeekips/sault/lib"
 )
 
+var (
+	Version    = "0.0"
+	BuildDate  = "0000-00-00T00:00:00+0000"
+	CommitHash = "XXXX"
+	GitBranch  = "XXXX"
+)
+
+var options *sault.Options
+var optionsValues map[string]interface{}
+var globalOptionsValues map[string]interface{}
 var defaultLogFormatter = &log.TextFormatter{
 	FullTimestamp: true,
 	TimestampFormat:
 	/* time.RFC3339 */
 	"2006-01-02T15:04:05.000000-07:00", // with microseconds
 }
-var globalFlags *sault.GlobalFlags
-var flags sault.ParsedFlags
 
 func init() {
-	// handling interrupt signal
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			log.Info("adjö~")
-			os.Exit(1)
-		}
-	}()
+	optionsTemplate := sault.GlobalOptionsTemplate
 
-	globalFlags = sault.NewGlobalFlags(os.Args[0])
-	if err := globalFlags.ParseAll(); err != nil {
+	options, err := sault.NewOptions(optionsTemplate)
+	if err != nil {
 		os.Exit(1)
 	}
 
-	flags = globalFlags.ToMapAll()
+	if err := options.Parse(os.Args[1:]); err != nil {
+		os.Exit(1)
+	}
+
+	optionsValues = options.Values(true)
 
 	// logging
+	globalOptionsValues = optionsValues["Options"].(map[string]interface{})
 	logOutput, _ := sault.ParseLogOutput(
-		string(flags["global"]["LogOutput"].(sault.FlagLogOutput)),
-		string(flags["global"]["LogLevel"].(sault.FlagLogLevel)),
+		string(*globalOptionsValues["LogOutput"].(*sault.FlagLogOutput)),
+		string(*globalOptionsValues["LogLevel"].(*sault.FlagLogLevel)),
 	)
 	log.SetOutput(logOutput)
-	level, _ := sault.ParseLogLevel(string(flags["global"]["LogLevel"].(sault.FlagLogLevel)))
+	level, _ := sault.ParseLogLevel(string(*globalOptionsValues["LogLevel"].(*sault.FlagLogLevel)))
 	log.SetLevel(level)
 
-	if string(flags["global"]["LogFormat"].(sault.FlagLogFormat)) == "json" {
+	if string(*globalOptionsValues["LogFormat"].(*sault.FlagLogFormat)) == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	} else {
 		log.SetFormatter(defaultLogFormatter)
 	}
 
-	if jsoned, err := globalFlags.ToJSONAll(); err != nil {
-		log.Errorf("%v", err)
-		os.Exit(1)
-	} else {
-		log.Debugf(`flags:
+	jsoned, _ := json.MarshalIndent(options.Values(true), "", "  ")
+	log.Debugf(`parsed flags:
 --------------------------------------------------------------------------------
 %s
 --------------------------------------------------------------------------------`, string(jsoned))
-	}
-
 }
 
 func main() {
-	command := flags["global"]["command"].(string)
-	log.Debugf("command, `%s`:", command)
+	commandOptions := optionsValues["Commands"].(map[string]interface{})
+	command := commandOptions["Name"].(string)
+	log.Debugf("got command, `%s`:", command)
+
 	switch command {
 	case "server":
 		log.Info("Hallå världen...")
@@ -74,11 +76,11 @@ func main() {
 			var err error
 
 			flagArgs := map[string]interface{}{
-				"BaseDirectory": flags["command"]["BaseDirectory"].(string),
-				"Configs":       flags["command"]["Configs"].([]string),
-				"LogFormat":     string(flags["global"]["LogFormat"].(sault.FlagLogFormat)),
-				"LogLevel":      string(flags["global"]["LogLevel"].(sault.FlagLogLevel)),
-				"LogOutput":     string(flags["global"]["LogOutput"].(sault.FlagLogOutput)),
+				"BaseDirectory": commandOptions["BaseDirectory"].(string),
+				"Configs":       commandOptions["Configs"].([]string),
+				"LogFormat":     string(*globalOptionsValues["LogFormat"].(*sault.FlagLogFormat)),
+				"LogLevel":      string(*globalOptionsValues["LogLevel"].(*sault.FlagLogLevel)),
+				"LogOutput":     string(*globalOptionsValues["LogOutput"].(*sault.FlagLogOutput)),
 			}
 			config, err = sault.LoadConfig(flagArgs)
 			if err != nil {
@@ -126,7 +128,15 @@ func main() {
 		}
 
 		log.Info("adjö~")
-	default:
-		fmt.Println(command)
+	case "version":
+		fmt.Printf(`   Version: %s
+ BuildDate: %s
+CommitHash: %s
+ GitBranch: %s`,
+			Version,
+			BuildDate,
+			CommitHash,
+			GitBranch,
+		)
 	}
 }

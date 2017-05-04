@@ -2,8 +2,6 @@ package sault
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -15,406 +13,313 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-var CommandsFlags []Flags
-
-func init() {
-	CommandsFlags = []Flags{
-		&FlagsGroupFlags{Description: "commands for sault server"},
-		&ServerFlags{
-			Name:        "server",
-			Description: "run sault server",
-			Usage:       "server [flags]",
-		},
-
-		/*
-			&FlagsGroupFlags{Description: "commands for control sault server"},
-			&UserFlags{
-				Name:        "user",
-				Description: "manage user",
-				Usage:       "user [flags]",
-			},
-		*/
-	}
+type ErrInvalidCommand struct {
+	s string
 }
 
-func SetFlagSetFromFlags(flags Flags) *flag.FlagSet {
-	val := reflect.ValueOf(flags).Elem()
+func (e *ErrInvalidCommand) Error() string {
+	return e.s
+}
 
-	fs := flag.NewFlagSet(val.FieldByName("Name").String(), flag.ContinueOnError)
-	fs.SetOutput(ioutil.Discard)
+type ErrMissingCommand struct {
+	s string
+}
 
-	val.FieldByName("FlagSet").Set(reflect.ValueOf(fs))
+func (e *ErrMissingCommand) Error() string {
+	return "command is missing"
+}
 
-	typ := val.Type()
+func PrintHelp(options *Options, err error) {
+	tmpl, _ := template.New("t").Parse(`
+Usage: {{.command}} {{.usage}}
 
-	for i, n := 0, val.NumField(); i < n; i++ {
-		fld := typ.Field(i)
+{{.globalFlags}}
+{{.commands}}
+`)
 
-		if _, ok := fld.Tag.Lookup("flag"); !ok {
-			continue
-		}
+	commandsTmpl, _ := template.New("t").Parse(`
+There are serveral commands:
+{{.commands}}
+`)
 
-		name := MakeFirstLowerCase(fld.Name)
-		var defValue interface{}
-		if v, ok := fld.Tag.Lookup("default"); ok {
-			defValues := []interface{}{""}
-			if err := json.Unmarshal([]byte(v), &defValues); err != nil {
-				log.Errorf("failed to parse default flag value for %s: %v", name, err)
-				defValues = []interface{}{""}
-			}
-			defValue = defValues[0]
-		}
-		usage := fld.Tag.Get("help")
-
-		p := val.Field(i).Addr().Interface()
-		switch p := p.(type) {
-		case *string:
-			fs.StringVar(p, name, defValue.(string), usage)
-		case *bool:
-			fs.BoolVar(p, name, defValue.(bool), usage)
-		case *int:
-			fs.IntVar(p, name, int(defValue.(float64)), usage)
-		case *float64:
-			fs.Float64Var(p, name, defValue.(float64), usage)
+	var errorString string
+	if err == flag.ErrHelp {
+		errorString = ""
+		err = nil
+	} else {
+		switch err.(type) {
+		case *ErrMissingCommand, *ErrInvalidCommand:
+			errorString = fmt.Sprintf("%v", err)
+			err = nil
 		default:
-			fs.Var(p.(flag.Value), name, usage)
+			errorString = fmt.Sprintf("%v", err)
 		}
 	}
 
-	return fs
+	val := reflect.ValueOf(options).Elem()
+	command := val.FieldByName("Name").Interface().(string)
+	usage := val.FieldByName("Usage").Interface().(string)
+	flagSet := val.FieldByName("FlagSet").Interface().(*flag.FlagSet)
+
+	var bw *bytes.Buffer
+
+	var commandsHelps string
+	if err == nil && options.HasCommands() {
+		bw = bytes.NewBuffer([]byte{})
+		var ch []string
+
+		var maxLen int
+		for _, c := range options.Commands {
+			if maxLen < len(c.Name) {
+				maxLen = len(c.Name)
+			}
+		}
+
+		format := fmt.Sprintf("   %%%ds    %%s", maxLen)
+		for _, c := range options.Commands {
+			ch = append(
+				ch,
+				fmt.Sprintf(format, c.Name, c.Help),
+			)
+		}
+		commandsTmpl.Execute(
+			bw,
+			map[string]interface{}{
+				"commands": strings.Join(ch, "\n"),
+			},
+		)
+
+		commandsHelps = bw.String()
+	}
+
+	var globalFlags string
+	globalFlagsDefaults := GetDefaults(flagSet)
+	if strings.TrimSpace(globalFlagsDefaults) == "" {
+		globalFlags = ""
+	} else {
+		globalFlags = fmt.Sprintf(`global flags:
+%s`,
+			strings.TrimRight(globalFlagsDefaults, " \n"),
+		)
+	}
+
+	bw = bytes.NewBuffer([]byte{})
+	tmpl.Execute(
+		bw,
+		map[string]interface{}{
+			"command":     command,
+			"usage":       usage,
+			"globalFlags": template.HTML(globalFlags),
+			"commands":    template.HTML(commandsHelps),
+		},
+	)
+
+	if errorString != "" {
+		log.Errorf(errorString)
+	}
+
+	fmt.Fprintf(
+		os.Stdout,
+		strings.TrimRight(strings.TrimLeft(bw.String(), " \n"), "\n")+"\n\n",
+	)
 }
 
-func printDefaults(flagSet *flag.FlagSet, usage string) string {
+func GetDefaults(flagSet *flag.FlagSet) string {
 	bw := bytes.NewBuffer([]byte{})
 	flagSet.SetOutput(bw)
 	flagSet.PrintDefaults()
 
-	usageString := ""
-	if usage != "" {
-		usageString = fmt.Sprintf(
-			"Usage: %s\n",
-			usage,
-		)
-	}
-
-	return fmt.Sprintf(
-		"%s%s",
-		usageString,
-		bw.String(),
-	)
+	return bw.String()
 }
 
-func printUsage(defaults string, err error) {
-	out := os.Stdout
-	var errorString string
-	if err != nil && len(err.Error()) > 1 {
-		out = os.Stderr
-		errorString = fmt.Sprintf("[error] %s\n", err.Error())
-	}
+type Options struct {
+	Name      string
+	Help      string
+	Usage     string
+	FlagSet   *flag.FlagSet
+	Options   []OptionTemplate
+	Commands  []*Options
+	ParseFunc func(*Options, []string) error
 
-	fmt.Fprintf(out, "%s%s", errorString, defaults)
+	Vars map[string]interface{}
+
+	Command        string   // parsed command
+	CommandOptions *Options // parsed command options
+
+	Extra map[string]interface{}
 }
 
-func getHelp(format string, flags Flags) string {
-	l := strings.Split(fmt.Sprintf("%s", reflect.TypeOf(flags)), ".")
-	typeName := l[len(l)-1]
+func setFlagFromOption(fs *flag.FlagSet, option OptionTemplate) interface{} {
+	name := MakeFirstLowerCase(option.Name)
 
-	val := reflect.ValueOf(flags).Elem()
-	desc := val.FieldByName("Description")
+	if option.ValueType != nil {
+		val := reflect.ValueOf(option.ValueType).Elem().FieldByName("Type").Addr().Interface().(flag.Value)
+		fs.Var(val, name, option.Help)
 
-	if typeName == "FlagsGroupFlags" {
-		return fmt.Sprintf("\n%s", desc.String())
+		return val
 	}
 
-	return fmt.Sprintf(
-		format,
-		val.FieldByName("Name").String(),
-		desc.String(),
-	)
-}
-
-func toMap(flags Flags, skipInernal bool) map[string]interface{} {
-	if !skipInernal {
-		method := reflect.ValueOf(flags).MethodByName("ToMap") //
-		if method.IsValid() {
-			rValues := method.Call([]reflect.Value{})
-			rValue := rValues[0].Interface().(map[string]interface{})
-			if rValue != nil {
-				return rValue
-			}
-		}
-	}
-
-	m := map[string]interface{}{}
-
-	val := reflect.ValueOf(flags).Elem()
-	for i, n := 0, val.NumField(); i < n; i++ {
-		fld := val.Type().Field(i)
-		if _, ok := fld.Tag.Lookup("flag"); !ok {
-			continue
-		}
-		p := val.Field(i).Interface()
-		m[fld.Name] = p
-	}
-
-	return m
-}
-
-func NewGlobalFlags(name string) *GlobalFlags {
-	gf := &GlobalFlags{Name: name}
-	SetFlagSetFromFlags(gf)
-
-	return gf
-}
-
-type Flags interface {
-	Parse(args []string) error
-}
-
-// psuedo Flags for grouping commands
-type FlagsGroupFlags struct {
-	Description string
-}
-
-func (f *FlagsGroupFlags) Parse(args []string) error { return nil }
-
-type FlagLogFormat string
-
-func (l *FlagLogFormat) String() string {
-	return string(*l)
-}
-
-func (l *FlagLogFormat) Set(value string) error {
-	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogFormat(DefaultLogFormat)
-		return nil
-	}
-
-	nv := strings.ToLower(value)
-	for _, f := range AvailableLogFormats {
-		if f == nv {
-			*l = FlagLogFormat(nv)
-			return nil
-		}
-	}
-
-	return errors.New("")
-}
-
-type FlagLogLevel string
-
-func (l *FlagLogLevel) String() string {
-	return string(*l)
-}
-
-func (l *FlagLogLevel) Set(value string) error {
-	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogLevel(DefaultLogLevel)
-		return nil
-	}
-
-	nv := strings.ToLower(value)
-	for _, f := range AvailableLogLevel {
-		if f == nv {
-			*l = FlagLogLevel(nv)
-			return nil
-		}
-	}
-
-	return errors.New("")
-}
-
-type FlagLogOutput string
-
-func (l *FlagLogOutput) String() string {
-	return string(*l)
-}
-
-func (l *FlagLogOutput) Set(value string) error {
-	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogOutput(DefaultLogOutput)
-		return nil
-	}
-
-	nv := strings.ToLower(value)
-	_, err := ParseLogOutput(value, "")
-	if err == nil {
-		*l = FlagLogOutput(nv)
-		return nil
-	}
-
-	return errors.New("")
-}
-
-var DefaultLogFormat = "text"
-var DefaultLogLevel = "info"
-var DefaultLogOutput = "stdout"
-
-type GlobalFlags struct {
-	Name        string
-	Usage       string
-	Description string
-	FlagSet     *flag.FlagSet
-
-	commandName  string
-	commandFlags Flags
-
-	LogFormat FlagLogFormat `flag:"" help:"log format: [text json] (default \"text\")"`
-	LogLevel  FlagLogLevel  `flag:"" help:"log level: [debug info warn error fatal quiet] (default \"info\")"`
-	LogOutput FlagLogOutput `flag:"" help:"log output: [stdout stderr <file name>] (default \"stdout\")"`
-}
-
-func (f *GlobalFlags) parse(args []string) (Flags, error) {
-	if len(args) < 1 {
-		return f, errors.New("")
-	}
-	err := f.FlagSet.Parse(args)
-	if err != nil {
-		return f, err
-	}
-
-	if err := f.Parse(args); err != nil {
-		return f, err
-	}
-
-	commandArgs := f.FlagSet.Args()
-	if len(commandArgs) < 1 {
-		return f, errors.New("command is missing")
-	}
-
-	var command string
-	var flags Flags
-	for _, c := range CommandsFlags {
-		v := reflect.ValueOf(c).Elem().FieldByName("Name")
-		if v.String() == commandArgs[0] {
-			command = v.String()
-			flags = c
-			break
-		}
-	}
-
-	if command == "" {
-		return f, fmt.Errorf("unknown command, `%s`", commandArgs[0])
-	}
-
-	f.commandName = command
-	f.commandFlags = flags
-
-	SetFlagSetFromFlags(flags)
-
-	rValues := reflect.ValueOf(flags).Elem().FieldByName("FlagSet").MethodByName("Parse").Call([]reflect.Value{
-		reflect.ValueOf(commandArgs[1:]),
-	})
-	if rv, ok := rValues[0].Interface().(error); ok {
-		return flags, rv
-	}
-
-	rValues = reflect.ValueOf(flags).MethodByName("Parse").Call([]reflect.Value{
-		reflect.ValueOf(commandArgs[1:]),
-	})
-	if rv, ok := rValues[0].Interface().(error); ok {
-		return flags, rv
-	}
-
-	return f, nil
-}
-
-func (f *GlobalFlags) Parse(args []string) error {
-	if f.LogFormat == "" {
-		f.LogFormat = FlagLogFormat(DefaultLogFormat)
-	}
-	if f.LogLevel == "" {
-		f.LogLevel = FlagLogLevel(DefaultLogLevel)
-	}
-	if f.LogOutput == "" {
-		f.LogOutput = FlagLogOutput(DefaultLogOutput)
+	switch option.DefaultValue.(type) {
+	case string:
+		var val string
+		fs.StringVar(&val, name, option.DefaultValue.(string), option.Help)
+		return &val
+	case bool:
+		var val bool
+		fs.BoolVar(&val, name, option.DefaultValue.(bool), option.Help)
+		return &val
+	case int:
+		var val int
+		fs.IntVar(&val, name, option.DefaultValue.(int), option.Help)
+		return &val
+	case float64:
+		var val float64
+		fs.Float64Var(&val, name, option.DefaultValue.(float64), option.Help)
+		return &val
+	default:
+		log.Errorf("found invalid flag, `%v`", option)
 	}
 
 	return nil
 }
 
-func (f *GlobalFlags) ParseAll() error {
-	fs, err := f.parse(os.Args[1:])
+func NewOptions(ost OptionsTemplate) (*Options, error) {
+	var options []OptionTemplate
 
-	if err == nil {
+	co := Options{Name: ost.Name}
+
+	for _, option := range ost.Options {
+		options = append(options, option)
+	}
+
+	fs := flag.NewFlagSet(ost.Name, flag.ContinueOnError)
+	fs.SetOutput(ioutil.Discard)
+
+	vars := map[string]interface{}{}
+	for _, o := range options {
+		val := setFlagFromOption(fs, o)
+		if val == nil {
+			continue
+		}
+
+		vars[o.Name] = val
+	}
+
+	co.FlagSet = fs
+	co.Options = options
+	co.Help = ost.Help
+	co.Usage = ost.Usage
+	co.ParseFunc = ost.ParseFunc
+	co.Vars = vars
+
+	var commands []*Options
+	for _, c := range ost.Commands {
+		op, err := NewOptions(c)
+		if err != nil {
+			return nil, err
+		}
+		commands = append(commands, op)
+	}
+
+	co.Commands = commands
+
+	return &co, nil
+}
+
+func (op *Options) HasCommands() bool {
+	return len(op.Commands) > 0
+}
+
+func (op *Options) Parse(args []string) error {
+	if err := op.FlagSet.Parse(args); err != nil {
+		PrintHelp(op, err)
+		return err
+	}
+
+	if op.ParseFunc != nil {
+		if err := op.ParseFunc(op, args); err != nil {
+			PrintHelp(op, err)
+			return err
+		}
+	}
+
+	if !op.HasCommands() {
 		return nil
 	}
 
-	if f == fs {
-		printUsage(f.GetFullUsage(), err)
-		return errors.New("")
+	commandArgs := op.FlagSet.Args()
+	if len(commandArgs) < 1 {
+		err := &ErrMissingCommand{}
+		PrintHelp(op, err)
+		return err
 	}
 
-	val := reflect.ValueOf(fs).Elem()
-	flagSet := val.FieldByName("FlagSet").Interface().(*flag.FlagSet)
-	usage := val.FieldByName("Usage").String()
-	printUsage(printDefaults(flagSet, usage), err)
-
-	return errors.New("")
-}
-
-func (f *GlobalFlags) GetFullUsage() string {
-	tmpl, _ := template.New("t").Parse(`
-Usage: {{.program}} [global flags] command [flags]
-
-global flags:
-{{.globalFlags}}
-
-There are serveral sault commands:
-{{.commandsFlags}}
-
-`)
-
-	globalUsage := printDefaults(f.FlagSet, "")
-
-	commandsDescription := []string{}
-
-	var maxLength int
-	for _, c := range CommandsFlags {
-		name := reflect.ValueOf(c).Elem().FieldByName("Name")
-		if !name.IsValid() {
-			continue
-		}
-		if l := len(name.String()); l > maxLength {
-			maxLength = l
+	var command string
+	var commandOptions *Options
+	for _, s := range op.Commands {
+		if s.Name == commandArgs[0] {
+			command = s.Name
+			commandOptions = s
+			break
 		}
 	}
 
-	format := fmt.Sprintf(
-		"   %s   %%s",
-		fmt.Sprintf("%%-%ds", maxLength),
-	)
-	for _, c := range CommandsFlags {
-		commandsDescription = append(
-			commandsDescription,
-			getHelp(format, c),
-		)
+	if command == "" {
+		err := &ErrInvalidCommand{fmt.Sprintf("invalid command, `%s`", commandArgs[0])}
+		PrintHelp(op, err)
+
+		return err
 	}
 
-	bw := bytes.NewBuffer([]byte{})
-	tmpl.Execute(
-		bw,
-		map[string]interface{}{
-			"program":       f.Name,
-			"globalFlags":   template.HTML(strings.TrimRight(globalUsage, " \n")),
-			"commandsFlags": template.HTML(strings.Join(commandsDescription, "\n")),
-		},
-	)
+	op.Command = command
+	op.CommandOptions = commandOptions
 
-	return strings.TrimLeft(bw.String(), " \n")
+	return commandOptions.Parse(commandArgs[1:])
 }
 
-type ParsedFlags map[string]map[string]interface{}
+func (op *Options) Values(deep bool) map[string]interface{} {
+	m := map[string]interface{}{
+		"Name":     op.Name,
+		"Commands": map[string]interface{}{},
+		"Options":  map[string]interface{}{},
+	}
 
-func (f *GlobalFlags) ToMapAll() ParsedFlags {
-	globalFlags := toMap(f, false)
-	globalFlags["command"] = f.commandName
-	return ParsedFlags(map[string]map[string]interface{}{
-		"global":  globalFlags,
-		"command": toMap(f.commandFlags, false),
-	})
+	values := map[string]interface{}{}
+	for _, o := range op.Options {
+		values[o.Name] = op.Vars[o.Name]
+	}
+	m["Options"] = values
+
+	if op.Extra != nil {
+		for k, v := range op.Extra {
+			m[k] = v
+		}
+	}
+
+	if deep {
+		if op.Command == "" {
+			return m
+		}
+
+		m["Commands"] = op.CommandOptions.Values(true)
+	}
+
+	return m
 }
 
-func (f *GlobalFlags) ToJSONAll() ([]byte, error) {
-	return json.MarshalIndent(f.ToMapAll(), "", "  ")
+type OptionTemplate struct {
+	Name         string
+	DefaultValue interface{}
+	Help         string
+	ValueType    interface{}
+}
+
+type OptionsTemplate struct {
+	Name  string
+	Usage string
+	Help  string
+
+	Options   []OptionTemplate
+	Commands  []OptionsTemplate
+	ParseFunc func(*Options, []string) error
 }
