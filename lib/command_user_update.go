@@ -102,7 +102,7 @@ func RequestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		msg, err := NewCommandMsg(
 			"user.update",
 			UserUpdateRequestData{
-				UserName:     userName,
+				User:         userName,
 				NewUserName:  newUserName,
 				NewPublicKey: newPublicKeyString,
 			},
@@ -145,14 +145,7 @@ func RequestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
 	log.Debugf("unmarshaled data: %v", string(jsoned))
 
-	result := FormatResponse(`
-{{ .user }}
-`,
-		map[string]interface{}{
-			"user": PrintUser(data),
-		},
-	)
-	fmt.Fprintf(os.Stdout, result)
+	fmt.Fprintf(os.Stdout, PrintUser(data))
 
 	exitStatus = 0
 
@@ -172,7 +165,7 @@ func ResponseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 
 	var userData UserRegistryData
 	if data.NewUserName != "" {
-		if userData, err = pc.proxy.Registry.UpdateUserName(data.UserName, data.NewUserName); err != nil {
+		if userData, err = pc.proxy.Registry.UpdateUserName(data.User, data.NewUserName); err != nil {
 			channel.Write(ToResponse(nil, err))
 			return
 		}
@@ -184,7 +177,7 @@ func ResponseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 			return
 		}
 
-		if userData, err = pc.proxy.Registry.UpdateUserPublicKey(data.UserName, data.NewPublicKey); err != nil {
+		if userData, err = pc.proxy.Registry.UpdateUserPublicKey(data.User, data.NewPublicKey); err != nil {
 			channel.Write(ToResponse(nil, err))
 			return
 		}

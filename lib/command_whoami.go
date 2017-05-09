@@ -96,7 +96,7 @@ func ResponseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg CommandMs
 
 func PrintUser(userResponseData UserResponseData) string {
 	return FormatResponse(`
-{{ "User:"|yellow }}      {{ .user.User | escape | yellow }} {{ if .user.IsAdmin }} {{ "admin" | green }} {{ end }} {{ if .user.Deactivated }}{{ "deactivated" | red }}{{ end }}
+{{ "User:"|yellow }}      {{ .user.User | escape | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 PublicKey: {{ .user.PublicKey | escape }}
 {{ $length := len .connected }}Connected hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
 {{ range $key, $accounts := .connected }}{{ $key | escape }} {{ $accounts }}

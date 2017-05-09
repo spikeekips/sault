@@ -55,7 +55,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 	var hostData HostRegistryData
 	if hostName == pc.proxy.Config.Server.ServerName {
 		var err error
-		userData, err = pc.proxy.Registry.GetUserByPublicKey(key)
+		userData, err = pc.proxy.Registry.GetActiveUserByPublicKey(key)
 		if err != nil {
 			requestLog.Debugf("trying to access as inside-sault mode, but failed: %v", err)
 			return nil, errors.New("authentication failed*")

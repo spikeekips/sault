@@ -19,6 +19,15 @@ func makeUserName() string {
 	return fmt.Sprintf("%x", m.Sum(nil))
 }
 
+func makeUsers(registry Registry, c int) (users []UserRegistryData) {
+	for i := 0; i < c; i++ {
+		userData, _ := registry.AddUser(makeUserName(), generatePublicKey())
+		users = append(users, userData)
+	}
+
+	return
+}
+
 func TestNewRegistry(t *testing.T) {
 	sourceType := "file"
 
@@ -107,18 +116,18 @@ func TestRegistryRemoveUser(t *testing.T) {
 
 	{
 		registry.AddUser(userName, generatePublicKey())
-		if userCount := registry.GetUserCount(); userCount != 1 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.AddUser(userName+"1", generatePublicKey())
-		if userCount := registry.GetUserCount(); userCount != 2 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 2 {
 			t.Errorf("wrong user count, %d", userCount, err)
 		}
 	}
 
 	{
 		registry.RemoveUser(userName + "1")
-		if userCount := registry.GetUserCount(); userCount != 1 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.GetUserByUserName(userName + "1")
@@ -129,7 +138,7 @@ func TestRegistryRemoveUser(t *testing.T) {
 
 	{
 		registry.RemoveUser(userName)
-		if userCount := registry.GetUserCount(); userCount != 0 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 0 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.GetUserByUserName(userName)
@@ -146,11 +155,11 @@ func TestRegistrySetAdmin(t *testing.T) {
 
 	{
 		registry.AddUser(userName, generatePublicKey())
-		if userCount := registry.GetUserCount(); userCount != 1 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.AddUser(userName+"1", generatePublicKey())
-		if userCount := registry.GetUserCount(); userCount != 2 {
+		if userCount := registry.GetUserCount(UserFilterAll); userCount != 2 {
 			t.Errorf("wrong user count, %d", userCount, err)
 		}
 	}
@@ -622,6 +631,7 @@ func TestRegistrySave(t *testing.T) {
 user = "{{.user.User}}"
 public_key = "{{.publicKey}}"
 is_admin = false
+deactivated = false
 
 [host.{{.host.Host}}]
 host = "{{.host.Host}}"
@@ -709,6 +719,7 @@ func TestRegistrySync(t *testing.T) {
 user = "{{.user.User}}"
 public_key = "{{.publicKey}}"
 is_admin = false
+deactivated = false
 
 [host.{{.host.Host}}]
 host = "{{.host.Host}}"
@@ -751,5 +762,194 @@ client_private_key = "{{.host.ClientPrivateKey}}"
 %s
 --------------------------------------------------------------------------------
 			`, syncedString, bwString)
+	}
+}
+
+func TestRegistryActiveUser(t *testing.T) {
+	registry := registrySetup()
+
+	users := makeUsers(registry, 3)
+
+	{
+		c := registry.GetUserCount(UserFilterAll)
+		if c != len(users) {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterAll) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUserCount(UserFilterActive)
+		if c != len(users) {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterActive) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUserCount(UserFilterDeactivated)
+		if c != 0 {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterDeactivated) != 0; `%d` != `0`",
+				c,
+			)
+		}
+	}
+
+	registry.SetActive(users[0].User, false)
+
+	{
+		c := registry.GetUserCount(UserFilterAll)
+		if c != len(users) {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterAll) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUserCount(UserFilterActive)
+		if c != len(users)-1 {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterActive) != len(users) -1 ; `%d` != `%d`",
+				c,
+				len(users)-1,
+			)
+		}
+	}
+	{
+		c := registry.GetUserCount(UserFilterDeactivated)
+		if c != 1 {
+			t.Errorf(
+				"registry.GetUserCount(UserFilterDeactivated) != 1; `%d` != `1`",
+				c,
+			)
+		}
+	}
+}
+
+func TestRegistryGetUsers(t *testing.T) {
+	registry := registrySetup()
+
+	users := makeUsers(registry, 3)
+
+	{
+		c := registry.GetUsers(UserFilterAll)
+		if len(c) != len(users) {
+			t.Errorf(
+				"registry.GetUsers(UserFilterAll) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUsers(UserFilterActive)
+		if len(c) != len(users) {
+			t.Errorf(
+				"registry.GetUsers(UserFilterActive) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUsers(UserFilterDeactivated)
+		if len(c) != 0 {
+			t.Errorf(
+				"registry.GetUsers(UserFilterDeactivated) != 0; `%d` != `0`",
+				c,
+			)
+		}
+	}
+
+	registry.SetActive(users[0].User, false)
+
+	{
+		c := registry.GetUsers(UserFilterAll)
+		if len(c) != len(users) {
+			t.Errorf(
+				"registry.GetUsers(UserFilterAll) != len(users); `%d` != `%d`",
+				c,
+				len(users),
+			)
+		}
+	}
+	{
+		c := registry.GetUsers(UserFilterActive)
+		if len(c) != len(users)-1 {
+			t.Errorf(
+				"registry.GetUsers(UserFilterActive) != len(users) -1 ; `%d` != `%d`",
+				c,
+				len(users)-1,
+			)
+		}
+	}
+	{
+		c := registry.GetUsers(UserFilterDeactivated)
+		if len(c) != 1 {
+			t.Errorf(
+				"registry.GetUsers(UserFilterDeactivated) != 1; `%d` != `1`",
+				c,
+			)
+		}
+	}
+}
+
+func TestRegistryGetActiveUserByUserName(t *testing.T) {
+	registry := registrySetup()
+
+	users := makeUsers(registry, 3)
+
+	{
+		u, err := registry.GetActiveUserByUserName(users[0].User)
+		if err != nil {
+			t.Errorf("registry.GetActiveUserByUserName() must not be failed")
+		}
+		if u.User != users[0].User {
+			t.Errorf("registry.GetActiveUserByUserName() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+		}
+	}
+
+	registry.SetActive(users[0].User, false)
+	{
+		u, err := registry.GetActiveUserByUserName(users[0].User)
+		if err == nil {
+			t.Errorf("registry.GetActiveUserByUserName() must be failed")
+		}
+		if u.User != users[0].User {
+			t.Errorf("registry.GetActiveUserByUserName() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+		}
+	}
+}
+func TestRegistryGetActiveUserByPublicKey(t *testing.T) {
+	registry := registrySetup()
+
+	users := makeUsers(registry, 3)
+
+	{
+		u, err := registry.GetActiveUserByPublicKey(users[0].GetPublicKey())
+		if err != nil {
+			t.Errorf("registry.GetActiveUserByPublicKey() must not be failed")
+		}
+		if u.User != users[0].User {
+			t.Errorf("registry.GetActiveUserByPublicKey() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+		}
+	}
+
+	registry.SetActive(users[0].User, false)
+	{
+		u, err := registry.GetActiveUserByPublicKey(users[0].GetPublicKey())
+		if err == nil {
+			t.Errorf("registry.GetActiveUserByPublicKey() must be failed")
+		}
+		if u.User != users[0].User {
+			t.Errorf("registry.GetActiveUserByPublicKey() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+		}
 	}
 }

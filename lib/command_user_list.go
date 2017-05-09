@@ -91,7 +91,7 @@ found {{ len .users }} users{{ else }}no users{{ end }}
 
 func ResponseUserList(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
 	var data []UserResponseData
-	for _, u := range pc.proxy.Registry.GetUsers() {
+	for _, u := range pc.proxy.Registry.GetUsers(UserFilterAll) {
 		data = append(data, NewUserResponseData(pc.proxy.Registry, u))
 	}
 

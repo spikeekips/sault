@@ -74,7 +74,7 @@ func RequestUserActive(options OptionsValues, globalOptions OptionsValues) (exit
 		var err error
 		msg, err := NewCommandMsg(
 			"user.active",
-			UserActiveRequestData{UserName: userName, Active: active},
+			UserActiveRequestData{User: userName, Active: active},
 		)
 		if err != nil {
 			log.Errorf("failed to make message: %v", err)
@@ -126,7 +126,7 @@ func ResponseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to active: %v", data)
-	err = pc.proxy.Registry.SetActive(data.UserName, data.Active)
+	err = pc.proxy.Registry.SetActive(data.User, data.Active)
 	if err != nil {
 		log.Errorf("failed to set active: %v", err)
 
@@ -141,7 +141,7 @@ func ResponseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	}
 
 	var userData UserRegistryData
-	userData, err = pc.proxy.Registry.GetUserByUserName(data.UserName)
+	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 
 	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
 	return

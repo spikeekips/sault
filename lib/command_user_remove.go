@@ -53,7 +53,7 @@ func RequestUserRemove(options OptionsValues, globalOptions OptionsValues) (exit
 		msg, err := NewCommandMsg(
 			"user.remove",
 			UserRemoveRequestData{
-				UserName: userName,
+				User: userName,
 			},
 		)
 		if err != nil {
@@ -96,7 +96,7 @@ func ResponseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to remove user: %v", data)
-	err = pc.proxy.Registry.RemoveUser(data.UserName)
+	err = pc.proxy.Registry.RemoveUser(data.User)
 	if err != nil {
 		log.Errorf("failed to remove user: %v", err)
 

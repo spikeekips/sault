@@ -108,7 +108,7 @@ func RequestUserGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 		msg, err := NewCommandMsg(
 			"user.get",
 			UserGetRequestData{
-				UserName:  userName,
+				User:      userName,
 				PublicKey: publicKeyString,
 			},
 		)
@@ -162,7 +162,7 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to get user data: %v", data)
-	if data.UserName == "" && data.PublicKey == "" {
+	if data.User == "" && data.PublicKey == "" {
 		err = fmt.Errorf("empty request: %v", data)
 		log.Error(err)
 		channel.Write(ToResponse(nil, err))
@@ -170,8 +170,8 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	}
 
 	var userData UserRegistryData
-	if data.UserName != "" {
-		userData, err = pc.proxy.Registry.GetUserByUserName(data.UserName)
+	if data.User != "" {
+		userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 		if err != nil {
 			channel.Write(ToResponse(nil, err))
 			return

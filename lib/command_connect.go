@@ -79,7 +79,7 @@ func RequestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 			"connect",
 			ConnectRequestData{
 				Host:          options["HostName"].(string),
-				UserName:      options["UserName"].(string),
+				User:          options["UserName"].(string),
 				TargetAccount: options["TargetAccount"].(string),
 				Disconnect:    disconnect,
 			},
@@ -112,13 +112,17 @@ func RequestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 		return
 	}
 
-	var outputMessage string
-	if disconnect {
-		outputMessage = "disconnected"
-	} else {
-		outputMessage = "connected"
+	var data UserResponseData
+	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+		log.Errorf("failed to unmarshal responseMsg: %v", err)
+		exitStatus = 1
+		return
 	}
-	fmt.Fprintf(os.Stdout, outputMessage)
+
+	jsoned, _ := json.MarshalIndent(data, "", "  ")
+	log.Debugf("unmarshaled data: %v", string(jsoned))
+
+	fmt.Fprintf(os.Stdout, PrintUser(data))
 
 	exitStatus = 0
 
@@ -133,21 +137,21 @@ func ResponseConnect(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 
 	if data.TargetAccount == "" {
 		if data.Disconnect {
-			err = pc.proxy.Registry.DisconnectAll(data.Host, data.UserName)
+			err = pc.proxy.Registry.DisconnectAll(data.Host, data.User)
 		} else {
-			err = pc.proxy.Registry.ConnectAll(data.Host, data.UserName)
+			err = pc.proxy.Registry.ConnectAll(data.Host, data.User)
 		}
 	} else {
 		if data.Disconnect {
 			err = pc.proxy.Registry.Disconnect(
 				data.Host,
-				data.UserName,
+				data.User,
 				[]string{data.TargetAccount},
 			)
 		} else {
 			err = pc.proxy.Registry.Connect(
 				data.Host,
-				data.UserName,
+				data.User,
 				[]string{data.TargetAccount},
 			)
 		}
@@ -165,6 +169,9 @@ func ResponseConnect(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 		return
 	}
 
-	channel.Write(ToResponse(nil, nil))
+	var userData UserRegistryData
+	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
+	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+
 	return
 }

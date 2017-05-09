@@ -147,11 +147,6 @@ func RequestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		newPort = v.(uint64)
 	}
 
-	{
-		jsoned, _ := json.MarshalIndent(ov, "", " ")
-		fmt.Println(string(jsoned))
-	}
-
 	var output []byte
 	{
 		var err error

@@ -66,7 +66,7 @@ func RequestUserAdmin(options OptionsValues, globalOptions OptionsValues) (exitS
 		msg, err := NewCommandMsg(
 			"user.admin",
 			UserAdminRequestData{
-				UserName: userName,
+				User:     userName,
 				SetAdmin: setAdmin,
 			},
 		)
@@ -120,7 +120,7 @@ func ResponseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg Comman
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to admin: %v", data)
-	err = pc.proxy.Registry.SetAdmin(data.UserName, data.SetAdmin)
+	err = pc.proxy.Registry.SetAdmin(data.User, data.SetAdmin)
 	if err != nil {
 		log.Errorf("failed to admin: %v", err)
 
@@ -135,7 +135,7 @@ func ResponseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg Comman
 	}
 
 	var userData UserRegistryData
-	userData, err = pc.proxy.Registry.GetUserByUserName(data.UserName)
+	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 
 	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
 	return

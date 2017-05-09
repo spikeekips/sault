@@ -353,7 +353,8 @@ func init() {
 		},
 	}
 
-	termSize, _ := GetTermSize()
-	CurrentTermSize = *termSize
-
+	termSize, err := GetTermSize()
+	if err == nil {
+		CurrentTermSize = *termSize
+	}
 }

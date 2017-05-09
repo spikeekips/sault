@@ -117,10 +117,12 @@ type Registry interface {
 
 	AddUser(userName, publicKey string) (UserRegistryData, error)
 	RemoveUser(userName string) error
-	GetUserCount() int
-	GetUsers() map[string]UserRegistryData
+	GetUserCount(f UserFilter) int
+	GetUsers(f UserFilter) map[string]UserRegistryData
 	GetUserByUserName(userName string) (UserRegistryData, error)
 	GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
+	GetActiveUserByUserName(userName string) (UserRegistryData, error)
+	GetActiveUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
 	SetAdmin(userName string, set bool) error
 	IsActive(userName string) (bool, error)
 	SetActive(userName string, active bool) error
@@ -242,15 +244,6 @@ func (r *FileRegistry) GetType() string {
 	return "file"
 }
 
-func (r *FileRegistry) GetUserByPublicKeyString(publicKey string) (UserRegistryData, error) {
-	parsedPublicKey, err := ParsePublicKeyFromString(publicKey)
-	if err != nil {
-		return UserRegistryData{}, fmt.Errorf("invalid publicKey `%s`: %v", publicKey, err)
-	}
-
-	return r.GetUserByPublicKey(parsedPublicKey)
-}
-
 func (r *FileRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error) {
 	authorizedKey := GetAuthorizedKeyFromPublicKey(publicKey)
 
@@ -271,6 +264,20 @@ func (r *FileRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 	}
 
 	return *matchedUserData, nil
+}
+
+func (r *FileRegistry) GetActiveUserByPublicKey(publicKey saultSsh.PublicKey) (userData UserRegistryData, err error) {
+	userData, err = r.GetUserByPublicKey(publicKey)
+	if err != nil {
+		return
+	}
+
+	if userData.Deactivated {
+		err = fmt.Errorf("user, `%s`, deactivated", userData.User)
+		return
+	}
+
+	return
 }
 
 func (r *FileRegistry) GetHostByHostName(hostName string) (HostRegistryData, error) {
@@ -340,12 +347,50 @@ func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey saultSsh.Pub
 	return ud, hd, nil
 }
 
-func (r *FileRegistry) GetUserCount() int {
-	return len(r.DataSource.User)
+type UserFilter int
+
+const (
+	_                        = iota
+	UserFilterAll UserFilter = 1 << (10 * iota)
+	UserFilterActive
+	UserFilterDeactivated
+)
+
+func (r *FileRegistry) GetUserCount(f UserFilter) (c int) {
+	switch f {
+	case UserFilterAll:
+		return len(r.DataSource.User)
+	default:
+		for _, u := range r.DataSource.User {
+			if u.Deactivated && f == UserFilterDeactivated {
+				c++
+			} else if !u.Deactivated && f == UserFilterActive {
+				c++
+			}
+		}
+	}
+
+	return
 }
 
-func (r *FileRegistry) GetUsers() map[string]UserRegistryData {
-	return r.DataSource.User
+func (r *FileRegistry) GetUsers(f UserFilter) (users map[string]UserRegistryData) {
+	users = map[string]UserRegistryData{}
+
+	switch f {
+	case UserFilterAll:
+		users = r.DataSource.User
+		return
+	default:
+		for userName, u := range r.DataSource.User {
+			if u.Deactivated && f == UserFilterDeactivated {
+				users[userName] = u
+			} else if !u.Deactivated && f == UserFilterActive {
+				users[userName] = u
+			}
+		}
+	}
+
+	return
 }
 
 func (r *FileRegistry) GetUserByUserName(userName string) (UserRegistryData, error) {
@@ -366,11 +411,12 @@ func (r *FileRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 		return UserRegistryData{}, fmt.Errorf("userName, `%s` already added", userName)
 	}
 
-	if _, err := ParsePublicKeyFromString(publicKey); err != nil {
-		return UserRegistryData{}, fmt.Errorf("invalid public key: %v", err)
+	parsedPublicKey, err := ParsePublicKeyFromString(publicKey)
+	if err != nil {
+		return UserRegistryData{}, fmt.Errorf("invalid publicKey `%s`: %v", publicKey, err)
 	}
 
-	if _, err := r.GetUserByPublicKeyString(publicKey); err == nil {
+	if _, err := r.GetUserByPublicKey(parsedPublicKey); err == nil {
 		return UserRegistryData{}, fmt.Errorf("publicKey, `%s` already added", strings.TrimSpace(publicKey))
 	}
 
@@ -381,6 +427,18 @@ func (r *FileRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 	r.DataSource.User[userName] = userData
 
 	return userData, nil
+}
+
+func (r *FileRegistry) GetActiveUserByUserName(userName string) (userData UserRegistryData, err error) {
+	userData, err = r.GetUserByUserName(userName)
+	if err != nil {
+		return
+	}
+	if userData.Deactivated {
+		err = fmt.Errorf("user, `%s`, deactivated", userName)
+		return
+	}
+	return
 }
 
 func (r *FileRegistry) RemoveUser(userName string) error {

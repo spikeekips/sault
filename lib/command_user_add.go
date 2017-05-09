@@ -72,7 +72,7 @@ func RequestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 		msg, err := NewCommandMsg(
 			"user.add",
 			UserAddRequestData{
-				UserName:  userName,
+				User:      userName,
 				PublicKey: publicKeyString,
 			},
 		)
@@ -134,7 +134,7 @@ func ResponseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to add new user: %v", data)
-	userData, err := pc.proxy.Registry.AddUser(data.UserName, data.PublicKey)
+	userData, err := pc.proxy.Registry.AddUser(data.User, data.PublicKey)
 	if err != nil {
 		log.Errorf("failed to add user: %v", err)
 

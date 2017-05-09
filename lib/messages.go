@@ -35,32 +35,32 @@ type ResponseMsg struct {
 }
 
 type UserAddRequestData struct {
-	UserName  string
+	User      string
 	PublicKey string
 }
 
 type UserRemoveRequestData struct {
-	UserName string
+	User string
 }
 
 type UserAdminRequestData struct {
-	UserName string
+	User     string
 	SetAdmin bool
 }
 
 type UserActiveRequestData struct {
-	UserName string
-	Active   bool
+	User   string
+	Active bool
 }
 
 type UserUpdateRequestData struct {
-	UserName     string
+	User         string
 	NewUserName  string
 	NewPublicKey string
 }
 
 type UserGetRequestData struct {
-	UserName  string
+	User      string
 	PublicKey string
 }
 
@@ -93,7 +93,7 @@ type HostUpdateRequestData struct {
 
 type ConnectRequestData struct {
 	Host          string
-	UserName      string
+	User          string
 	TargetAccount string
 	Disconnect    bool
 }
