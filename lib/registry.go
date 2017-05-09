@@ -3,9 +3,11 @@ package sault
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -15,8 +17,10 @@ import (
 )
 
 type UserRegistryData struct {
-	User      string // must be unique
-	PublicKey string
+	User        string // must be unique
+	PublicKey   string
+	IsAdmin     bool
+	Deactivated bool
 
 	parsedPublicKey saultSsh.PublicKey
 }
@@ -41,7 +45,11 @@ func (u *UserRegistryData) GetAuthorizedKey() string {
 }
 
 func (u UserRegistryData) String() string {
-	return fmt.Sprintf("{%s %s}", u.User, "...")
+	a := ""
+	if u.IsAdmin {
+		a = "*"
+	}
+	return fmt.Sprintf("{%s%s %s}", u.User, a, "...")
 }
 
 type Base64ClientPrivateKey string
@@ -80,7 +88,7 @@ type HostRegistryData struct {
 	DefaultAccount   string
 	Accounts         []string
 	Address          string
-	Port             int
+	Port             uint64
 	ClientPrivateKey Base64ClientPrivateKey
 }
 
@@ -88,7 +96,7 @@ func (p HostRegistryData) String() string {
 	return fmt.Sprintf("{%s %s %s %d %s}", p.Host, p.DefaultAccount, p.Address, p.Port, "...")
 }
 
-func (p HostRegistryData) GetPort() int {
+func (p HostRegistryData) GetPort() uint64 {
 	port := p.Port
 	if p.Port < 1 {
 		port = 22
@@ -106,32 +114,51 @@ type Registry interface {
 	String() string
 	Save(w io.Writer) error
 	Sync() error
+
+	AddUser(userName, publicKey string) (UserRegistryData, error)
+	RemoveUser(userName string) error
 	GetUserCount() int
+	GetUsers() map[string]UserRegistryData
 	GetUserByUserName(userName string) (UserRegistryData, error)
 	GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
+	SetAdmin(userName string, set bool) error
+	IsActive(userName string) (bool, error)
+	SetActive(userName string, active bool) error
+	UpdateUserName(userName, newUserName string) (UserRegistryData, error)
+	UpdateUserPublicKey(userName, publicKey string) (UserRegistryData, error)
+
 	GetHostByHostName(hostName string) (HostRegistryData, error)
+	GetHosts() map[string]HostRegistryData
+
+	AddHost(
+		hostName,
+		defaultAccount,
+		address string,
+		port uint64,
+		clientPrivateKey string,
+		accounts []string,
+	) (HostRegistryData, error)
+	GetHostCount() int
+	RemoveHost(hostName string) error
+	UpdateHostName(hostName, newHostName string) (HostRegistryData, error)
+	UpdateHostDefaultAccount(hostName, defaultAccount string) (HostRegistryData, error)
+	UpdateHostAccounts(hostName string, accounts []string) (HostRegistryData, error)
+	UpdateHostAddress(hostName, address string) (HostRegistryData, error)
+	UpdateHostPort(hostName string, port uint64) (HostRegistryData, error)
+	UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (HostRegistryData, error)
+
 	GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
 		UserRegistryData,
 		HostRegistryData,
 		error,
 	)
-	AddUser(userName, publicKey string) (UserRegistryData, error)
-	RemoveUser(userName string) error
-	AddHost(
-		hostName,
-		defaultAccountName,
-		address string,
-		port int,
-		clientPrivateKey string,
-	) (HostRegistryData, error)
-	GetHostCount() int
-	RemoveHost(hostName string) error
 	Connect(hostName, userName string, targetAccounts []string) error
 	Disconnect(hostName, userName string, targetAccounts []string) error
 	ConnectAll(hostName, userName string) error
 	DisconnectAll(hostName, userName string) error
 	IsConnectedAll(hostName, userName string) bool
 	IsConnected(hostName, userName, targetAccount string) bool
+	GetConnectedHosts(userName string) map[string][]string
 }
 
 func NewRegistry(sourceType string, config ConfigSourceRegistry) (Registry, error) {
@@ -174,19 +201,18 @@ func (r *FileRegistry) String() string {
 }
 
 func (r *FileRegistry) Sync() error {
-	tomlFile, err := os.OpenFile(r.Path, os.O_WRONLY|os.O_CREATE, 0600)
+	os.Remove(r.Path)
+	tomlFile, err := os.OpenFile(r.Path, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
 	defer tomlFile.Close()
 
-	toml.NewEncoder(tomlFile).Encode(r.DataSource)
-	return nil
+	return r.Save(tomlFile)
 }
 
 func (r *FileRegistry) Save(w io.Writer) error {
-	toml.NewEncoder(w).Encode(r.DataSource)
-	return nil
+	return toml.NewEncoder(w).Encode(r.DataSource)
 }
 
 func NewFileRegistry(config ConfigFileRegistry) (*FileRegistry, error) {
@@ -241,7 +267,7 @@ func (r *FileRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 		}
 	}
 	if matchedUserData == nil {
-		return UserRegistryData{}, fmt.Errorf("UserData not found")
+		return UserRegistryData{}, fmt.Errorf("user with the publickey, not found")
 	}
 
 	return *matchedUserData, nil
@@ -262,6 +288,10 @@ func (r *FileRegistry) GetHostByHostName(hostName string) (HostRegistryData, err
 	return *matchedHostData, nil
 }
 
+func (r *FileRegistry) GetHosts() map[string]HostRegistryData {
+	return r.DataSource.Host
+}
+
 func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
 	UserRegistryData,
 	HostRegistryData,
@@ -269,11 +299,15 @@ func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey saultSsh.Pub
 ) {
 	ud, err := r.GetUserByPublicKey(publicKey)
 	if err != nil {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("UserData not found")
+		return UserRegistryData{}, HostRegistryData{}, err
 	}
 	hd, err := r.GetHostByHostName(hostName)
 	if err != nil {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("HostData not found")
+		return UserRegistryData{}, HostRegistryData{}, err
+	}
+
+	if ud.IsAdmin {
+		return ud, hd, nil
 	}
 
 	// check they are connected
@@ -310,16 +344,24 @@ func (r *FileRegistry) GetUserCount() int {
 	return len(r.DataSource.User)
 }
 
+func (r *FileRegistry) GetUsers() map[string]UserRegistryData {
+	return r.DataSource.User
+}
+
 func (r *FileRegistry) GetUserByUserName(userName string) (UserRegistryData, error) {
 	userData, ok := r.DataSource.User[userName]
 	if !ok {
-		return UserRegistryData{}, fmt.Errorf("UserData not found")
+		return UserRegistryData{}, fmt.Errorf("user with userName, `%s`, not found", userName)
 	}
 
 	return userData, nil
 }
 
 func (r *FileRegistry) AddUser(userName, publicKey string) (UserRegistryData, error) {
+	if !CheckUserName(userName) {
+		return UserRegistryData{}, fmt.Errorf("invalid userName, `%s`", userName)
+	}
+
 	if _, err := r.GetUserByUserName(userName); err == nil {
 		return UserRegistryData{}, fmt.Errorf("userName, `%s` already added", userName)
 	}
@@ -329,7 +371,7 @@ func (r *FileRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 	}
 
 	if _, err := r.GetUserByPublicKeyString(publicKey); err == nil {
-		return UserRegistryData{}, fmt.Errorf("publicKey, `%s` already added", publicKey)
+		return UserRegistryData{}, fmt.Errorf("publicKey, `%s` already added", strings.TrimSpace(publicKey))
 	}
 
 	userData := UserRegistryData{
@@ -344,7 +386,7 @@ func (r *FileRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 func (r *FileRegistry) RemoveUser(userName string) error {
 	_, ok := r.DataSource.User[userName]
 	if !ok {
-		return fmt.Errorf("userName, `%s`, not found")
+		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
 	delete(r.DataSource.User, userName)
@@ -359,12 +401,100 @@ func (r *FileRegistry) RemoveUser(userName string) error {
 	return nil
 }
 
+func (r *FileRegistry) SetAdmin(userName string, set bool) error {
+	userData, err := r.GetUserByUserName(userName)
+	if err != nil {
+		return err
+	}
+
+	userData.IsAdmin = set
+	r.DataSource.User[userName] = userData
+
+	return nil
+}
+
+func (r *FileRegistry) IsActive(userName string) (bool, error) {
+	userData, err := r.GetUserByUserName(userName)
+	if err != nil {
+		return false, err
+	}
+
+	return !userData.Deactivated, nil
+}
+
+func (r *FileRegistry) SetActive(userName string, active bool) error {
+	userData, err := r.GetUserByUserName(userName)
+	if err != nil {
+		return err
+	}
+	if ok, _ := r.IsActive(userName); ok == active {
+		return nil
+	}
+
+	userData.Deactivated = !active
+	r.DataSource.User[userName] = userData
+
+	return nil
+}
+
+func (r *FileRegistry) UpdateUserName(userName, newUserName string) (UserRegistryData, error) {
+	userData, err := r.GetUserByUserName(userName)
+	if err != nil {
+		return UserRegistryData{}, err
+	}
+
+	if userData.User == newUserName {
+		return userData, nil
+	}
+
+	userData.User = newUserName
+	delete(r.DataSource.User, userName)
+
+	r.DataSource.User[newUserName] = userData
+
+	for hostName, users := range r.DataSource.Connected {
+		if _, ok := users[userName]; !ok {
+			continue
+		}
+		r.DataSource.Connected[hostName][newUserName] = r.DataSource.Connected[hostName][userName]
+
+		delete(r.DataSource.Connected[hostName], userName)
+	}
+
+	return userData, nil
+}
+
+func (r *FileRegistry) UpdateUserPublicKey(userName, newPublicKey string) (UserRegistryData, error) {
+	userData, err := r.GetUserByUserName(userName)
+	if err != nil {
+		return UserRegistryData{}, err
+	}
+
+	if userData.PublicKey == newPublicKey {
+		return userData, nil
+	}
+	if publicKey, err := ParsePublicKeyFromString(newPublicKey); err != nil {
+		return UserRegistryData{}, err
+	} else {
+		if another, err := r.GetUserByPublicKey(publicKey); err == nil && another.User != userData.User {
+			return UserRegistryData{}, fmt.Errorf("another user has same publicKey")
+		}
+	}
+
+	userData.PublicKey = strings.TrimSpace(newPublicKey)
+	userData.parsedPublicKey = nil
+	r.DataSource.User[userName] = userData
+
+	return userData, nil
+}
+
 func (r *FileRegistry) AddHost(
 	hostName,
-	defaultAccountName,
+	defaultAccount,
 	address string,
-	port int,
+	port uint64,
 	clientPrivateKey string,
+	accounts []string,
 ) (HostRegistryData, error) {
 	if clientPrivateKey != "" {
 		if _, err := GetPrivateKeySignerFromString(clientPrivateKey); err != nil {
@@ -376,14 +506,21 @@ func (r *FileRegistry) AddHost(
 		return HostRegistryData{}, fmt.Errorf("hostName, `%s` already added", hostName)
 	}
 
+	if len(accounts) < 1 {
+		accounts = append(accounts, defaultAccount)
+	}
+
 	hostData := HostRegistryData{
 		Host:           hostName,
-		DefaultAccount: defaultAccountName,
+		DefaultAccount: defaultAccount,
 		Address:        address,
 		Port:           port,
-		Accounts:       []string{defaultAccountName},
+		Accounts:       accounts,
 	}
 	if clientPrivateKey != "" {
+		if _, err := GetPrivateKeySignerFromString(clientPrivateKey); err != nil {
+			return HostRegistryData{}, err
+		}
 		hostData.ClientPrivateKey = Base64ClientPrivateKey(clientPrivateKey)
 	}
 
@@ -398,7 +535,7 @@ func (r *FileRegistry) GetHostCount() int {
 
 func (r *FileRegistry) RemoveHost(hostName string) error {
 	if _, err := r.GetHostByHostName(hostName); err != nil {
-		return fmt.Errorf("hostName, `%s`, not found")
+		return fmt.Errorf("hostName, `%s`, not found", hostName)
 	}
 
 	delete(r.DataSource.Host, hostName)
@@ -408,6 +545,149 @@ func (r *FileRegistry) RemoveHost(hostName string) error {
 	}
 
 	return nil
+}
+
+func (r *FileRegistry) UpdateHostName(hostName, newHostName string) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
+	}
+	if hostName == newHostName {
+		return HostRegistryData{}, nil
+	}
+
+	if _, err := r.GetHostByHostName(newHostName); err == nil {
+		return HostRegistryData{}, fmt.Errorf("newHostName, `%s`, already exists", newHostName)
+	}
+
+	hostData.Host = newHostName
+
+	delete(r.DataSource.Host, hostName)
+	r.DataSource.Host[newHostName] = hostData
+
+	if _, ok := r.DataSource.Connected[hostName]; ok {
+		r.DataSource.Connected[newHostName] = r.DataSource.Connected[hostName]
+		delete(r.DataSource.Connected, hostName)
+	}
+
+	return hostData, nil
+}
+
+func (r *FileRegistry) UpdateHostDefaultAccount(hostName, defaultAccount string) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
+	}
+	if defaultAccount == hostData.DefaultAccount {
+		return hostData, nil
+	}
+
+	hostData.DefaultAccount = defaultAccount
+
+	var found bool
+	for _, a := range hostData.Accounts {
+		if a == defaultAccount {
+			found = true
+			break
+		}
+	}
+	if !found {
+		hostData.Accounts = append(hostData.Accounts, defaultAccount)
+	}
+
+	r.DataSource.Host[hostName] = hostData
+
+	return hostData, nil
+}
+
+func (r *FileRegistry) UpdateHostAccounts(hostName string, accounts []string) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
+	}
+
+	if reflect.DeepEqual(accounts, hostData.Accounts) {
+		return hostData, nil
+	}
+
+	var found bool
+	for _, a := range accounts {
+		if a == hostData.DefaultAccount {
+			found = true
+			break
+		}
+	}
+	if !found {
+		accounts = append(accounts, hostData.DefaultAccount)
+	}
+
+	hostData.Accounts = accounts
+
+	r.DataSource.Host[hostName] = hostData
+
+	return hostData, nil
+}
+
+func (r *FileRegistry) UpdateHostAddress(hostName, address string) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
+	}
+
+	if address == hostData.Address {
+		return hostData, nil
+	}
+
+	hostData.Address = address
+
+	r.DataSource.Host[hostName] = hostData
+
+	return hostData, nil
+}
+
+func (r *FileRegistry) UpdateHostPort(hostName string, port uint64) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
+	}
+
+	if port == hostData.Port {
+		return hostData, nil
+	}
+
+	hostData.Port = port
+
+	r.DataSource.Host[hostName] = hostData
+
+	return hostData, nil
+}
+
+func (r *FileRegistry) UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (HostRegistryData, error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return HostRegistryData{}, err
+	}
+
+	{
+		newSigner, err := GetPrivateKeySignerFromString(clientPrivateKey)
+		if err != nil {
+			return HostRegistryData{}, err
+		}
+
+		if string(hostData.ClientPrivateKey) != "" {
+			signer, _ := GetPrivateKeySignerFromString(string(hostData.ClientPrivateKey))
+
+			if string(newSigner.PublicKey().Marshal()) == string(signer.PublicKey().Marshal()) {
+				return hostData, nil
+			}
+		}
+	}
+
+	hostData.ClientPrivateKey = Base64ClientPrivateKey(clientPrivateKey)
+
+	r.DataSource.Host[hostName] = hostData
+
+	return hostData, nil
 }
 
 func (r *FileRegistry) IsConnectedAll(hostName, userName string) bool {
@@ -532,7 +812,7 @@ func (r *FileRegistry) Connect(hostName, userName string, targetAccounts []strin
 }
 func (r *FileRegistry) Disconnect(hostName, userName string, targetAccounts []string) error {
 	if r.IsConnectedAll(hostName, userName) {
-		return nil
+		return errors.New("currently all account connected, DisconnectAll() first.")
 	}
 
 	if _, err := r.GetHostByHostName(hostName); err != nil {
@@ -589,4 +869,20 @@ func (r *FileRegistry) DisconnectAll(hostName, userName string) error {
 	delete(r.DataSource.Connected[hostName], userName)
 
 	return nil
+}
+
+func (r *FileRegistry) GetConnectedHosts(userName string) map[string][]string {
+	connected := map[string][]string{}
+	for _, hostData := range r.GetHosts() {
+		if _, ok := r.DataSource.Connected[hostData.Host]; !ok {
+			continue
+		}
+		if ch, ok := r.DataSource.Connected[hostData.Host][userName]; !ok {
+			continue
+		} else {
+			connected[hostData.Host] = ch.Account
+		}
+	}
+
+	return connected
 }

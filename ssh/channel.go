@@ -76,6 +76,8 @@ type Channel interface {
 	// safely be read and written from a different goroutine than
 	// Read and Write respectively.
 	Stderr() io.ReadWriter
+
+	SetProxy(bool)
 }
 
 // Request is a request sent outside of the normal stream of
@@ -201,6 +203,8 @@ type channel struct {
 	// packetPool has a buffer for each extended channel ID to
 	// save allocations during writes.
 	packetPool map[uint32][]byte
+
+	proxyMode bool
 }
 
 // writePacket sends a packet. If the packet is a channel close, it updates
@@ -412,14 +416,16 @@ func (c *channel) handlePacket(packet []byte) error {
 
 		// after sending data in `scp`, the connection was hanged in proxy. This
 		// will help to close the client connection by force.
-		c.incomingRequests <- &Request{
-			Type:      "EOF",
-			WantReply: false,
-			Payload:   nil,
-			ch:        c,
-		}
+		if c.proxyMode {
+			c.incomingRequests <- &Request{
+				Type:      "EOF",
+				WantReply: false,
+				Payload:   nil,
+				ch:        c,
+			}
 
-		return nil
+			return nil
+		}
 	}
 
 	decoded, err := decode(packet)
@@ -617,6 +623,10 @@ func (ch *channel) SendRequest(name string, wantReply bool, payload []byte) (boo
 	}
 
 	return false, nil
+}
+
+func (ch *channel) SetProxy(t bool) {
+	ch.proxyMode = t
 }
 
 // ackRequest either sends an ack or nack to the channel request.

@@ -13,6 +13,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+type OptionsValues map[string]interface{}
 type ErrInvalidCommand struct {
 	s string
 }
@@ -30,16 +31,17 @@ func (e *ErrMissingCommand) Error() string {
 }
 
 func PrintHelp(options *Options, err error) {
-	tmpl, _ := template.New("t").Parse(`
-Usage: {{.command}} {{.usage}}
-
-{{.globalFlags}}
-{{.commands}}
+	tmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(`
+Usage: {{.command }} {{.usage | escape }}
+{{ if ne .description "" }}
+{{ .line }}
+{{ .description | escape}}
+{{ .line }} {{ end }}{{.globalFlags | escape }}{{.commands | escape}}
 `)
 
-	commandsTmpl, _ := template.New("t").Parse(`
+	commandsTmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(`
 There are serveral commands:
-{{.commands}}
+{{.commands | escape}}
 `)
 
 	var errorString string
@@ -77,10 +79,13 @@ There are serveral commands:
 
 		format := fmt.Sprintf("   %%%ds    %%s", maxLen)
 		for _, c := range options.Commands {
-			ch = append(
-				ch,
-				fmt.Sprintf(format, c.Name, c.Help),
-			)
+			var l string
+			if c.IsGroup {
+				l = fmt.Sprintf("\n%s", c.Help)
+			} else {
+				l = fmt.Sprintf(format, c.Name, c.Help)
+			}
+			ch = append(ch, l)
 		}
 		commandsTmpl.Execute(
 			bw,
@@ -97,8 +102,10 @@ There are serveral commands:
 	if strings.TrimSpace(globalFlagsDefaults) == "" {
 		globalFlags = ""
 	} else {
-		globalFlags = fmt.Sprintf(`global flags:
-%s`,
+		globalFlags = fmt.Sprintf(`
+global flags:
+%s
+`,
 			strings.TrimRight(globalFlagsDefaults, " \n"),
 		)
 	}
@@ -109,8 +116,10 @@ There are serveral commands:
 		map[string]interface{}{
 			"command":     command,
 			"usage":       usage,
-			"globalFlags": template.HTML(globalFlags),
-			"commands":    template.HTML(commandsHelps),
+			"description": options.Description,
+			"globalFlags": globalFlags,
+			"commands":    commandsHelps,
+			"line":        strings.Repeat("-", int(CurrentTermSize.Col)),
 		},
 	)
 
@@ -133,13 +142,15 @@ func GetDefaults(flagSet *flag.FlagSet) string {
 }
 
 type Options struct {
-	Name      string
-	Help      string
-	Usage     string
-	FlagSet   *flag.FlagSet
-	Options   []OptionTemplate
-	Commands  []*Options
-	ParseFunc func(*Options, []string) error
+	Name        string
+	Help        string
+	Description string
+	Usage       string
+	IsGroup     bool
+	FlagSet     *flag.FlagSet
+	Options     []OptionTemplate
+	Commands    []*Options
+	ParseFunc   func(*Options, []string) error
 
 	Vars map[string]interface{}
 
@@ -151,6 +162,10 @@ type Options struct {
 
 func setFlagFromOption(fs *flag.FlagSet, option OptionTemplate) interface{} {
 	name := MakeFirstLowerCase(option.Name)
+	if fs.Lookup(name) != nil {
+		log.Errorf("`%s` flag already defined", name)
+		return nil
+	}
 
 	if option.ValueType != nil {
 		val := reflect.ValueOf(option.ValueType).Elem().FieldByName("Type").Addr().Interface().(flag.Value)
@@ -208,7 +223,9 @@ func NewOptions(ost OptionsTemplate) (*Options, error) {
 	co.FlagSet = fs
 	co.Options = options
 	co.Help = ost.Help
+	co.Description = strings.TrimSpace(ost.Description)
 	co.Usage = ost.Usage
+	co.IsGroup = ost.IsGroup
 	co.ParseFunc = ost.ParseFunc
 	co.Vars = vars
 
@@ -277,14 +294,15 @@ func (op *Options) Parse(args []string) error {
 	return commandOptions.Parse(commandArgs[1:])
 }
 
-func (op *Options) Values(deep bool) map[string]interface{} {
-	m := map[string]interface{}{
-		"Name":     op.Name,
-		"Commands": map[string]interface{}{},
-		"Options":  map[string]interface{}{},
+func (op *Options) Values(deep bool) OptionsValues {
+	m := OptionsValues{
+		"Name":        op.Name,
+		"Commands":    OptionsValues{},
+		"Options":     OptionsValues{},
+		"CommandName": op.Name,
 	}
 
-	values := map[string]interface{}{}
+	values := OptionsValues{}
 	for _, o := range op.Options {
 		values[o.Name] = op.Vars[o.Name]
 	}
@@ -302,6 +320,7 @@ func (op *Options) Values(deep bool) map[string]interface{} {
 		}
 
 		m["Commands"] = op.CommandOptions.Values(true)
+		m["CommandName"] = fmt.Sprintf("%s.%s", op.Name, m["Commands"].(OptionsValues)["CommandName"].(string))
 	}
 
 	return m
@@ -315,9 +334,11 @@ type OptionTemplate struct {
 }
 
 type OptionsTemplate struct {
-	Name  string
-	Usage string
-	Help  string
+	Name        string
+	Usage       string
+	Help        string
+	Description string
+	IsGroup     bool
 
 	Options   []OptionTemplate
 	Commands  []OptionsTemplate

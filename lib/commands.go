@@ -1,20 +1,27 @@
 package sault
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
-	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/spikeekips/sault/ssh"
+	"github.com/spikeekips/sault/ssh/agent"
 )
 
+var CommandForNotAdmin map[string]bool
+var UserOptionsTemplate OptionsTemplate
+var HostOptionsTemplate OptionsTemplate
+var RequestCommands map[string]func(OptionsValues, OptionsValues) int
+var ResponseCommands map[string]func(*proxyConnection, saultSsh.Channel, CommandMsg) (uint32, error)
 var GlobalOptionsTemplate OptionsTemplate
 var DefaultLogFormat = "text"
 var DefaultLogLevel = "info"
 var DefaultLogOutput = "stdout"
-var DefaultConfigDir = "./"
 
 type FlagLogFormat string
 
@@ -84,80 +91,190 @@ func (l *FlagLogOutput) Set(value string) error {
 	return errors.New("")
 }
 
-type FlagConfigDirs []string
+type FlagSaultServer string
 
-func (f *FlagConfigDirs) String() string {
-	/*
-		jsoned, _ := json.Marshal(*f)
-		return string(jsoned)
-	*/
-
-	// if set `return string(jsoned)`, the default value in the help message was
-	// `(default [])`, this is not what I want.
-	return ""
+func (f *FlagSaultServer) String() string {
+	return string(*f)
 }
 
-func (f *FlagConfigDirs) Set(v string) error {
-	if fi, err := os.Stat(v); err != nil {
-		log.Errorf("configDir, `%s` does not exists, skipped", v)
-		return nil
-	} else if !fi.IsDir() {
-		log.Errorf("configDir, `%s` not directory, skipped", v)
-		return nil
+func (f *FlagSaultServer) Set(v string) error {
+	_, _, err := ParseHostAccount(v)
+	if err != nil {
+		return err
 	}
-
-	absed, _ := filepath.Abs(filepath.Clean(v))
-	*f = append(*f, absed)
 
 	return nil
 }
 
-func ParseServerOptions(op *Options, args []string) error {
-	values := op.Values(false)
+var AtOptionTemplate = OptionTemplate{
+	Name:         "At",
+	DefaultValue: "sault@localhost",
+	Help:         "sault server, sault@<sault server>",
+	ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
+}
+
+var POptionTemplate = OptionTemplate{
+	Name:         "P",
+	DefaultValue: DefaultServerPort,
+	Help:         "sault server port",
+}
+
+func ParseBaseCommandOptions(op *Options, args []string) error {
+	values := op.Values(false)["Options"].(OptionsValues)
 
 	op.Extra = map[string]interface{}{}
 
-	var configFiles []string
-	var baseDirectory string
-
-	configDirs := values["Options"].(map[string]interface{})["ConfigDir"].(*FlagConfigDirs)
-	if len(*configDirs) < 1 {
-		configDirs.Set(DefaultConfigDir)
-	}
-
-	for _, configDir := range *configDirs {
-		files, err := filepath.Glob(BaseJoin(configDir, "*.conf"))
+	{
+		saultServer := string(*values["At"].(*FlagSaultServer))
+		serverName, hostName, err := ParseHostAccount(saultServer)
 		if err != nil {
-			msg := "failed to load config files from `%s`: %v"
-			log.Errorf(msg, configDir, err)
-			continue
+			return err
 		}
-		files = StringFilter(
-			files,
-			func(s string) bool {
-				return string([]rune(filepath.Base(s))[0]) != "."
-			},
-		)
-		configFiles = append(configFiles, files...)
+		port := int(*values["P"].(*int))
 
-		// last config directory will be `baseDirectory`
-		baseDirectory = configDir
-	}
-
-	if len(configFiles) < 1 {
-		return errors.New("sault config files not found in configDir(s)")
-	}
-
-	op.Extra = map[string]interface{}{
-		"BaseDirectory": baseDirectory,
-		"Configs":       configFiles,
+		op.Extra["SaultServerName"] = serverName
+		op.Extra["SaultServerHostName"] = hostName
+		op.Extra["SaultServerAddress"] = fmt.Sprintf("%s:%d", hostName, port)
 	}
 
 	return nil
 }
 
+func ToResponse(result interface{}, resultError error) []byte {
+	if resultError != nil {
+		return saultSsh.Marshal(
+			ResponseMsg{Error: resultError.Error()},
+		)
+	}
+
+	jsoned, err := json.Marshal(result)
+	if err != nil {
+		return saultSsh.Marshal(
+			ResponseMsg{Error: err.Error()},
+		)
+	}
+
+	return saultSsh.Marshal(
+		ResponseMsg{Result: jsoned},
+	)
+}
+
+func handleCommandMsg(
+	pc *proxyConnection,
+	channel saultSsh.Channel,
+	msg CommandMsg,
+) (exitStatus uint32, err error) {
+	exitStatus = 0
+
+	log.Debugf("command: `%s`", strings.TrimSpace(msg.Command))
+
+	if !pc.userData.IsAdmin {
+		if allowed, ok := CommandForNotAdmin[msg.Command]; !ok || !allowed {
+			err = fmt.Errorf("command, `%s` not allowed for not admin user", msg.Command)
+			exitStatus = 1
+
+			return
+		}
+	}
+
+	if handler, ok := ResponseCommands[msg.Command]; ok {
+		exitStatus, err = handler(pc, channel, msg)
+		if err != nil {
+			log.Error(err)
+		}
+		return
+	}
+
+	err = fmt.Errorf("unknown msg: %v", msg.Command)
+	exitStatus = 1
+
+	return
+}
+
+func SSHAgent() (saultSsh.AuthMethod, error) {
+	sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+	if err != nil {
+		return nil, err
+	}
+
+	return saultSsh.PublicKeysCallback(saultSshAgent.NewClient(sshAgent).Signers), nil
+}
+
+func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client, error) {
+	sshAgentAuth, err := SSHAgent()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to ssh agent: `%v`", err)
+	}
+
+	clientConfig := &saultSsh.ClientConfig{
+		User:            serverName,
+		Auth:            []saultSsh.AuthMethod{sshAgentAuth},
+		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
+	}
+
+	log.Debugf("trying to connect to sault server, `%s`", address)
+
+	connection, err := saultSsh.Dial("tcp", address, clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect sault server, `%s`: %v", address, err)
+	}
+
+	log.Debug("connection established")
+
+	return connection, nil
+}
+
+func runCommand(connection *saultSsh.Client, msg *CommandMsg) (output []byte, exitStatus int, err error) {
+	session, err := connection.NewSession()
+	if err != nil {
+		err = fmt.Errorf("failed to create session: %s", err)
+		return
+	}
+	defer session.Close()
+
+	// marshal command
+	output, err = session.Output(string(saultSsh.Marshal(msg)))
+	if err != nil {
+		if exitError, ok := err.(*saultSsh.ExitError); ok {
+			exitStatus = exitError.Waitmsg.ExitStatus()
+			err = fmt.Errorf("got exitError: %v", exitError)
+			return
+		}
+		err = fmt.Errorf("command %v was failed: %v", err)
+		return
+	}
+
+	return
+}
+
 func init() {
-	DefaultConfigDir, _ = filepath.Abs(filepath.Clean(DefaultConfigDir))
+	UserOptionsTemplate = OptionsTemplate{
+		Name:  "user",
+		Help:  "manage user",
+		Usage: "[flags] command",
+		Commands: []OptionsTemplate{
+			UserGetOptionsTemplate,
+			UserListOptionsTemplate,
+			UserAddOptionsTemplate,
+			UserRemoveOptionsTemplate,
+			UserUpdateOptionsTemplate,
+			UserActiveOptionsTemplate,
+			UserAdminOptionsTemplate,
+		},
+	}
+
+	HostOptionsTemplate = OptionsTemplate{
+		Name:  "host",
+		Help:  "manage host",
+		Usage: "[flags] command",
+		Commands: []OptionsTemplate{
+			HostGetOptionsTemplate,
+			HostListOptionsTemplate,
+			HostAddOptionsTemplate,
+			HostRemoveOptionsTemplate,
+			HostUpdateOptionsTemplate,
+		},
+	}
 
 	GlobalOptionsTemplate = OptionsTemplate{
 		Name:  os.Args[0],
@@ -180,24 +297,52 @@ func init() {
 			},
 		},
 		Commands: []OptionsTemplate{
-			OptionsTemplate{
-				Name:  "server",
-				Help:  "run sault server",
-				Usage: "[flags]",
-				Options: []OptionTemplate{
-					OptionTemplate{
-						Name:      "ConfigDir",
-						Help:      "This directory contains the configuration files (default is current directory)",
-						ValueType: &struct{ Type FlagConfigDirs }{FlagConfigDirs{}},
-					},
-				},
-				ParseFunc: ParseServerOptions,
-			},
-			OptionsTemplate{
-				Name:  "version",
-				Help:  "show version information",
-				Usage: "",
-			},
+			ServerOptionsTemplate,
+			UserOptionsTemplate,
+			HostOptionsTemplate,
+			ConnectOptionsTemplate,
+			WhoAmIOptionsTemplate,
 		},
+	}
+
+	RequestCommands = map[string]func(OptionsValues, OptionsValues) int{
+		"server":      RunServer,
+		"user.get":    RequestUserGet,
+		"user.list":   RequestUserList,
+		"user.add":    RequestUserAdd,
+		"user.remove": RequestUserRemove,
+		"user.active": RequestUserActive,
+		"user.admin":  RequestUserAdmin,
+		"user.update": RequestUserUpdate,
+		"host.get":    RequestHostGet,
+		"host.list":   RequestHostList,
+		"host.add":    RequestHostAdd,
+		"host.remove": RequestHostRemove,
+		"host.update": RequestHostUpdate,
+		"connect":     RequestConnect,
+		"whoami":      RequestWhoAmI,
+	}
+	ResponseCommands = map[string]func(*proxyConnection, saultSsh.Channel, CommandMsg) (uint32, error){
+		"user.get":    ResponseUserGet,
+		"user.list":   ResponseUserList,
+		"user.add":    ResponseUserAdd,
+		"user.remove": ResponseUserRemove,
+		"user.active": ResponseUserActive,
+		"user.admin":  ResponseUserAdmin,
+		"user.update": ResponseUserUpdate,
+		"host.get":    ResponseHostGet,
+		"host.list":   ResponseHostList,
+		"host.add":    ResponseHostAdd,
+		"host.remove": ResponseHostRemove,
+		"host.update": ResponseHostUpdate,
+		"connect":     ResponseConnect,
+		"whoami":      ResponseWhoAmI,
+		"publicKey":   ResponseUpdatePublicKey,
+	}
+
+	// this is for commands thru native ssh client
+	CommandForNotAdmin = map[string]bool{
+		"whoami":    true,
+		"publicKey": true,
 	}
 }

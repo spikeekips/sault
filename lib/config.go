@@ -33,12 +33,18 @@ var availableRegistryType = []string{
 	"file",
 }
 
+var DefaultServerName = "sault"
+var DefaultServerPort = 2222
+var DefaultServerBind = fmt.Sprintf(":%d", DefaultServerPort)
+
 type ConfigServer struct {
 	Bind                  string
 	HostKeyPath           string
 	hostKeySigner         saultSsh.Signer
 	GlobalClientKeyPath   string
 	globalClientKeySigner saultSsh.Signer
+	ServerName            string
+	AllowUserCanUpdate    bool
 }
 
 type ConfigLog struct {
@@ -84,6 +90,8 @@ type Config struct {
 
 func LoadConfig(args map[string]interface{}) (*Config, error) {
 	config := NewConfig()
+	config.baseDirectory, _ = filepath.Abs("./")
+	config.setDefault()
 
 	var configFile string
 	for _, configFile = range args["Configs"].([]string) {
@@ -99,8 +107,6 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 		if _, err := LoadConfigFromFile(configFile, config); err != nil {
 			return nil, err
 		}
-		bw := bytes.NewBuffer([]byte{})
-		toml.NewEncoder(bw).Encode(config)
 	}
 
 	config.baseDirectory, _ = filepath.Abs(args["BaseDirectory"].(string))
@@ -115,7 +121,7 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 		config.Log.Output = args["LogOutput"].(string)
 	}
 
-	config.setDefault()
+	config.fillEmpty()
 
 	log.Debugf(`loaded config:
 --------------------------------------------------------------------------------
@@ -126,25 +132,37 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 }
 
 func (c *Config) setDefault() {
+	c.Server.Bind = DefaultServerBind
+	c.Server.ServerName = DefaultServerName
+	c.Server.AllowUserCanUpdate = true
+
+	c.Log.Level = DefaultLogLevel
+	c.Log.Output = DefaultLogOutput
+	c.Log.Format = DefaultLogFormat
+}
+
+func (c *Config) fillEmpty() {
 	if c.Server.Bind == "" {
-		c.Server.Bind = ":2222"
+		c.Server.Bind = DefaultServerBind
+	}
+	if c.Server.ServerName == "" {
+		c.Server.ServerName = DefaultServerName
 	}
 	if c.Server.HostKeyPath == "" {
 		c.Server.HostKeyPath = BaseJoin(c.baseDirectory, "./host.key")
 	}
-
 	if c.Server.GlobalClientKeyPath == "" {
 		c.Server.GlobalClientKeyPath = BaseJoin(c.baseDirectory, "./client.key")
 	}
 
 	if c.Log.Level == "" {
-		c.Log.Level = "info"
+		c.Log.Level = DefaultLogLevel
 	}
 	if c.Log.Output == "" {
-		c.Log.Output = "stdout"
+		c.Log.Output = DefaultLogOutput
 	}
 	if c.Log.Format == "" {
-		c.Log.Format = "text"
+		c.Log.Format = DefaultLogFormat
 	}
 
 	if c.Registry.Type == "file" && c.Registry.Source.File.Path == "" {

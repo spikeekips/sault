@@ -81,6 +81,78 @@ func TestParseLogOutput(t *testing.T) {
 	}
 }
 
+func TestParseHostAccount(t *testing.T) {
+	{
+		a := ""
+		_, _, err := ParseHostAccount(a)
+		if err == nil {
+			t.Errorf("empty string must have error")
+		}
+	}
+	{
+		userName := "dir"
+		hostName := "sault"
+		a := fmt.Sprintf("%s@%s", userName, hostName)
+		pUserName, pHostName, err := ParseHostAccount(a)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if userName != pUserName {
+			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+		}
+		if hostName != pHostName {
+			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+		}
+	}
+	{
+		hostName := "sault"
+		pUserName, pHostName, err := ParseHostAccount(hostName)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if pUserName != "" {
+			t.Errorf("userName must be empty")
+		}
+		if hostName != pHostName {
+			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+		}
+	}
+	{
+		userName := "dir@dir"
+		hostName := "sault"
+		a := fmt.Sprintf("%s@%s", userName, hostName)
+		pUserName, pHostName, err := ParseHostAccount(a)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if userName != pUserName {
+			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+		}
+		if hostName != pHostName {
+			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+		}
+	}
+	{
+		userName := "dir"
+		hostName := "sault:22"
+		a := fmt.Sprintf("%s@%s", userName, hostName)
+		pUserName, pHostName, err := ParseHostAccount(a)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if userName != pUserName {
+			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+		}
+		if hostName != pHostName {
+			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+		}
+	}
+}
+
 func TestParseAccountName(t *testing.T) {
 	{
 		a := ""
@@ -128,6 +200,104 @@ func TestParseAccountName(t *testing.T) {
 		}
 		if hostName != h {
 			t.Errorf("hostName != h, `%s` != `%s`", hostName, h)
+		}
+	}
+}
+
+func TestCheckUserName(t *testing.T) {
+	{
+		a := "this-is-new"
+		if !CheckUserName(a) {
+			t.Errorf("must be valid: %s", a)
+		}
+	}
+	{
+		a := "this-is@new"
+		if CheckUserName(a) {
+			t.Errorf("must be invalid: %s", a)
+		}
+	}
+	{
+		a := "this-is+new"
+		if CheckUserName(a) {
+			t.Errorf("must be invalid: %s", a)
+		}
+	}
+	{
+		a := "123this-is-new"
+		if !CheckUserName(a) {
+			t.Errorf("must be valid: %s", a)
+		}
+	}
+	{
+		a := "123this-$is-new"
+		if CheckUserName(a) {
+			t.Errorf("must be invalid: %s", a)
+		}
+	}
+	{
+		a := "123this-_is-new"
+		if !CheckUserName(a) {
+			t.Errorf("must be valid: %s", a)
+		}
+	}
+	{
+		a := "우리나라"
+		if CheckUserName(a) {
+			t.Errorf("must be invalid: %s", a)
+		}
+	}
+	{
+		a := "!findme"
+		if CheckUserName(a) {
+			t.Errorf("must be invalid: %s", a)
+		}
+	}
+}
+
+func TestSplitHostPort(t *testing.T) {
+	{
+		host := "localhost"
+
+		var port uint64
+		port = 90
+		pHost, pPort, err := SplitHostPort(fmt.Sprintf("%s:%d", host, port), 80)
+		if err != nil {
+			t.Errorf("failed: %v", err)
+		}
+
+		if host != pHost {
+			t.Errorf("host != pHost, `%s` != `%s`", host, pHost)
+		}
+		if port != pPort {
+			t.Errorf("port != pPort, `%s` != `%s`", port, pPort)
+		}
+	}
+	{
+		host := "localhost"
+
+		var port uint64
+		port = 90
+		pHost, pPort, err := SplitHostPort(host, port)
+		if err != nil {
+			t.Errorf("failed: %v", err)
+		}
+
+		if host != pHost {
+			t.Errorf("host != pHost, `%s` != `%s`", host, pHost)
+		}
+		if port != pPort {
+			t.Errorf("port != pPort, `%s` != `%s`", port, pPort)
+		}
+	}
+	{
+		host := "localhost:"
+
+		var port uint64
+		port = 90
+		_, _, err := SplitHostPort(host, port)
+		if err == nil {
+			t.Error("must be failed")
 		}
 	}
 }

@@ -2,20 +2,30 @@ package sault
 
 import (
 	"bytes"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
 	"github.com/nu7hatch/gouuid"
 	"github.com/spikeekips/sault/ssh"
 )
@@ -36,6 +46,26 @@ func GetPrivateKeySignerFromString(s string) (saultSsh.Signer, error) {
 	}
 
 	return signer, nil
+}
+
+/* from https://github.com/golang/go/issues/12292#issuecomment-255588529 */
+func FingerprintMD5(key saultSsh.PublicKey) string {
+	hash := md5.Sum(key.Marshal())
+	out := ""
+	for i := 0; i < 16; i++ {
+		if i > 0 {
+			out += ":"
+		}
+		out += fmt.Sprintf("%02x", hash[i])
+	}
+	return out
+}
+
+/* from https://github.com/golang/go/issues/12292#issuecomment-255588529 */
+func FingerprintSHA256(key saultSsh.PublicKey) string {
+	hash := sha256.Sum256(key.Marshal())
+	b64hash := base64.StdEncoding.EncodeToString(hash[:])
+	return strings.TrimRight(b64hash, "=")
 }
 
 func ParseLogLevel(v string) (log.Level, error) {
@@ -81,10 +111,38 @@ func ParsePublicKeyFromString(s string) (saultSsh.PublicKey, error) {
 
 	key, err := base64.StdEncoding.DecodeString(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid ssh publicKey: %v", err)
 	}
 
 	return saultSsh.ParsePublicKey([]byte(key))
+}
+
+func ParseHostAccount(s string) (userName, hostName string, err error) {
+	s = strings.TrimSpace(s)
+	if len(s) < 1 {
+		err = errors.New("empty string")
+		return
+	}
+
+	n := StringFilter(
+		strings.Split(s, "@"),
+		func(n string) bool {
+			return len(strings.TrimSpace(n)) > 0
+		},
+	)
+	if len(n) < 1 {
+		err = errors.New("empty string")
+		return
+	}
+	if len(n) == 1 {
+		hostName = n[0]
+		return
+	}
+
+	userName = strings.Join(n[:len(n)-1], "@")
+	hostName = n[len(n)-1]
+
+	return
 }
 
 func ParseAccountName(s string) (userName, hostName string, err error) {
@@ -208,4 +266,94 @@ func MakeFirstLowerCase(s string) string {
 	rest := bts[1:]
 
 	return string(bytes.Join([][]byte{lc, rest}, nil))
+}
+
+type TermSize struct {
+	Row    uint16
+	Col    uint16
+	Xpixel uint16
+	Ypixel uint16
+}
+
+func GetTermSize() (*TermSize, error) {
+	ts := &TermSize{}
+	retCode, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+		uintptr(syscall.Stdin),
+		uintptr(syscall.TIOCGWINSZ),
+		uintptr(unsafe.Pointer(ts)))
+
+	if int(retCode) == -1 {
+		return nil, fmt.Errorf("unable to get term size: %v", errno)
+	}
+
+	return ts, nil
+}
+
+func CheckUserName(s string) bool {
+	if len(s) > 32 { // see `man useradd`
+		return false
+	}
+
+	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
+}
+
+func CheckHostName(s string) bool {
+	if len(s) > 64 { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
+		return false
+	}
+
+	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
+}
+
+var CommonTempalteFMap template.FuncMap
+
+func FormatResponse(t string, values map[string]interface{}) string {
+	tmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(t)
+
+	values["line"] = strings.Repeat("-", int(CurrentTermSize.Col))
+
+	bw := bytes.NewBuffer([]byte{})
+	tmpl.Execute(bw, values)
+
+	return strings.TrimSpace(bw.String())
+}
+
+func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err error) {
+	port = defaultPort
+	if !regexp.MustCompile(`\:[1-9][0-9]+$`).MatchString(s) {
+		s = fmt.Sprintf("%s:%d", s, defaultPort)
+	}
+
+	var portString string
+	host, portString, err = net.SplitHostPort(s)
+	if err != nil {
+		return
+	}
+
+	port, err = strconv.ParseUint(portString, 10, 32)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+var CurrentTermSize TermSize
+
+func init() {
+	CommonTempalteFMap = template.FuncMap{
+		"red":     color.New(color.FgRed).SprintFunc(),
+		"green":   color.New(color.FgGreen).SprintFunc(),
+		"yellow":  color.New(color.FgYellow).SprintFunc(),
+		"blue":    color.New(color.FgBlue).SprintFunc(),
+		"magenta": color.New(color.FgMagenta).SprintFunc(),
+		"cyan":    color.New(color.FgCyan).SprintFunc(),
+		"escape": func(s string) template.HTML {
+			return template.HTML(s)
+		},
+	}
+
+	termSize, _ := GetTermSize()
+	CurrentTermSize = *termSize
+
 }

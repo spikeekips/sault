@@ -120,7 +120,9 @@ global_client_key_path = "./client.key"
   "Server": {
     "Bind": ":2222",
     "HostKeyPath": "./host.key",
-    "GlobalClientKeyPath": "./client.key"
+    "GlobalClientKeyPath": "./client.key",
+    "ServerName": "sault",
+    "AllowUserCanUpdate": true
   },
   "Log": {
     "Format": "text",
