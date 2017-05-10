@@ -52,15 +52,18 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 
 	var insideSault bool
 	var userData UserRegistryData
-	var hostData HostRegistryData
-	if hostName == pc.proxy.Config.Server.ServerName {
+
+	{
 		var err error
 		userData, err = pc.proxy.Registry.GetActiveUserByPublicKey(key)
 		if err != nil {
 			requestLog.Debugf("trying to access as inside-sault mode, but failed: %v", err)
 			return nil, errors.New("authentication failed*")
 		}
+	}
 
+	var hostData HostRegistryData
+	if hostName == pc.proxy.Config.Server.ServerName {
 		hostData = HostRegistryData{Host: pc.proxy.Config.Server.ServerName}
 		/*
 			if !userData.IsAdmin {
@@ -72,14 +75,17 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		insideSault = true
 	} else {
 		var err error
-		userData, hostData, err = pc.proxy.Registry.GetConnectedByPublicKeyAndHostName(
-			key,
-			hostName,
-			manualAccountName,
-		)
+		hostData, err = pc.proxy.Registry.GetActiveHostByHostName(hostName)
 		if err != nil {
 			requestLog.Errorf("failed to authenticate: %v", err)
 			return nil, errors.New("authentication failed")
+		}
+
+		if !userData.IsAdmin {
+			if !pc.proxy.Registry.IsConnected(hostData.Host, userData.User, manualAccountName) {
+				requestLog.Errorf("host, `%v` and user, `%v` is not connected", hostData, userData)
+				return nil, errors.New("authentication failed")
+			}
 		}
 	}
 

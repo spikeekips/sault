@@ -60,29 +60,25 @@ func (f *FlagAccounts) Set(v string) error {
 	return nil
 }
 
-var HostAddOptionsTemplate OptionsTemplate
-
-func init() {
-	HostAddOptionsTemplate = OptionsTemplate{
-		Name:  "add",
-		Help:  "add new host",
-		Usage: "[flags] <hostName> <default account>@<address:port>",
-		Options: []OptionTemplate{
-			AtOptionTemplate,
-			POptionTemplate,
-			OptionTemplate{
-				Name:      "Accounts",
-				Help:      "available accounts of host",
-				ValueType: &struct{ Type FlagAccounts }{FlagAccounts{}},
-			},
-			OptionTemplate{
-				Name:      "ClientPrivateKey",
-				Help:      "private key file to connect host",
-				ValueType: &struct{ Type FlagClientPrivateKey }{FlagClientPrivateKey{}},
-			},
+var HostAddOptionsTemplate = OptionsTemplate{
+	Name:  "add",
+	Help:  "add new host",
+	Usage: "[flags] <hostName> <default account>@<address:port>",
+	Options: []OptionTemplate{
+		AtOptionTemplate,
+		POptionTemplate,
+		OptionTemplate{
+			Name:      "Accounts",
+			Help:      "available accounts of host",
+			ValueType: &struct{ Type FlagAccounts }{FlagAccounts{}},
 		},
-		ParseFunc: ParseHostAddOptions,
-	}
+		OptionTemplate{
+			Name:      "ClientPrivateKey",
+			Help:      "private key file to connect host",
+			ValueType: &struct{ Type FlagClientPrivateKey }{FlagClientPrivateKey{}},
+		},
+	},
+	ParseFunc: ParseHostAddOptions,
 }
 
 func ParseHostAddOptions(op *Options, args []string) error {

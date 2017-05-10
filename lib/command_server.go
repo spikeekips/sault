@@ -9,6 +9,23 @@ import (
 )
 
 var DefaultConfigDir = "./"
+var ServerOptionsTemplate = OptionsTemplate{
+	Name:  "server",
+	Help:  "run sault server",
+	Usage: "[flags]",
+	Options: []OptionTemplate{
+		OptionTemplate{
+			Name:      "ConfigDir",
+			Help:      "This directory contains the configuration files (default is current directory)",
+			ValueType: &struct{ Type FlagConfigDirs }{FlagConfigDirs{}},
+		},
+	},
+	ParseFunc: ParseServerOptions,
+}
+
+func init() {
+	DefaultConfigDir, _ = filepath.Abs(filepath.Clean(DefaultConfigDir))
+}
 
 type FlagConfigDirs []string
 
@@ -35,27 +52,6 @@ func (f *FlagConfigDirs) Set(v string) error {
 	*f = append(*f, absed)
 
 	return nil
-}
-
-var ServerOptionsTemplate OptionsTemplate
-
-func init() {
-	DefaultConfigDir, _ = filepath.Abs(filepath.Clean(DefaultConfigDir))
-
-	ServerOptionsTemplate = OptionsTemplate{
-		Name:  "server",
-		Help:  "run sault server",
-		Usage: "[flags]",
-		Options: []OptionTemplate{
-			OptionTemplate{
-				Name:      "ConfigDir",
-				Help:      "This directory contains the configuration files (default is current directory)",
-				ValueType: &struct{ Type FlagConfigDirs }{FlagConfigDirs{}},
-			},
-		},
-		ParseFunc: ParseServerOptions,
-	}
-
 }
 
 func ParseServerOptions(op *Options, args []string) error {

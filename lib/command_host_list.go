@@ -12,16 +12,6 @@ import (
 
 var HostListOptionsTemplate OptionsTemplate
 
-func init() {
-	HostListOptionsTemplate = OptionsTemplate{
-		Name:      "list",
-		Help:      "get hosts",
-		Usage:     "[flags]",
-		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-		ParseFunc: ParseHostListOptions,
-	}
-}
-
 func ParseHostListOptions(op *Options, args []string) error {
 	err := ParseBaseCommandOptions(op, args)
 	if err != nil {
@@ -115,6 +105,6 @@ no hosts
 func ResponseHostList(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	channel.Write(ToResponse(pc.proxy.Registry.GetHosts(), nil))
+	channel.Write(ToResponse(pc.proxy.Registry.GetHosts(ActiveFilterAll), nil))
 	return
 }

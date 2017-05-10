@@ -10,16 +10,12 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserAdminOptionsTemplate OptionsTemplate
-
-func init() {
-	UserAdminOptionsTemplate = OptionsTemplate{
-		Name:      "admin",
-		Help:      "make user to be admin or not",
-		Usage:     "[flags] <userName>[-]",
-		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-		ParseFunc: ParseUserAdminOptions,
-	}
+var UserAdminOptionsTemplate = OptionsTemplate{
+	Name:      "admin",
+	Help:      "make user to be admin or not",
+	Usage:     "[flags] <userName>[-]",
+	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+	ParseFunc: ParseUserAdminOptions,
 }
 
 func ParseUserAdminOptions(op *Options, args []string) error {

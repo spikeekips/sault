@@ -10,50 +10,50 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserActiveOptionsTemplate = OptionsTemplate{
+var HostActiveOptionsTemplate = OptionsTemplate{
 	Name: "active",
-	Help: "set user active or not",
+	Help: "set host active or not",
 	Description: `
-The deactivated user will be not allowed to be authenticated. The difference with "user remove" is, the "user remove" will remove user data, but the data of the deactivated user will be kept, so the *deactivating* user will be safer way to manage users.
+The deactivated host will be not allowed to be authenticated. The difference with "host remove" is, the "host remove" will remove host data, but the data of the deactivated host will be kept, so the *deactivating* host will be safer way to manage hosts.
 
 To active "spikeekips",
-$ sault user active spikeekips
+$ sault host active server0
 
 To deactivate "spikeekips",
-$ sault user active spikeekips-
+$ sault host active server0-
 	`,
-	Usage:     "[flags] <userName>[-]",
+	Usage:     "[flags] <hostName>[-]",
 	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserActiveOptions,
+	ParseFunc: ParseHostActiveOptions,
 }
 
-func ParseUserActiveOptions(op *Options, args []string) error {
+func ParseHostActiveOptions(op *Options, args []string) error {
 	err := ParseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
 
 	if len(args) != 1 {
-		return fmt.Errorf("<userName> is missing")
+		return fmt.Errorf("<hostName> is missing")
 	}
 
-	userName := args[0]
+	hostName := args[0]
 
 	var active bool
-	if regexp.MustCompile(`\-$`).FindString(userName) == "" {
+	if regexp.MustCompile(`\-$`).FindString(hostName) == "" {
 		active = true
 	} else {
-		userName = userName[0 : len(userName)-1]
+		hostName = hostName[0 : len(hostName)-1]
 		active = false
 	}
 
-	op.Extra["UserName"] = userName
+	op.Extra["HostName"] = hostName
 	op.Extra["Active"] = active
 
 	return nil
 }
 
-func RequestUserActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func RequestHostActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -66,15 +66,15 @@ func RequestUserActive(options OptionsValues, globalOptions OptionsValues) (exit
 		return
 	}
 
-	userName := ov["UserName"].(string)
+	hostName := ov["HostName"].(string)
 	active := ov["Active"].(bool)
 
 	var output []byte
 	{
 		var err error
 		msg, err := NewCommandMsg(
-			"user.active",
-			UserActiveRequestData{User: userName, Active: active},
+			"host.active",
+			HostActiveRequestData{Host: hostName, Active: active},
 		)
 		if err != nil {
 			log.Errorf("failed to make message: %v", err)
@@ -104,29 +104,32 @@ func RequestUserActive(options OptionsValues, globalOptions OptionsValues) (exit
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+	var hostData HostRegistryData
+	if err := json.Unmarshal(responseMsg.Result, &hostData); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
+	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
 	log.Debugf("unmarshaled data: %v", string(jsoned))
 
-	fmt.Fprintf(os.Stdout, PrintUser(data))
+	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
+	saultServerHostName := ov["SaultServerHostName"].(string)
+
+	fmt.Fprintf(os.Stdout, PrintHost(saultServerHostName, saultServerPort, hostData))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data UserActiveRequestData
+func ResponseHostActive(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
+	var data HostActiveRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to active: %v", data)
-	err = pc.proxy.Registry.SetUserActive(data.User, data.Active)
+	err = pc.proxy.Registry.SetHostActive(data.Host, data.Active)
 	if err != nil {
 		log.Errorf("failed to set active: %v", err)
 
@@ -140,9 +143,9 @@ func ResponseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 		return
 	}
 
-	var userData UserRegistryData
-	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
+	var hostData HostRegistryData
+	hostData, _ = pc.proxy.Registry.GetHostByHostName(data.Host)
 
-	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(ToResponse(hostData, nil))
 	return
 }
