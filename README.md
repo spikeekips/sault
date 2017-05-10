@@ -32,8 +32,8 @@ This is sample configuration file.
 ```
 [server]
 bind = ":2222"
-host_key_path = "/Volumes/Userland/Users/spikeekips/workspace/sault/src/github.com/spikeekips/sault/host.key"
-global_client_key_path = "/Volumes/Userland/Users/spikeekips/workspace/sault/src/github.com/spikeekips/sault/client.key"
+host_key_path = "/Users/spikeekips/workspace/sault/host.key"
+global_client_key_path = "/Users/spikeekips/workspace/sault/client.key"
 
 [log]
 format = "text"
@@ -44,7 +44,7 @@ output = "stdout"
 type = "file"
 
 [registry.source.file]
-path = "/Volumes/Userland/Users/spikeekips/workspace/sault/src/github.com/spikeekips/sault/registry.toml"
+path = "/Users/spikeekips/workspace/sault/registry.toml"
 ```
 
 sault tries to load multiple configuration files from directory, so you can set the directories, which contain the configuration files.
