@@ -20,9 +20,9 @@ type ActiveFilter int
 
 const (
 	_                            = iota
-	ActiveFilterAll ActiveFilter = 1 << (10 * iota)
-	ActiveFilterActive
-	ActiveFilterDeactivated
+	activeFilterAll ActiveFilter = 1 << (10 * iota)
+	activeFilterActive
+	activeFilterDeactivated
 )
 
 type UserRegistryData struct {
@@ -341,16 +341,16 @@ func (r *FileRegistry) SetHostActive(hostName string, active bool) error {
 }
 
 func (r *FileRegistry) GetHosts(f ActiveFilter) (hosts map[string]HostRegistryData) {
-	if f == ActiveFilterAll {
+	if f == activeFilterAll {
 		return r.DataSource.Host
 	}
 
 	hosts = map[string]HostRegistryData{}
 	for _, h := range r.DataSource.Host {
-		if f == ActiveFilterActive && h.Deactivated {
+		if f == activeFilterActive && h.Deactivated {
 			continue
 		}
-		if f == ActiveFilterDeactivated && !h.Deactivated {
+		if f == activeFilterDeactivated && !h.Deactivated {
 			continue
 		}
 		hosts[h.Host] = h
@@ -361,14 +361,14 @@ func (r *FileRegistry) GetHosts(f ActiveFilter) (hosts map[string]HostRegistryDa
 
 func (r *FileRegistry) GetUserCount(f ActiveFilter) (c int) {
 	switch f {
-	case ActiveFilterAll:
+	case activeFilterAll:
 		c = len(r.DataSource.User)
 		return
 	default:
 		for _, u := range r.DataSource.User {
-			if u.Deactivated && f == ActiveFilterDeactivated {
+			if u.Deactivated && f == activeFilterDeactivated {
 				c++
-			} else if !u.Deactivated && f == ActiveFilterActive {
+			} else if !u.Deactivated && f == activeFilterActive {
 				c++
 			}
 		}
@@ -381,14 +381,14 @@ func (r *FileRegistry) GetUsers(f ActiveFilter) (users map[string]UserRegistryDa
 	users = map[string]UserRegistryData{}
 
 	switch f {
-	case ActiveFilterAll:
+	case activeFilterAll:
 		users = r.DataSource.User
 		return
 	default:
 		for userName, u := range r.DataSource.User {
-			if u.Deactivated && f == ActiveFilterDeactivated {
+			if u.Deactivated && f == activeFilterDeactivated {
 				users[userName] = u
-			} else if !u.Deactivated && f == ActiveFilterActive {
+			} else if !u.Deactivated && f == activeFilterActive {
 				users[userName] = u
 			}
 		}
@@ -535,12 +535,12 @@ func (r *FileRegistry) UpdateUserPublicKey(userName, newPublicKey string) (UserR
 	if userData.PublicKey == newPublicKey {
 		return userData, nil
 	}
-	if publicKey, err := ParsePublicKeyFromString(newPublicKey); err != nil {
+	var publicKey saultSsh.PublicKey
+	if publicKey, err = ParsePublicKeyFromString(newPublicKey); err != nil {
 		return UserRegistryData{}, err
-	} else {
-		if another, err := r.GetUserByPublicKey(publicKey); err == nil && another.User != userData.User {
-			return UserRegistryData{}, fmt.Errorf("another user has same publicKey")
-		}
+	}
+	if another, err := r.GetUserByPublicKey(publicKey); err == nil && another.User != userData.User {
+		return UserRegistryData{}, fmt.Errorf("another user has same publicKey")
 	}
 
 	userData.PublicKey = strings.TrimSpace(newPublicKey)
@@ -593,13 +593,13 @@ func (r *FileRegistry) AddHost(
 
 func (r *FileRegistry) GetHostCount(f ActiveFilter) (c int) {
 	switch f {
-	case ActiveFilterAll:
+	case activeFilterAll:
 		c = len(r.DataSource.Host)
 	default:
 		for _, u := range r.DataSource.Host {
-			if u.Deactivated && f == ActiveFilterDeactivated {
+			if u.Deactivated && f == activeFilterDeactivated {
 				c++
-			} else if !u.Deactivated && f == ActiveFilterActive {
+			} else if !u.Deactivated && f == activeFilterActive {
 				c++
 			}
 		}
@@ -887,7 +887,7 @@ func (r *FileRegistry) Connect(hostName, userName string, targetAccounts []strin
 }
 func (r *FileRegistry) Disconnect(hostName, userName string, targetAccounts []string) error {
 	if r.IsConnectedAll(hostName, userName) {
-		return errors.New("currently all account connected, DisconnectAll() first.")
+		return errors.New("currently all account connected, DisconnectAll() first")
 	}
 
 	if _, err := r.GetHostByHostName(hostName); err != nil {
@@ -948,7 +948,7 @@ func (r *FileRegistry) DisconnectAll(hostName, userName string) error {
 
 func (r *FileRegistry) GetConnectedHosts(userName string) map[string][]string {
 	connected := map[string][]string{}
-	for _, hostData := range r.GetHosts(ActiveFilterAll) {
+	for _, hostData := range r.GetHosts(activeFilterAll) {
 		if _, ok := r.DataSource.Connected[hostData.Host]; !ok {
 			continue
 		}

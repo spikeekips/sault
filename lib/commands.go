@@ -13,9 +13,9 @@ import (
 	"github.com/spikeekips/sault/ssh/agent"
 )
 
-var CommandForNotAdmin map[string]bool
-var UserOptionsTemplate OptionsTemplate
-var HostOptionsTemplate OptionsTemplate
+var commandForNotAdmin map[string]bool
+var userOptionsTemplate OptionsTemplate
+var hostOptionsTemplate OptionsTemplate
 var RequestCommands map[string]func(OptionsValues, OptionsValues) int
 var ResponseCommands map[string]func(*proxyConnection, saultSsh.Channel, CommandMsg) (uint32, error)
 var GlobalOptionsTemplate OptionsTemplate
@@ -168,7 +168,7 @@ func handleCommandMsg(
 	log.Debugf("command: `%s`", strings.TrimSpace(msg.Command))
 
 	if !pc.userData.IsAdmin {
-		if allowed, ok := CommandForNotAdmin[msg.Command]; !ok || !allowed {
+		if allowed, ok := commandForNotAdmin[msg.Command]; !ok || !allowed {
 			err = fmt.Errorf("command, `%s` not allowed for not admin user", msg.Command)
 			exitStatus = 1
 
@@ -247,32 +247,32 @@ func runCommand(connection *saultSsh.Client, msg *CommandMsg) (output []byte, ex
 }
 
 func init() {
-	UserOptionsTemplate = OptionsTemplate{
+	userOptionsTemplate = OptionsTemplate{
 		Name:  "user",
 		Help:  "manage users",
 		Usage: "[flags] command",
 		Commands: []OptionsTemplate{
-			UserGetOptionsTemplate,
-			UserListOptionsTemplate,
-			UserAddOptionsTemplate,
-			UserRemoveOptionsTemplate,
-			UserUpdateOptionsTemplate,
-			UserActiveOptionsTemplate,
-			UserAdminOptionsTemplate,
+			userGetOptionsTemplate,
+			userListOptionsTemplate,
+			userAddOptionsTemplate,
+			userRemoveOptionsTemplate,
+			userUpdateOptionsTemplate,
+			userActiveOptionsTemplate,
+			userAdminOptionsTemplate,
 		},
 	}
 
-	HostOptionsTemplate = OptionsTemplate{
+	hostOptionsTemplate = OptionsTemplate{
 		Name:  "host",
 		Help:  "manage hosts",
 		Usage: "[flags] command",
 		Commands: []OptionsTemplate{
-			HostGetOptionsTemplate,
-			HostListOptionsTemplate,
-			HostAddOptionsTemplate,
-			HostRemoveOptionsTemplate,
-			HostUpdateOptionsTemplate,
-			HostActiveOptionsTemplate,
+			hostGetOptionsTemplate,
+			hostListOptionsTemplate,
+			hostAddOptionsTemplate,
+			hostRemoveOptionsTemplate,
+			hostUpdateOptionsTemplate,
+			hostActiveOptionsTemplate,
 		},
 	}
 
@@ -297,11 +297,11 @@ func init() {
 			},
 		},
 		Commands: []OptionsTemplate{
-			ServerOptionsTemplate,
-			UserOptionsTemplate,
-			HostOptionsTemplate,
-			ConnectOptionsTemplate,
-			WhoAmIOptionsTemplate,
+			serverOptionsTemplate,
+			userOptionsTemplate,
+			hostOptionsTemplate,
+			connectOptionsTemplate,
+			whoAmIOptionsTemplate,
 		},
 	}
 
@@ -343,7 +343,7 @@ func init() {
 	}
 
 	// this is for commands thru native ssh client
-	CommandForNotAdmin = map[string]bool{
+	commandForNotAdmin = map[string]bool{
 		"whoami":    true,
 		"publicKey": true,
 	}

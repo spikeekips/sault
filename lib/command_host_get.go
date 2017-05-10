@@ -11,7 +11,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostGetOptionsTemplate = OptionsTemplate{
+var hostGetOptionsTemplate = OptionsTemplate{
 	Name:      "get",
 	Help:      "get host",
 	Usage:     "[flags] <hostName>",

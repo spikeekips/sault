@@ -13,8 +13,8 @@ import (
 type ClientType uint8
 
 const (
-	SAULT_CLIENT ClientType = iota + 1
-	SSH_CLIENT
+	saultClient ClientType = iota + 1
+	sshClient
 )
 
 type proxyConnection struct {
@@ -170,7 +170,7 @@ L:
 
 		var msg CommandMsg
 		if err := saultSsh.Unmarshal(request.Payload[4:], &msg); err == nil {
-			pc.clientType = SAULT_CLIENT
+			pc.clientType = saultClient
 		} else {
 			log.Errorf("got invalid CommandMsg: %v", err)
 
@@ -182,7 +182,7 @@ L:
 				break L
 			}
 
-			pc.clientType = SSH_CLIENT
+			pc.clientType = sshClient
 			log.Errorf("but got execMsg: %v", execMsg)
 			splitedCommand := strings.SplitN(execMsg.Command, " ", 2)
 			msg = CommandMsg{

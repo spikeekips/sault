@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserAddOptionsTemplate = OptionsTemplate{
+var userAddOptionsTemplate = OptionsTemplate{
 	Name:      "add",
 	Help:      "add user",
 	Usage:     "[flags] <userName> <publicKeyFile>",

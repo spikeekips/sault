@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostRemoveOptionsTemplate = OptionsTemplate{
+var hostRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove host",
 	Usage:     "[flags] <hostName>",

@@ -60,7 +60,7 @@ func (f *FlagAccounts) Set(v string) error {
 	return nil
 }
 
-var HostAddOptionsTemplate = OptionsTemplate{
+var hostAddOptionsTemplate = OptionsTemplate{
 	Name:  "add",
 	Help:  "add new host",
 	Usage: "[flags] <hostName> <default account>@<address:port>",

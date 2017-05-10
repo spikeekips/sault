@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostActiveOptionsTemplate = OptionsTemplate{
+var hostActiveOptionsTemplate = OptionsTemplate{
 	Name: "active",
 	Help: "set host active or not",
 	Description: `

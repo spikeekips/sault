@@ -9,7 +9,7 @@ import (
 )
 
 var DefaultConfigDir = "./"
-var ServerOptionsTemplate = OptionsTemplate{
+var serverOptionsTemplate = OptionsTemplate{
 	Name:  "server",
 	Help:  "run sault server",
 	Usage: "[flags]",

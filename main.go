@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	Version    = "0.0"
-	BuildDate  = "0000-00-00T00:00:00+0000"
-	CommitHash = "XXXX"
-	GitBranch  = "XXXX"
+	version    = "0.0"
+	buildDate  = "0000-00-00T00:00:00+0000"
+	commitHash = "XXXX"
+	gitBranch  = "XXXX"
 )
 
 var options *sault.Options
@@ -83,10 +83,10 @@ func main() {
  BuildDate: %s
 CommitHash: %s
  GitBranch: %s`,
-			Version,
-			BuildDate,
-			CommitHash,
-			GitBranch,
+			version,
+			buildDate,
+			commitHash,
+			gitBranch,
 		)
 	}
 

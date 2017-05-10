@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var ConnectOptionsTemplate OptionsTemplate = OptionsTemplate{
+var connectOptionsTemplate = OptionsTemplate{
 	Name:      "connect",
 	Help:      "(dis)connect user and host",
 	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",

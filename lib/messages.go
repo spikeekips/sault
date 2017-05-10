@@ -3,7 +3,7 @@ package sault
 import "encoding/json"
 
 var exitStatusNotAllowed uint32 = 254
-var exitStatusSuccess uint32 = 0
+var exitStatusSuccess uint32
 
 type exitStatusMsg struct {
 	Status uint32

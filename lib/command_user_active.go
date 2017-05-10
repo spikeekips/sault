@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserActiveOptionsTemplate = OptionsTemplate{
+var userActiveOptionsTemplate = OptionsTemplate{
 	Name: "active",
 	Help: "set user active or not",
 	Description: `

@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var WhoAmIOptionsTemplate = OptionsTemplate{
+var whoAmIOptionsTemplate = OptionsTemplate{
 	Name:      "whoami",
 	Help:      "show mine",
 	Usage:     "[flags]",
@@ -83,7 +83,7 @@ func ResponseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg CommandMs
 	log.Debugf("trying to get hosts")
 
 	data := NewUserResponseData(pc.proxy.Registry, pc.userData)
-	if pc.clientType == SAULT_CLIENT {
+	if pc.clientType == saultClient {
 		channel.Write(ToResponse(data, nil))
 		return
 	}

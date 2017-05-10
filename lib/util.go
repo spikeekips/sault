@@ -48,7 +48,7 @@ func GetPrivateKeySignerFromString(s string) (saultSsh.Signer, error) {
 	return signer, nil
 }
 
-/* from https://github.com/golang/go/issues/12292#issuecomment-255588529 */
+// FingerprintMD5 from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
 func FingerprintMD5(key saultSsh.PublicKey) string {
 	hash := md5.Sum(key.Marshal())
 	out := ""
@@ -61,7 +61,7 @@ func FingerprintMD5(key saultSsh.PublicKey) string {
 	return out
 }
 
-/* from https://github.com/golang/go/issues/12292#issuecomment-255588529 */
+// FingerprintSHA256 from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
 func FingerprintSHA256(key saultSsh.PublicKey) string {
 	hash := sha256.Sum256(key.Marshal())
 	b64hash := base64.StdEncoding.EncodeToString(hash[:])

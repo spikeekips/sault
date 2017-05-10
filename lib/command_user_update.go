@@ -11,7 +11,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserUpdateOptionsTemplate = OptionsTemplate{
+var userUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update user",
 	Usage:     "[flags] <userName> [userName <new userName>] [publicKey <publicKeyFile>]",

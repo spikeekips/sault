@@ -11,7 +11,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserGetOptionsTemplate = OptionsTemplate{
+var userGetOptionsTemplate = OptionsTemplate{
 	Name:  "get",
 	Help:  "get user",
 	Usage: "[flags] <userName>",

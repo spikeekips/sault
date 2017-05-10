@@ -13,7 +13,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostUpdateOptionsTemplate = OptionsTemplate{
+var hostUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update host",
 	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",

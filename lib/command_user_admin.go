@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserAdminOptionsTemplate = OptionsTemplate{
+var userAdminOptionsTemplate = OptionsTemplate{
 	Name:      "admin",
 	Help:      "make user to be admin or not",
 	Usage:     "[flags] <userName>[-]",

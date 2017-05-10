@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserListOptionsTemplate = OptionsTemplate{
+var userListOptionsTemplate = OptionsTemplate{
 	Name:      "list",
 	Help:      "list users",
 	Usage:     "[flags]",
@@ -91,7 +91,7 @@ found {{ len .users }} users{{ else }}no users{{ end }}
 
 func ResponseUserList(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
 	var data []UserResponseData
-	for _, u := range pc.proxy.Registry.GetUsers(ActiveFilterAll) {
+	for _, u := range pc.proxy.Registry.GetUsers(activeFilterAll) {
 		data = append(data, NewUserResponseData(pc.proxy.Registry, u))
 	}
 

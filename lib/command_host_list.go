@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostListOptionsTemplate = OptionsTemplate{
+var hostListOptionsTemplate = OptionsTemplate{
 	Name:      "list",
 	Help:      "get hosts",
 	Usage:     "[flags]",
@@ -111,6 +111,6 @@ no hosts
 func ResponseHostList(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	channel.Write(ToResponse(pc.proxy.Registry.GetHosts(ActiveFilterAll), nil))
+	channel.Write(ToResponse(pc.proxy.Registry.GetHosts(activeFilterAll), nil))
 	return
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserRemoveOptionsTemplate = OptionsTemplate{
+var userRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove user",
 	Usage:     "[flags] <userName>",

@@ -116,18 +116,18 @@ func TestRegistryRemoveUser(t *testing.T) {
 
 	{
 		registry.AddUser(userName, generatePublicKey())
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 1 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.AddUser(userName+"1", generatePublicKey())
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 2 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 2 {
 			t.Errorf("wrong user count, %d", userCount, err)
 		}
 	}
 
 	{
 		registry.RemoveUser(userName + "1")
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 1 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.GetUserByUserName(userName + "1")
@@ -138,7 +138,7 @@ func TestRegistryRemoveUser(t *testing.T) {
 
 	{
 		registry.RemoveUser(userName)
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 0 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 0 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.GetUserByUserName(userName)
@@ -155,11 +155,11 @@ func TestRegistrySetAdmin(t *testing.T) {
 
 	{
 		registry.AddUser(userName, generatePublicKey())
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 1 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 1 {
 			t.Errorf("wrong user count, %d", userCount)
 		}
 		_, err := registry.AddUser(userName+"1", generatePublicKey())
-		if userCount := registry.GetUserCount(ActiveFilterAll); userCount != 2 {
+		if userCount := registry.GetUserCount(activeFilterAll); userCount != 2 {
 			t.Errorf("wrong user count, %d", userCount, err)
 		}
 	}
@@ -223,8 +223,8 @@ func TestRegistryAddHost(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if hostCount := registry.GetHostCount(ActiveFilterAll); hostCount != 1 {
-		t.Errorf("r.GetHostCount(ActiveFilterAll) mismatch: `%v` != `%v`", hostCount, 1)
+	if hostCount := registry.GetHostCount(activeFilterAll); hostCount != 1 {
+		t.Errorf("r.GetHostCount(activeFilterAll) mismatch: `%v` != `%v`", hostCount, 1)
 	}
 }
 
@@ -322,7 +322,7 @@ func TestRegistryHostDataInvalidClientPrivateKey(t *testing.T) {
 		t.Error("hostData.ClientPrivateKey was set, but <nil>")
 	}
 
-	latestHostCount := registry.GetHostCount(ActiveFilterAll)
+	latestHostCount := registry.GetHostCount(activeFilterAll)
 
 	// invalid ClientPrivateKey
 	hostName = "server1"
@@ -347,7 +347,7 @@ mcDVxXw9zpsWq/Xxs84OoArVL2mZj6wSnDyGjHCBpQiWRlFJ/j0soGmgLb3cZxGa
 	if err == nil {
 		t.Errorf("with invalid ClientPrivateKey, must be failed to AddHost")
 	}
-	if hostCount := registry.GetHostCount(ActiveFilterAll); hostCount != latestHostCount {
+	if hostCount := registry.GetHostCount(activeFilterAll); hostCount != latestHostCount {
 		t.Errorf("wrong hostCount, `%v`", hostCount)
 	}
 }
@@ -370,7 +370,7 @@ func TestRegistryRemoveHost(t *testing.T) {
 		[]string{},
 	)
 
-	latestHostCount := registry.GetHostCount(ActiveFilterAll)
+	latestHostCount := registry.GetHostCount(activeFilterAll)
 
 	_, _ = registry.AddHost(
 		hostName+"1",
@@ -380,8 +380,8 @@ func TestRegistryRemoveHost(t *testing.T) {
 		clientPrivateKey,
 		[]string{},
 	)
-	if registry.GetHostCount(ActiveFilterAll) != latestHostCount+1 {
-		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(ActiveFilterAll), latestHostCount+1)
+	if registry.GetHostCount(activeFilterAll) != latestHostCount+1 {
+		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(activeFilterAll), latestHostCount+1)
 	}
 
 	err := registry.RemoveHost(hostName)
@@ -394,8 +394,8 @@ func TestRegistryRemoveHost(t *testing.T) {
 		t.Errorf("host was not removed")
 	}
 
-	if registry.GetHostCount(ActiveFilterAll) != latestHostCount {
-		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(ActiveFilterAll), latestHostCount)
+	if registry.GetHostCount(activeFilterAll) != latestHostCount {
+		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(activeFilterAll), latestHostCount)
 	}
 }
 
@@ -729,30 +729,30 @@ func TestRegistryActiveUser(t *testing.T) {
 	users := makeUsers(registry, 3)
 
 	{
-		c := registry.GetUserCount(ActiveFilterAll)
+		c := registry.GetUserCount(activeFilterAll)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterAll) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUserCount(ActiveFilterActive)
+		c := registry.GetUserCount(activeFilterActive)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterActive) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterActive) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUserCount(ActiveFilterDeactivated)
+		c := registry.GetUserCount(activeFilterDeactivated)
 		if c != 0 {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterDeactivated) != 0; `%d` != `0`",
+				"registry.GetUserCount(activeFilterDeactivated) != 0; `%d` != `0`",
 				c,
 			)
 		}
@@ -761,30 +761,30 @@ func TestRegistryActiveUser(t *testing.T) {
 	registry.SetUserActive(users[0].User, false)
 
 	{
-		c := registry.GetUserCount(ActiveFilterAll)
+		c := registry.GetUserCount(activeFilterAll)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterAll) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUserCount(ActiveFilterActive)
+		c := registry.GetUserCount(activeFilterActive)
 		if c != len(users)-1 {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterActive) != len(users) -1 ; `%d` != `%d`",
+				"registry.GetUserCount(activeFilterActive) != len(users) -1 ; `%d` != `%d`",
 				c,
 				len(users)-1,
 			)
 		}
 	}
 	{
-		c := registry.GetUserCount(ActiveFilterDeactivated)
+		c := registry.GetUserCount(activeFilterDeactivated)
 		if c != 1 {
 			t.Errorf(
-				"registry.GetUserCount(ActiveFilterDeactivated) != 1; `%d` != `1`",
+				"registry.GetUserCount(activeFilterDeactivated) != 1; `%d` != `1`",
 				c,
 			)
 		}
@@ -797,30 +797,30 @@ func TestRegistryGetUsers(t *testing.T) {
 	users := makeUsers(registry, 3)
 
 	{
-		c := registry.GetUsers(ActiveFilterAll)
+		c := registry.GetUsers(activeFilterAll)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterAll) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUsers(ActiveFilterActive)
+		c := registry.GetUsers(activeFilterActive)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterActive) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterActive) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUsers(ActiveFilterDeactivated)
+		c := registry.GetUsers(activeFilterDeactivated)
 		if len(c) != 0 {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterDeactivated) != 0; `%d` != `0`",
+				"registry.GetUsers(activeFilterDeactivated) != 0; `%d` != `0`",
 				c,
 			)
 		}
@@ -829,30 +829,30 @@ func TestRegistryGetUsers(t *testing.T) {
 	registry.SetUserActive(users[0].User, false)
 
 	{
-		c := registry.GetUsers(ActiveFilterAll)
+		c := registry.GetUsers(activeFilterAll)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterAll) != len(users); `%d` != `%d`",
 				c,
 				len(users),
 			)
 		}
 	}
 	{
-		c := registry.GetUsers(ActiveFilterActive)
+		c := registry.GetUsers(activeFilterActive)
 		if len(c) != len(users)-1 {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterActive) != len(users) -1 ; `%d` != `%d`",
+				"registry.GetUsers(activeFilterActive) != len(users) -1 ; `%d` != `%d`",
 				c,
 				len(users)-1,
 			)
 		}
 	}
 	{
-		c := registry.GetUsers(ActiveFilterDeactivated)
+		c := registry.GetUsers(activeFilterDeactivated)
 		if len(c) != 1 {
 			t.Errorf(
-				"registry.GetUsers(ActiveFilterDeactivated) != 1; `%d` != `1`",
+				"registry.GetUsers(activeFilterDeactivated) != 1; `%d` != `1`",
 				c,
 			)
 		}

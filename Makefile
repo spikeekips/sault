@@ -5,7 +5,7 @@ COMMIT_HASH = `git rev-parse HEAD 2>/dev/null`
 GIT_BRANCH = `git branch | grep '^*' | sed -e 's/^* //g'`
 BUILD_DATE = `date +%FT%T%z`
 
-LDFLAGS = -ldflags "-X main.Version=${VERSION} -X main.CommitHash=${COMMIT_HASH} -X main.BuildDate=${BUILD_DATE} -X main.GitBranch=${GIT_BRANCH}"
+LDFLAGS = -ldflags "-X main.version=${VERSION} -X main.commitHash=${COMMIT_HASH} -X main.buildDate=${BUILD_DATE} -X main.gitBranch=${GIT_BRANCH}"
 
 test:
 	go test ./... -v
