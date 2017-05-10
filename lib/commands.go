@@ -249,7 +249,7 @@ func runCommand(connection *saultSsh.Client, msg *CommandMsg) (output []byte, ex
 func init() {
 	UserOptionsTemplate = OptionsTemplate{
 		Name:  "user",
-		Help:  "manage user",
+		Help:  "manage users",
 		Usage: "[flags] command",
 		Commands: []OptionsTemplate{
 			UserGetOptionsTemplate,
@@ -262,16 +262,9 @@ func init() {
 		},
 	}
 
-	HostListOptionsTemplate = OptionsTemplate{
-		Name:      "list",
-		Help:      "get hosts",
-		Usage:     "[flags]",
-		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-		ParseFunc: ParseHostListOptions,
-	}
 	HostOptionsTemplate = OptionsTemplate{
 		Name:  "host",
-		Help:  "manage host",
+		Help:  "manage hosts",
 		Usage: "[flags] command",
 		Commands: []OptionsTemplate{
 			HostGetOptionsTemplate,
