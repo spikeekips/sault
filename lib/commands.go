@@ -22,6 +22,23 @@ var GlobalOptionsTemplate OptionsTemplate
 var DefaultLogFormat = "text"
 var DefaultLogLevel = "info"
 var DefaultLogOutput = "stdout"
+var AtOptionTemplate OptionTemplate
+var POptionTemplate OptionTemplate
+
+func init() {
+	AtOptionTemplate = OptionTemplate{
+		Name:         "At",
+		DefaultValue: "sault@localhost",
+		Help:         "sault server, sault@<sault server>",
+		ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
+	}
+
+	POptionTemplate = OptionTemplate{
+		Name:         "P",
+		DefaultValue: DefaultServerPort,
+		Help:         "sault server port",
+	}
+}
 
 type FlagLogFormat string
 
@@ -104,19 +121,6 @@ func (f *FlagSaultServer) Set(v string) error {
 	}
 
 	return nil
-}
-
-var AtOptionTemplate = OptionTemplate{
-	Name:         "At",
-	DefaultValue: "sault@localhost",
-	Help:         "sault server, sault@<sault server>",
-	ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
-}
-
-var POptionTemplate = OptionTemplate{
-	Name:         "P",
-	DefaultValue: DefaultServerPort,
-	Help:         "sault server port",
 }
 
 func ParseBaseCommandOptions(op *Options, args []string) error {

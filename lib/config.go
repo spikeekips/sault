@@ -20,7 +20,7 @@ var AvailableLogFormats = [2]string{
 	"text",
 }
 
-var AvailableLogLevel = []string{
+var AvailableLogLevel = [6]string{
 	"debug",
 	"info",
 	"warn",
@@ -29,13 +29,17 @@ var AvailableLogLevel = []string{
 	"quiet",
 }
 
-var availableRegistryType = []string{
+var availableRegistryType = [1]string{
 	"file",
 }
 
 var DefaultServerName = "sault"
 var DefaultServerPort = 2222
-var DefaultServerBind = fmt.Sprintf(":%d", DefaultServerPort)
+var DefaultServerBind string
+
+func init() {
+	DefaultServerBind = fmt.Sprintf(":%d", DefaultServerPort)
+}
 
 type ConfigServer struct {
 	Bind                  string

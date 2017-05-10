@@ -9,12 +9,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserRemoveOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:      "remove",
-	Help:      "remove user",
-	Usage:     "[flags] <userName>",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserRemoveOptions,
+var UserRemoveOptionsTemplate OptionsTemplate
+
+func init() {
+	UserRemoveOptionsTemplate = OptionsTemplate{
+		Name:      "remove",
+		Help:      "remove user",
+		Usage:     "[flags] <userName>",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseUserRemoveOptions,
+	}
 }
 
 func ParseUserRemoveOptions(op *Options, args []string) error {

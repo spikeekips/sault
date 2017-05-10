@@ -10,10 +10,13 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserActiveOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name: "active",
-	Help: "set user active or not",
-	Description: `
+var UserActiveOptionsTemplate OptionsTemplate
+
+func init() {
+	UserActiveOptionsTemplate = OptionsTemplate{
+		Name: "active",
+		Help: "set user active or not",
+		Description: `
 The deactivated user will be not allowed to be authenticated. The difference with "user remove" is, the "user remove" will remove user data, but the data of the deactivated user will be kept, so the *deactivating* user will be safer way to manage user.
 
 To active "spikeekips",
@@ -22,9 +25,10 @@ $ sault user active spikeekips
 To deactivate "spikeekips",
 $ sault user active spikeekips-
 	`,
-	Usage:     "[flags] <userName>[-]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserActiveOptions,
+		Usage:     "[flags] <userName>[-]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseUserActiveOptions,
+	}
 }
 
 func ParseUserActiveOptions(op *Options, args []string) error {

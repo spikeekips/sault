@@ -10,12 +10,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostListOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:      "list",
-	Help:      "get hosts",
-	Usage:     "[flags]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostListOptions,
+var HostListOptionsTemplate OptionsTemplate
+
+func init() {
+	HostListOptionsTemplate = OptionsTemplate{
+		Name:      "list",
+		Help:      "get hosts",
+		Usage:     "[flags]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseHostListOptions,
+	}
 }
 
 func ParseHostListOptions(op *Options, args []string) error {

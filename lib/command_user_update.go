@@ -11,12 +11,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var UserUpdateOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:      "update",
-	Help:      "update user",
-	Usage:     "[flags] <userName> [userName <new userName>] [publicKey <publicKeyFile>]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserUpdateOptions,
+var UserUpdateOptionsTemplate OptionsTemplate
+
+func init() {
+	UserUpdateOptionsTemplate = OptionsTemplate{
+		Name:      "update",
+		Help:      "update user",
+		Usage:     "[flags] <userName> [userName <new userName>] [publicKey <publicKeyFile>]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseUserUpdateOptions,
+	}
 }
 
 func ParseUserUpdateOptions(op *Options, args []string) error {

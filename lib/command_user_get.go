@@ -39,20 +39,24 @@ func (f *FlagPublicKey) Set(v string) error {
 	return nil
 }
 
-var UserGetOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:  "get",
-	Help:  "get user",
-	Usage: "[flags] <userName>",
-	Options: []OptionTemplate{
-		AtOptionTemplate,
-		POptionTemplate,
-		OptionTemplate{
-			Name:      "PublicKey",
-			Help:      "find user by public key; you can find user without userName",
-			ValueType: &struct{ Type FlagPublicKey }{FlagPublicKey("")},
+var UserGetOptionsTemplate OptionsTemplate
+
+func init() {
+	UserGetOptionsTemplate = OptionsTemplate{
+		Name:  "get",
+		Help:  "get user",
+		Usage: "[flags] <userName>",
+		Options: []OptionTemplate{
+			AtOptionTemplate,
+			POptionTemplate,
+			OptionTemplate{
+				Name:      "PublicKey",
+				Help:      "find user by public key; you can find user without userName",
+				ValueType: &struct{ Type FlagPublicKey }{FlagPublicKey("")},
+			},
 		},
-	},
-	ParseFunc: ParseUserGetOptions,
+		ParseFunc: ParseUserGetOptions,
+	}
 }
 
 func ParseUserGetOptions(op *Options, args []string) error {

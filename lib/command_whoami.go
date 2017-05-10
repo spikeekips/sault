@@ -9,12 +9,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var WhoAmIOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:      "whoami",
-	Help:      "show mine",
-	Usage:     "[flags]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseWhoAmIOptions,
+var WhoAmIOptionsTemplate OptionsTemplate
+
+func init() {
+	WhoAmIOptionsTemplate = OptionsTemplate{
+		Name:      "whoami",
+		Help:      "show mine",
+		Usage:     "[flags]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseWhoAmIOptions,
+	}
 }
 
 func ParseWhoAmIOptions(op *Options, args []string) error {

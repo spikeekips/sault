@@ -3,6 +3,9 @@
 // license that can be found in the LICENSE file.
 
 /*
+
+This package was derived from the https://godoc.org/golang.org/x/crypto/ssh and modified for proxy
+
 Package ssh implements an SSH client and server.
 
 SSH is a transport security protocol, an authentication protocol and a

@@ -13,12 +13,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostUpdateOptionsTemplate OptionsTemplate = OptionsTemplate{
-	Name:      "update",
-	Help:      "update host",
-	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostUpdateOptions,
+var HostUpdateOptionsTemplate OptionsTemplate
+
+func init() {
+	HostUpdateOptionsTemplate = OptionsTemplate{
+		Name:      "update",
+		Help:      "update host",
+		Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseHostUpdateOptions,
+	}
 }
 
 func ParseHostUpdateOptions(op *Options, args []string) error {
