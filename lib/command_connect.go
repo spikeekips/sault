@@ -10,16 +10,12 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var ConnectOptionsTemplate OptionsTemplate
-
-func init() {
-	ConnectOptionsTemplate = OptionsTemplate{
-		Name:      "connect",
-		Help:      "(dis)connect user and host",
-		Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
-		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-		ParseFunc: ParseConnectOptions,
-	}
+var ConnectOptionsTemplate OptionsTemplate = OptionsTemplate{
+	Name:      "connect",
+	Help:      "(dis)connect user and host",
+	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
+	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+	ParseFunc: ParseConnectOptions,
 }
 
 func ParseConnectOptions(op *Options, args []string) error {

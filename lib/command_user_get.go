@@ -11,6 +11,22 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
+var UserGetOptionsTemplate = OptionsTemplate{
+	Name:  "get",
+	Help:  "get user",
+	Usage: "[flags] <userName>",
+	Options: []OptionTemplate{
+		AtOptionTemplate,
+		POptionTemplate,
+		OptionTemplate{
+			Name:      "PublicKey",
+			Help:      "find user by public key; you can find user without userName",
+			ValueType: &struct{ Type FlagPublicKey }{FlagPublicKey("")},
+		},
+	},
+	ParseFunc: ParseUserGetOptions,
+}
+
 type FlagPublicKey string
 
 func (f *FlagPublicKey) String() string {
@@ -37,26 +53,6 @@ func (f *FlagPublicKey) Set(v string) error {
 	*f = FlagPublicKey(v)
 
 	return nil
-}
-
-var UserGetOptionsTemplate OptionsTemplate
-
-func init() {
-	UserGetOptionsTemplate = OptionsTemplate{
-		Name:  "get",
-		Help:  "get user",
-		Usage: "[flags] <userName>",
-		Options: []OptionTemplate{
-			AtOptionTemplate,
-			POptionTemplate,
-			OptionTemplate{
-				Name:      "PublicKey",
-				Help:      "find user by public key; you can find user without userName",
-				ValueType: &struct{ Type FlagPublicKey }{FlagPublicKey("")},
-			},
-		},
-		ParseFunc: ParseUserGetOptions,
-	}
 }
 
 func ParseUserGetOptions(op *Options, args []string) error {

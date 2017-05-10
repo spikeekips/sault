@@ -1,4 +1,1 @@
 package sault
-
-func init() {
-}

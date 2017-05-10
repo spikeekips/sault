@@ -16,6 +16,15 @@ import (
 	"github.com/naoina/toml"
 )
 
+type ActiveFilter int
+
+const (
+	_                            = iota
+	ActiveFilterAll ActiveFilter = 1 << (10 * iota)
+	ActiveFilterActive
+	ActiveFilterDeactivated
+)
+
 type UserRegistryData struct {
 	User        string // must be unique
 	PublicKey   string
@@ -90,6 +99,7 @@ type HostRegistryData struct {
 	Address          string
 	Port             uint64
 	ClientPrivateKey Base64ClientPrivateKey
+	Deactivated      bool
 }
 
 func (p HostRegistryData) String() string {
@@ -117,20 +127,17 @@ type Registry interface {
 
 	AddUser(userName, publicKey string) (UserRegistryData, error)
 	RemoveUser(userName string) error
-	GetUserCount(f UserFilter) int
-	GetUsers(f UserFilter) map[string]UserRegistryData
+	GetUserCount(f ActiveFilter) int
+	GetUsers(f ActiveFilter) map[string]UserRegistryData
 	GetUserByUserName(userName string) (UserRegistryData, error)
 	GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
 	GetActiveUserByUserName(userName string) (UserRegistryData, error)
 	GetActiveUserByPublicKey(publicKey saultSsh.PublicKey) (UserRegistryData, error)
 	SetAdmin(userName string, set bool) error
-	IsActive(userName string) (bool, error)
-	SetActive(userName string, active bool) error
+	IsUserActive(userName string) (bool, error)
+	SetUserActive(userName string, active bool) error
 	UpdateUserName(userName, newUserName string) (UserRegistryData, error)
 	UpdateUserPublicKey(userName, publicKey string) (UserRegistryData, error)
-
-	GetHostByHostName(hostName string) (HostRegistryData, error)
-	GetHosts() map[string]HostRegistryData
 
 	AddHost(
 		hostName,
@@ -140,7 +147,12 @@ type Registry interface {
 		clientPrivateKey string,
 		accounts []string,
 	) (HostRegistryData, error)
-	GetHostCount() int
+	GetHostCount(f ActiveFilter) int
+	GetHosts(f ActiveFilter) map[string]HostRegistryData
+	GetHostByHostName(hostName string) (HostRegistryData, error)
+	GetActiveHostByHostName(hostName string) (HostRegistryData, error)
+	IsHostActive(hostName string) (bool, error)
+	SetHostActive(hostName string, active bool) error
 	RemoveHost(hostName string) error
 	UpdateHostName(hostName, newHostName string) (HostRegistryData, error)
 	UpdateHostDefaultAccount(hostName, defaultAccount string) (HostRegistryData, error)
@@ -149,11 +161,6 @@ type Registry interface {
 	UpdateHostPort(hostName string, port uint64) (HostRegistryData, error)
 	UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (HostRegistryData, error)
 
-	GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
-		UserRegistryData,
-		HostRegistryData,
-		error,
-	)
 	Connect(hostName, userName string, targetAccounts []string) error
 	Disconnect(hostName, userName string, targetAccounts []string) error
 	ConnectAll(hostName, userName string) error
@@ -295,76 +302,73 @@ func (r *FileRegistry) GetHostByHostName(hostName string) (HostRegistryData, err
 	return *matchedHostData, nil
 }
 
-func (r *FileRegistry) GetHosts() map[string]HostRegistryData {
-	return r.DataSource.Host
+func (r *FileRegistry) GetActiveHostByHostName(hostName string) (hostData HostRegistryData, err error) {
+	hostData, err = r.GetHostByHostName(hostName)
+	if err != nil {
+		return
+	}
+	if hostData.Deactivated {
+		err = fmt.Errorf("host, `%s`, deactivated", hostData.Host)
+		return
+	}
+
+	return
 }
 
-func (r *FileRegistry) GetConnectedByPublicKeyAndHostName(publicKey saultSsh.PublicKey, hostName, targetAccount string) (
-	UserRegistryData,
-	HostRegistryData,
-	error,
-) {
-	ud, err := r.GetUserByPublicKey(publicKey)
+func (r *FileRegistry) IsHostActive(hostName string) (bool, error) {
+	hostData, err := r.GetHostByHostName(hostName)
 	if err != nil {
-		return UserRegistryData{}, HostRegistryData{}, err
+		return false, err
 	}
-	hd, err := r.GetHostByHostName(hostName)
+
+	return !hostData.Deactivated, nil
+}
+
+func (r *FileRegistry) SetHostActive(hostName string, active bool) error {
+	hostData, err := r.GetHostByHostName(hostName)
 	if err != nil {
-		return UserRegistryData{}, HostRegistryData{}, err
+		return err
 	}
 
-	if ud.IsAdmin {
-		return ud, hd, nil
+	if ok, _ := r.IsHostActive(hostName); ok == active {
+		return nil
 	}
 
-	// check they are connected
-	_, ok := r.DataSource.Connected[hd.Host]
-	if !ok {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("not connected")
-	}
-	uc, ok := r.DataSource.Connected[hd.Host][ud.User]
-	if !ok {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("not connected")
-	}
-	if len(uc.Account) < 1 {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("not connected; no available account")
+	hostData.Deactivated = !active
+	r.DataSource.Host[hostName] = hostData
+
+	return nil
+}
+
+func (r *FileRegistry) GetHosts(f ActiveFilter) (hosts map[string]HostRegistryData) {
+	if f == ActiveFilterAll {
+		return r.DataSource.Host
 	}
 
-	var found bool
-	for _, a := range uc.Account {
-		if a == "*" {
-			found = true
-			break
-		} else if a == targetAccount {
-			found = true
-			break
+	hosts = map[string]HostRegistryData{}
+	for _, h := range r.DataSource.Host {
+		if f == ActiveFilterActive && h.Deactivated {
+			continue
 		}
-	}
-	if !found {
-		return UserRegistryData{}, HostRegistryData{}, fmt.Errorf("target account, `%s` not available", targetAccount)
+		if f == ActiveFilterDeactivated && !h.Deactivated {
+			continue
+		}
+		hosts[h.Host] = h
 	}
 
-	return ud, hd, nil
+	return
 }
 
-type UserFilter int
-
-const (
-	_                        = iota
-	UserFilterAll UserFilter = 1 << (10 * iota)
-	UserFilterActive
-	UserFilterDeactivated
-)
-
-func (r *FileRegistry) GetUserCount(f UserFilter) (c int) {
+func (r *FileRegistry) GetUserCount(f ActiveFilter) (c int) {
 	switch f {
-	case UserFilterAll:
-		return len(r.DataSource.User)
+	case ActiveFilterAll:
+		c = len(r.DataSource.User)
+		return
 	default:
 		for _, u := range r.DataSource.User {
-			if u.Deactivated && f == UserFilterDeactivated {
+			if u.Deactivated && f == ActiveFilterDeactivated {
 				c++
-			} else if !u.Deactivated && f == UserFilterActive {
+			} else if !u.Deactivated && f == ActiveFilterActive {
 				c++
 			}
 		}
@@ -373,18 +377,18 @@ func (r *FileRegistry) GetUserCount(f UserFilter) (c int) {
 	return
 }
 
-func (r *FileRegistry) GetUsers(f UserFilter) (users map[string]UserRegistryData) {
+func (r *FileRegistry) GetUsers(f ActiveFilter) (users map[string]UserRegistryData) {
 	users = map[string]UserRegistryData{}
 
 	switch f {
-	case UserFilterAll:
+	case ActiveFilterAll:
 		users = r.DataSource.User
 		return
 	default:
 		for userName, u := range r.DataSource.User {
-			if u.Deactivated && f == UserFilterDeactivated {
+			if u.Deactivated && f == ActiveFilterDeactivated {
 				users[userName] = u
-			} else if !u.Deactivated && f == UserFilterActive {
+			} else if !u.Deactivated && f == ActiveFilterActive {
 				users[userName] = u
 			}
 		}
@@ -471,7 +475,7 @@ func (r *FileRegistry) SetAdmin(userName string, set bool) error {
 	return nil
 }
 
-func (r *FileRegistry) IsActive(userName string) (bool, error) {
+func (r *FileRegistry) IsUserActive(userName string) (bool, error) {
 	userData, err := r.GetUserByUserName(userName)
 	if err != nil {
 		return false, err
@@ -480,12 +484,12 @@ func (r *FileRegistry) IsActive(userName string) (bool, error) {
 	return !userData.Deactivated, nil
 }
 
-func (r *FileRegistry) SetActive(userName string, active bool) error {
+func (r *FileRegistry) SetUserActive(userName string, active bool) error {
 	userData, err := r.GetUserByUserName(userName)
 	if err != nil {
 		return err
 	}
-	if ok, _ := r.IsActive(userName); ok == active {
+	if ok, _ := r.IsUserActive(userName); ok == active {
 		return nil
 	}
 
@@ -587,8 +591,21 @@ func (r *FileRegistry) AddHost(
 	return hostData, nil
 }
 
-func (r *FileRegistry) GetHostCount() int {
-	return len(r.DataSource.Host)
+func (r *FileRegistry) GetHostCount(f ActiveFilter) (c int) {
+	switch f {
+	case ActiveFilterAll:
+		c = len(r.DataSource.Host)
+	default:
+		for _, u := range r.DataSource.Host {
+			if u.Deactivated && f == ActiveFilterDeactivated {
+				c++
+			} else if !u.Deactivated && f == ActiveFilterActive {
+				c++
+			}
+		}
+	}
+
+	return
 }
 
 func (r *FileRegistry) RemoveHost(hostName string) error {
@@ -931,7 +948,7 @@ func (r *FileRegistry) DisconnectAll(hostName, userName string) error {
 
 func (r *FileRegistry) GetConnectedHosts(userName string) map[string][]string {
 	connected := map[string][]string{}
-	for _, hostData := range r.GetHosts() {
+	for _, hostData := range r.GetHosts(ActiveFilterAll) {
 		if _, ok := r.DataSource.Connected[hostData.Host]; !ok {
 			continue
 		}

@@ -91,6 +91,11 @@ type HostUpdateRequestData struct {
 	NewClientPrivateKey string
 }
 
+type HostActiveRequestData struct {
+	Host   string
+	Active bool
+}
+
 type ConnectRequestData struct {
 	Host          string
 	User          string

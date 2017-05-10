@@ -11,16 +11,12 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var HostGetOptionsTemplate OptionsTemplate
-
-func init() {
-	HostGetOptionsTemplate = OptionsTemplate{
-		Name:      "get",
-		Help:      "get host",
-		Usage:     "[flags] <hostName>",
-		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-		ParseFunc: ParseHostGetOptions,
-	}
+var HostGetOptionsTemplate = OptionsTemplate{
+	Name:      "get",
+	Help:      "get host",
+	Usage:     "[flags] <hostName>",
+	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+	ParseFunc: ParseHostGetOptions,
 }
 
 func ParseHostGetOptions(op *Options, args []string) error {
@@ -135,7 +131,7 @@ func ResponseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 
 func PrintHost(saultServerHostName string, saultServerPort uint64, hostData HostRegistryData) string {
 	result := FormatResponse(`
-{{ "Host:"|green }}             {{ .host.Host | escape | green }}
+{{ "Host:"|green }}             {{ .host.Host | escape | green }} {{ if .host.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 Address:          {{ .host.DefaultAccount }}@{{ .host.Address }}:{{ .host.Port }}
 Accounts:         [ {{ .accounts }} ]
 ClientPrivateKey: {{ $l := len .clientPrivateKey }}{{ if eq $l 0 }}-{{ else }}

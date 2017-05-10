@@ -22,22 +22,17 @@ var GlobalOptionsTemplate OptionsTemplate
 var DefaultLogFormat = "text"
 var DefaultLogLevel = "info"
 var DefaultLogOutput = "stdout"
-var AtOptionTemplate OptionTemplate
-var POptionTemplate OptionTemplate
+var AtOptionTemplate = OptionTemplate{
+	Name:         "At",
+	DefaultValue: "sault@localhost",
+	Help:         "sault server, sault@<sault server>",
+	ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
+}
 
-func init() {
-	AtOptionTemplate = OptionTemplate{
-		Name:         "At",
-		DefaultValue: "sault@localhost",
-		Help:         "sault server, sault@<sault server>",
-		ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
-	}
-
-	POptionTemplate = OptionTemplate{
-		Name:         "P",
-		DefaultValue: DefaultServerPort,
-		Help:         "sault server port",
-	}
+var POptionTemplate = OptionTemplate{
+	Name:         "P",
+	DefaultValue: DefaultServerPort,
+	Help:         "sault server port",
 }
 
 type FlagLogFormat string
@@ -267,6 +262,13 @@ func init() {
 		},
 	}
 
+	HostListOptionsTemplate = OptionsTemplate{
+		Name:      "list",
+		Help:      "get hosts",
+		Usage:     "[flags]",
+		Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
+		ParseFunc: ParseHostListOptions,
+	}
 	HostOptionsTemplate = OptionsTemplate{
 		Name:  "host",
 		Help:  "manage host",
@@ -277,6 +279,7 @@ func init() {
 			HostAddOptionsTemplate,
 			HostRemoveOptionsTemplate,
 			HostUpdateOptionsTemplate,
+			HostActiveOptionsTemplate,
 		},
 	}
 
@@ -323,6 +326,7 @@ func init() {
 		"host.add":    RequestHostAdd,
 		"host.remove": RequestHostRemove,
 		"host.update": RequestHostUpdate,
+		"host.active": RequestHostActive,
 		"connect":     RequestConnect,
 		"whoami":      RequestWhoAmI,
 	}
@@ -339,6 +343,7 @@ func init() {
 		"host.add":    ResponseHostAdd,
 		"host.remove": ResponseHostRemove,
 		"host.update": ResponseHostUpdate,
+		"host.active": ResponseHostActive,
 		"connect":     ResponseConnect,
 		"whoami":      ResponseWhoAmI,
 		"publicKey":   ResponseUpdatePublicKey,
