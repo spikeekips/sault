@@ -1,11 +1,11 @@
 package sault
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // DefaultLogFormatter has detailed time format
-var DefaultLogFormatter = &log.TextFormatter{
+var DefaultLogFormatter = &logrus.TextFormatter{
 	FullTimestamp: true,
 	TimestampFormat:
 	/* time.RFC3339 */

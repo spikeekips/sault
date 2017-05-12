@@ -6,21 +6,21 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 func TestParseLogLevel(t *testing.T) {
 	{
 		level, _ := ParseLogLevel("quiet")
-		if level != log.FatalLevel {
-			t.Errorf("quite level must be log.FatalLevel")
+		if level != logrus.FatalLevel {
+			t.Errorf("quite level must be logrus.FatalLevel")
 		}
 	}
 
 	{
 		level, _ := ParseLogLevel("debug")
-		if level != log.DebugLevel {
-			t.Errorf("quite level must be log.FatalLevel")
+		if level != logrus.DebugLevel {
+			t.Errorf("debug level must be logrus.DebugLevel")
 		}
 	}
 	{

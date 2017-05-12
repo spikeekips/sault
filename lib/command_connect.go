@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
 )
 

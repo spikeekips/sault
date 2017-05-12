@@ -9,8 +9,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // OptionsValues is the values of flag options

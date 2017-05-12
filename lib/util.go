@@ -24,7 +24,7 @@ import (
 	"time"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
 	"github.com/nu7hatch/gouuid"
 	"github.com/spikeekips/sault/ssh"
@@ -72,14 +72,14 @@ func FingerprintSHA256PublicKey(key saultSsh.PublicKey) string {
 }
 
 // ParseLogLevel parses log level string
-func ParseLogLevel(v string) (log.Level, error) {
+func ParseLogLevel(v string) (logrus.Level, error) {
 	if v == "quiet" {
-		return log.FatalLevel, nil
+		return logrus.FatalLevel, nil
 	}
 
-	level, err := log.ParseLevel(v)
+	level, err := logrus.ParseLevel(v)
 	if err != nil {
-		return log.FatalLevel, err
+		return logrus.FatalLevel, err
 	}
 
 	return level, err

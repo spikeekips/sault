@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var defaultConfigDir = "./"
@@ -142,14 +142,14 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 
 		// reset logging
 		logOutput, _ := ParseLogOutput(config.Log.Output, config.Log.Level)
-		log.SetOutput(logOutput)
+		log.Out = logOutput
 		level, _ := ParseLogLevel(config.Log.Level)
-		log.SetLevel(level)
+		log.Level = level
 
 		if config.Log.Format == "json" {
-			log.SetFormatter(&log.JSONFormatter{})
+			log.Formatter = &logrus.JSONFormatter{}
 		} else {
-			log.SetFormatter(DefaultLogFormatter)
+			log.Formatter = DefaultLogFormatter
 		}
 	}
 

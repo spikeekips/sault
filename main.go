@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	sault "github.com/spikeekips/sault/lib"
 )
 
@@ -51,18 +51,18 @@ func init() {
 		string(*globalOptions["LogOutput"].(*sault.FlagLogOutput)),
 		string(*globalOptions["LogLevel"].(*sault.FlagLogLevel)),
 	)
-	log.SetOutput(logOutput)
+	sault.Log.Out = logOutput
 	level, _ := sault.ParseLogLevel(string(*globalOptions["LogLevel"].(*sault.FlagLogLevel)))
-	log.SetLevel(level)
+	sault.Log.Level = level
 
 	if string(*globalOptions["LogFormat"].(*sault.FlagLogFormat)) == "json" {
-		log.SetFormatter(&log.JSONFormatter{})
+		sault.Log.Formatter = &logrus.JSONFormatter{}
 	} else {
-		log.SetFormatter(sault.DefaultLogFormatter)
+		sault.Log.Formatter = sault.DefaultLogFormatter
 	}
 
 	jsoned, _ := json.MarshalIndent(options.Values(true), "", "  ")
-	log.Debugf(`parsed flags:
+	sault.Log.Debugf(`parsed flags:
 --------------------------------------------------------------------------------
 %s
 --------------------------------------------------------------------------------`, string(jsoned))
@@ -70,7 +70,7 @@ func init() {
 
 func main() {
 	command := commandOptions["CommandName"].(string)
-	log.Debugf("got command, `%s`:", command)
+	sault.Log.Debugf("got command, `%s`:", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
 		exitStatus := run(commandOptions, globalOptions)

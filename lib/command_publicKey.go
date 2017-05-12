@@ -3,7 +3,6 @@ package sault
 import (
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
 )
 

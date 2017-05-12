@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 var initOptionsTemplate = OptionsTemplate{

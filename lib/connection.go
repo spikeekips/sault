@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
 )
 
@@ -36,7 +36,7 @@ func (pc *proxyConnection) String() {
 }
 
 func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key saultSsh.PublicKey) (*saultSsh.Permissions, error) {
-	requestLog := log.WithFields(log.Fields{
+	requestLog := log.WithFields(logrus.Fields{
 		"RemoteAddr": conn.RemoteAddr(),
 		"user":       conn.User(),
 		//"key":        FingerprintSHA256(key),
@@ -274,7 +274,7 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 			break
 		}
 
-		requestLog := log.WithFields(log.Fields{})
+		requestLog := log.WithFields(logrus.Fields{})
 		requestLog.Debugf("got request message from %s: %v", requestOrigin, fromChannel)
 		requestLog.Debugf("request.Type: %v", request.Type)
 

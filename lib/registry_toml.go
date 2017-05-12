@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/naoina/toml"
 	"github.com/spikeekips/sault/ssh"
 )

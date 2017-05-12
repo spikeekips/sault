@@ -11,7 +11,6 @@ import (
 
 	"github.com/spikeekips/sault/ssh"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/naoina/toml"
 )
 
