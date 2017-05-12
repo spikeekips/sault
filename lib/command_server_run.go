@@ -10,8 +10,8 @@ import (
 )
 
 var defaultConfigDir = "./"
-var serverOptionsTemplate = OptionsTemplate{
-	Name:  "server",
+var serverRunOptionsTemplate = OptionsTemplate{
+	Name:  "run",
 	Help:  "run sault server",
 	Usage: "[flags]",
 	Options: []OptionTemplate{
@@ -114,13 +114,15 @@ func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
 
 func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	log.Info("Hallå världen...")
+
+	ov := options["Commands"].(OptionsValues)
 	var config *Config
 	{
 		var err error
 
 		flagArgs := map[string]interface{}{
-			"BaseDirectory": options["BaseDirectory"].(string),
-			"Configs":       options["Configs"].([]string),
+			"BaseDirectory": ov["BaseDirectory"].(string),
+			"Configs":       ov["Configs"].([]string),
 			"LogFormat":     string(*globalOptions["LogFormat"].(*FlagLogFormat)),
 			"LogLevel":      string(*globalOptions["LogLevel"].(*FlagLogLevel)),
 			"LogOutput":     string(*globalOptions["LogOutput"].(*FlagLogOutput)),

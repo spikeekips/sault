@@ -126,3 +126,8 @@ func newUserResponseData(registry Registry, userData UserRegistryData) userRespo
 		Connected: registry.GetConnectedHosts(userData.User),
 	}
 }
+
+type clientKeysResponseData struct {
+	PrivateKey string
+	PublicKey  string
+}

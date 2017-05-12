@@ -13,6 +13,7 @@ import (
 )
 
 var commandForNotAdmin map[string]bool
+var serverOptionsTemplate OptionsTemplate
 var userOptionsTemplate OptionsTemplate
 var hostOptionsTemplate OptionsTemplate
 
@@ -254,6 +255,17 @@ func runCommand(connection *saultSsh.Client, msg *commandMsg) (output []byte, ex
 }
 
 func init() {
+	serverOptionsTemplate = OptionsTemplate{
+		Name:  "server",
+		Help:  "sault server",
+		Usage: "[flags] command",
+		Commands: []OptionsTemplate{
+			serverRunOptionsTemplate,
+			showConfigOptionsTemplate,
+			showClientKeysOptionsTemplate,
+		},
+	}
+
 	userOptionsTemplate = OptionsTemplate{
 		Name:  "user",
 		Help:  "manage users",
@@ -314,41 +326,45 @@ func init() {
 	}
 
 	RequestCommands = map[string]func(OptionsValues, OptionsValues) int{
-		"init":        runInit,
-		"server":      runServer,
-		"user.get":    requestUserGet,
-		"user.list":   requestUserList,
-		"user.add":    requestUserAdd,
-		"user.remove": requestUserRemove,
-		"user.active": requestUserActive,
-		"user.admin":  requestUserAdmin,
-		"user.update": requestUserUpdate,
-		"host.get":    requestHostGet,
-		"host.list":   requestHostList,
-		"host.add":    requestHostAdd,
-		"host.remove": requestHostRemove,
-		"host.update": requestHostUpdate,
-		"host.active": requestHostActive,
-		"connect":     requestConnect,
-		"whoami":      requestWhoAmI,
+		"init":              runInit,
+		"server.run":        runServer,
+		"server.config":     requestShowConfig,
+		"server.clientKeys": requestShowClientKeys,
+		"user.get":          requestUserGet,
+		"user.list":         requestUserList,
+		"user.add":          requestUserAdd,
+		"user.remove":       requestUserRemove,
+		"user.active":       requestUserActive,
+		"user.admin":        requestUserAdmin,
+		"user.update":       requestUserUpdate,
+		"host.get":          requestHostGet,
+		"host.list":         requestHostList,
+		"host.add":          requestHostAdd,
+		"host.remove":       requestHostRemove,
+		"host.update":       requestHostUpdate,
+		"host.active":       requestHostActive,
+		"connect":           requestConnect,
+		"whoami":            requestWhoAmI,
 	}
 	responseCommands = map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error){
-		"user.get":    responseUserGet,
-		"user.list":   responseUserList,
-		"user.add":    responseUserAdd,
-		"user.remove": responseUserRemove,
-		"user.active": responseUserActive,
-		"user.admin":  responseUserAdmin,
-		"user.update": responseUserUpdate,
-		"host.get":    responseHostGet,
-		"host.list":   responseHostList,
-		"host.add":    responseHostAdd,
-		"host.remove": responseHostRemove,
-		"host.update": responseHostUpdate,
-		"host.active": responseHostActive,
-		"connect":     responseConnect,
-		"whoami":      responseWhoAmI,
-		"publicKey":   responseUpdatePublicKey,
+		"server.config":     responseShowConfig,
+		"server.clientKeys": responseShowClientKeys,
+		"user.get":          responseUserGet,
+		"user.list":         responseUserList,
+		"user.add":          responseUserAdd,
+		"user.remove":       responseUserRemove,
+		"user.active":       responseUserActive,
+		"user.admin":        responseUserAdmin,
+		"user.update":       responseUserUpdate,
+		"host.get":          responseHostGet,
+		"host.list":         responseHostList,
+		"host.add":          responseHostAdd,
+		"host.remove":       responseHostRemove,
+		"host.update":       responseHostUpdate,
+		"host.active":       responseHostActive,
+		"connect":           responseConnect,
+		"whoami":            responseWhoAmI,
+		"publicKey":         responseUpdatePublicKey,
 	}
 
 	// this is for commands thru native ssh client

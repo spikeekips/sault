@@ -315,8 +315,8 @@ func (c *Config) String() string {
 
 // ToJSON exports configuration to json string
 func (c *Config) ToJSON() string {
-	jsonedConfig, _ := json.MarshalIndent(c, "", "  ")
-	return string(jsonedConfig)
+	jsoned, _ := json.MarshalIndent(c, "", "  ")
+	return string(jsoned)
 }
 
 // Save saves configuration to file as TOML format

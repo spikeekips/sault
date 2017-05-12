@@ -1,6 +1,6 @@
 .DS_Store
 .*.sw?
 .sw?
-tmp
+tmp*
 /*.toml
 /sault
