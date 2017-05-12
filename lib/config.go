@@ -15,12 +15,12 @@ import (
 	"github.com/naoina/toml"
 )
 
-var AvailableLogFormats = [2]string{
+var availableLogFormats = [2]string{
 	"json",
 	"text",
 }
 
-var AvailableLogLevel = [6]string{
+var availableLogLevel = [6]string{
 	"debug",
 	"info",
 	"warn",
@@ -30,18 +30,18 @@ var AvailableLogLevel = [6]string{
 }
 
 var availableRegistryType = [1]string{
-	"file",
+	"toml",
 }
 
-var DefaultServerName = "sault"
-var DefaultServerPort = 2222
-var DefaultServerBind string
+var defaultServerName = "sault"
+var defaultServerPort = 2222
+var defaultServerBind string
 
 func init() {
-	DefaultServerBind = fmt.Sprintf(":%d", DefaultServerPort)
+	defaultServerBind = fmt.Sprintf(":%d", defaultServerPort)
 }
 
-type ConfigServer struct {
+type configServer struct {
 	Bind                  string
 	HostKeyPath           string
 	hostKeySigner         saultSsh.Signer
@@ -51,49 +51,50 @@ type ConfigServer struct {
 	AllowUserCanUpdate    bool
 }
 
-type ConfigLog struct {
+type configLog struct {
 	Format string
 	Level  string
 	Output string // filepath, `stdout`(default), `stderr`
 }
 
-type ConfigSourceRegistry interface {
+type configSourceRegistry interface {
 	GetType() string
 }
 
-type ConfigRegistry struct {
+type configRegistry struct {
 	Type   string
 	Source struct {
-		File ConfigFileRegistry
+		File configTOMLRegistry
 	}
 }
 
-func (c ConfigRegistry) GetSource() (ConfigSourceRegistry, error) {
+func (c configRegistry) GetSource() (configSourceRegistry, error) {
 	switch t := c.Type; t {
-	case "file":
+	case "toml":
 		return c.Source.File, nil
 	default:
 		return nil, fmt.Errorf("invalid source type, `%s`", t)
 	}
 }
 
-type ConfigFileRegistry struct {
+type configTOMLRegistry struct {
 	Path string
 }
 
-func (c ConfigFileRegistry) GetType() string {
-	return "file"
+func (c configTOMLRegistry) GetType() string {
+	return "toml"
 }
 
+// Config contains all available configurations
 type Config struct {
-	Server        ConfigServer
-	Log           ConfigLog
-	Registry      ConfigRegistry
+	Server        configServer
+	Log           configLog
+	Registry      configRegistry
 	baseDirectory string
 }
 
-func LoadConfig(args map[string]interface{}) (*Config, error) {
-	config := NewConfig()
+func loadConfig(args map[string]interface{}) (*Config, error) {
+	config := newConfig()
 	config.baseDirectory, _ = filepath.Abs("./")
 	config.setDefault()
 
@@ -108,7 +109,7 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 			strings.TrimSpace(string(b)),
 		)
 
-		if _, err := LoadConfigFromFile(configFile, config); err != nil {
+		if _, err := loadConfigFromFile(configFile, config); err != nil {
 			return nil, err
 		}
 	}
@@ -136,21 +137,21 @@ func LoadConfig(args map[string]interface{}) (*Config, error) {
 }
 
 func (c *Config) setDefault() {
-	c.Server.Bind = DefaultServerBind
-	c.Server.ServerName = DefaultServerName
+	c.Server.Bind = defaultServerBind
+	c.Server.ServerName = defaultServerName
 	c.Server.AllowUserCanUpdate = true
 
-	c.Log.Level = DefaultLogLevel
-	c.Log.Output = DefaultLogOutput
-	c.Log.Format = DefaultLogFormat
+	c.Log.Level = defaultLogLevel
+	c.Log.Output = defaultLogOutput
+	c.Log.Format = defaultLogFormat
 }
 
 func (c *Config) fillEmpty() {
 	if c.Server.Bind == "" {
-		c.Server.Bind = DefaultServerBind
+		c.Server.Bind = defaultServerBind
 	}
 	if c.Server.ServerName == "" {
-		c.Server.ServerName = DefaultServerName
+		c.Server.ServerName = defaultServerName
 	}
 	if c.Server.HostKeyPath == "" {
 		c.Server.HostKeyPath = BaseJoin(c.baseDirectory, "./host.key")
@@ -160,31 +161,40 @@ func (c *Config) fillEmpty() {
 	}
 
 	if c.Log.Level == "" {
-		c.Log.Level = DefaultLogLevel
+		c.Log.Level = defaultLogLevel
 	}
 	if c.Log.Output == "" {
-		c.Log.Output = DefaultLogOutput
+		c.Log.Output = defaultLogOutput
 	}
 	if c.Log.Format == "" {
-		c.Log.Format = DefaultLogFormat
+		c.Log.Format = defaultLogFormat
 	}
 
-	if c.Registry.Type == "file" && c.Registry.Source.File.Path == "" {
+	if c.Registry.Type == "toml" && c.Registry.Source.File.Path == "" {
 		c.Registry.Source.File.Path = BaseJoin(c.baseDirectory, "./registry.toml")
 	}
 }
 
-func NewConfig() *Config {
+func newConfig() *Config {
 	config := Config{
-		Registry: ConfigRegistry{
-			Type: "file",
+		Registry: configRegistry{
+			Type: "toml",
 		},
 	}
 
 	return &config
 }
 
-func LoadConfigFromFile(filePath string, config *Config) (*Config, error) {
+func newDefaultConfig(basePath string) *Config {
+	config := newConfig()
+	config.baseDirectory = basePath
+	config.setDefault()
+	config.fillEmpty()
+
+	return config
+}
+
+func loadConfigFromFile(filePath string, config *Config) (*Config, error) {
 	if config == nil {
 		config = &Config{}
 	}
@@ -201,7 +211,7 @@ func LoadConfigFromFile(filePath string, config *Config) (*Config, error) {
 	return config, nil
 }
 
-func (c *Config) Validate() error {
+func (c *Config) validate() error {
 	if err := c.validateHostKey(); err != nil {
 		return err
 	}
@@ -222,7 +232,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validateLogFormat() error {
-	for _, f := range AvailableLogFormats {
+	for _, f := range availableLogFormats {
 		if f == c.Log.Format {
 			return nil
 		}
@@ -232,7 +242,7 @@ func (c *Config) validateLogFormat() error {
 }
 
 func (c *Config) validateLogLevel() error {
-	for _, f := range AvailableLogLevel {
+	for _, f := range availableLogLevel {
 		if f == c.Log.Level {
 			return nil
 		}
@@ -280,7 +290,7 @@ func (c *Config) validateRegistry() error {
 		return fmt.Errorf("invalid registry type, `%s`", c.Registry.Type)
 	}
 
-	if c.Registry.Type != "file" {
+	if c.Registry.Type != "toml" {
 		return nil
 	}
 	config := c.Registry.Source.File
@@ -304,7 +314,22 @@ func (c *Config) String() string {
 	return strings.TrimSpace(bw.String())
 }
 
+// ToJSON exports configuration to json string
 func (c *Config) ToJSON() string {
 	jsonedConfig, _ := json.MarshalIndent(c, "", "  ")
 	return string(jsonedConfig)
+}
+
+// Save saves configuration to file as TOML format
+func (c *Config) Save(path string) error {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	f.Write([]byte(c.String()))
+
+	return nil
 }

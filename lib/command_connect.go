@@ -14,12 +14,12 @@ var connectOptionsTemplate = OptionsTemplate{
 	Name:      "connect",
 	Help:      "(dis)connect user and host",
 	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseConnectOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseConnectOptions,
 }
 
-func ParseConnectOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseConnectOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func ParseConnectOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestConnect(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	serverName := options["SaultServerName"].(string)
 	address := options["SaultServerAddress"].(string)
 
@@ -75,9 +75,9 @@ func RequestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"connect",
-			ConnectRequestData{
+			connectRequestData{
 				Host:          options["HostName"].(string),
 				User:          options["UserName"].(string),
 				TargetAccount: options["TargetAccount"].(string),
@@ -98,39 +98,39 @@ func RequestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
+	var data userResponseData
+	if err := json.Unmarshal(rm.Result, &data); err != nil {
+		log.Errorf("failed to unmarshal ResponseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
-	fmt.Fprintf(os.Stdout, PrintUser(data))
+	fmt.Fprintf(os.Stdout, printUser(data))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseConnect(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data ConnectRequestData
+func responseConnect(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data connectRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to connect user and host: %v", data)
@@ -159,19 +159,19 @@ func ResponseConnect(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	if err != nil {
 		log.Errorf("failed to connect: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	var userData UserRegistryData
 	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
-	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
 
 	return
 }

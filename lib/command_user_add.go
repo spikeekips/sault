@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
@@ -14,12 +15,12 @@ var userAddOptionsTemplate = OptionsTemplate{
 	Name:      "add",
 	Help:      "add user",
 	Usage:     "[flags] <userName> <publicKeyFile>",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserAddOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseUserAddOptions,
 }
 
-func ParseUserAddOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseUserAddOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func ParseUserAddOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -69,9 +70,9 @@ func RequestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"user.add",
-			UserAddRequestData{
+			userAddRequestData{
 				User:      userName,
 				PublicKey: publicKeyString,
 			},
@@ -90,47 +91,39 @@ func RequestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+	var data userResponseData
+	if err := json.Unmarshal(rm.Result, &data); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
-	result := FormatResponse(`
-{{ .user | escape }}
-
-new user added`,
-		map[string]interface{}{
-			"user": PrintUser(data),
-		},
-	)
-	fmt.Fprintf(os.Stdout, result)
+	fmt.Fprintf(os.Stdout, printAddedUser(data))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data UserAddRequestData
+func responseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data userAddRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to add new user: %v", data)
@@ -138,16 +131,33 @@ func ResponseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	if err != nil {
 		log.Errorf("failed to add user: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
 	return
+}
+
+func printAddedUser(data userResponseData) string {
+	result, err := ExecuteCommonTemplate(`
+{{ .user | escape }}
+
+new user added`,
+		map[string]interface{}{
+			"user": printUser(data),
+		},
+	)
+	if err != nil {
+		log.Errorf("failed to templating: %v", err)
+		return ""
+	}
+
+	return strings.TrimSpace(result)
 }

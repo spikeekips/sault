@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,12 +14,12 @@ var hostGetOptionsTemplate = OptionsTemplate{
 	Name:      "get",
 	Help:      "get host",
 	Usage:     "[flags] <hostName>",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostGetOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseHostGetOptions,
 }
 
-func ParseHostGetOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostGetOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,7 @@ func ParseHostGetOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestHostGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -58,9 +57,9 @@ func RequestHostGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"host.get",
-			HostGetRequestData{
+			hostGetRequestData{
 				Host: ov["HostName"].(string),
 			},
 		)
@@ -78,42 +77,42 @@ func RequestHostGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var hostData HostRegistryData
-	if err := json.Unmarshal(responseMsg.Result, &hostData); err != nil {
+	var hostData hostRegistryData
+	if err := json.Unmarshal(rm.Result, &hostData); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := ov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, PrintHost(saultServerHostName, saultServerPort, hostData))
+	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data HostGetRequestData
+func responseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data hostGetRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to get host: %v", data)
@@ -121,17 +120,17 @@ func ResponseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	if err != nil {
 		log.Errorf("failed to get host: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(hostData, nil))
+	channel.Write(toResponse(hostData, nil))
 	return
 }
 
-func PrintHost(saultServerHostName string, saultServerPort uint64, hostData HostRegistryData) string {
-	result := FormatResponse(`
-{{ "Host:"|green }}             {{ .host.Host | escape | green }} {{ if .host.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
+func printHost(saultServerHostName string, saultServerPort uint64, hostData hostRegistryData) string {
+	result, err := ExecuteCommonTemplate(`
+{{ "Host:"|green }}             {{ .host.Host | green }} {{ if .host.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 Address:          {{ .host.DefaultAccount }}@{{ .host.Address }}:{{ .host.Port }}
 Accounts:         [ {{ .accounts }} ]
 ClientPrivateKey: {{ $l := len .clientPrivateKey }}{{ if eq $l 0 }}-{{ else }}
@@ -151,9 +150,10 @@ Connect: $ {{ .Connect | escape }}
 			),
 		},
 	)
+	if err != nil {
+		log.Errorf("failed to templating: %v", err)
+		return ""
+	}
 
-	bw := bytes.NewBuffer([]byte{})
-	fmt.Fprintf(bw, result)
-
-	return bw.String()
+	return strings.TrimSpace(result)
 }

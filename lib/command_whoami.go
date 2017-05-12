@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
@@ -13,12 +14,12 @@ var whoAmIOptionsTemplate = OptionsTemplate{
 	Name:      "whoami",
 	Help:      "show mine",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseWhoAmIOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseWhoAmIOptions,
 }
 
-func ParseWhoAmIOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseWhoAmIOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -26,7 +27,7 @@ func ParseWhoAmIOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	address := options["SaultServerAddress"].(string)
 	serverName := options["SaultServerName"].(string)
 
@@ -42,69 +43,74 @@ func RequestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStat
 	{
 		var err error
 		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, &CommandMsg{Command: "whoami"})
+		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "whoami"})
 		if err != nil {
 			log.Error(err)
 			return
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+	var data userResponseData
+	if err := json.Unmarshal(rm.Result, &data); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
-	fmt.Fprintf(os.Stdout, PrintUser(data)+"\n")
+	fmt.Fprintf(os.Stdout, printUser(data)+"\n")
 	exitStatus = 0
 
 	return
 }
 
-func ResponseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
+func responseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	data := NewUserResponseData(pc.proxy.Registry, pc.userData)
+	data := newUserResponseData(pc.proxy.Registry, pc.userData)
 	if pc.clientType == saultClient {
-		channel.Write(ToResponse(data, nil))
+		channel.Write(toResponse(data, nil))
 		return
 	}
 
-	result := PrintUser(data)
+	result := printUser(data)
 	fmt.Fprintf(channel, result+"\n")
 
 	return
 }
 
-func PrintUser(userResponseData UserResponseData) string {
-	return FormatResponse(`
-{{ "User:"|yellow }}      {{ .user.User | escape | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
+func printUser(data userResponseData) string {
+	result, err := ExecuteCommonTemplate(`
+{{ "User:"|yellow }}      {{ .user.User | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 PublicKey: {{ .user.PublicKey | escape }}
 {{ $length := len .connected }}Connected hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
 {{ range $key, $accounts := .connected }}{{ $key | escape }} {{ $accounts }}
 {{ end }}{{ end }}
 `,
 		map[string]interface{}{
-			"user":      userResponseData.UserData,
-			"connected": userResponseData.Connected,
+			"user":      data.UserData,
+			"connected": data.Connected,
 		},
 	)
+	if err != nil {
+		log.Errorf("failed to templating: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(result)
 }

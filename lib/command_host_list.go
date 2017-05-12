@@ -14,12 +14,12 @@ var hostListOptionsTemplate = OptionsTemplate{
 	Name:      "list",
 	Help:      "get hosts",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostListOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseHostListOptions,
 }
 
-func ParseHostListOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostListOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func ParseHostListOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestHostList(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostList(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -44,36 +44,36 @@ func RequestHostList(options OptionsValues, globalOptions OptionsValues) (exitSt
 	{
 		var err error
 		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, &CommandMsg{Command: "host.list"})
+		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "host.list"})
 		if err != nil {
 			log.Error(err)
 			return
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var hostList map[string]HostRegistryData
-	if err := json.Unmarshal(responseMsg.Result, &hostList); err != nil {
+	var hostList map[string]hostRegistryData
+	if err := json.Unmarshal(rm.Result, &hostList); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(hostList, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := ov["SaultServerHostName"].(string)
@@ -82,11 +82,11 @@ func RequestHostList(options OptionsValues, globalOptions OptionsValues) (exitSt
 	for _, hostData := range hostList {
 		hostsPrinted = append(
 			hostsPrinted,
-			PrintHost(saultServerHostName, saultServerPort, hostData),
+			printHost(saultServerHostName, saultServerPort, hostData),
 		)
 	}
 
-	result := FormatResponse(`
+	result, err := ExecuteCommonTemplate(`
 {{ $length := len .hostList }}
 {{ if ne $length 0 }}
 {{ .hostsPrinted | escape }}
@@ -101,16 +101,21 @@ no hosts
 			"hostsPrinted": strings.Join(hostsPrinted, "\n\n"),
 		},
 	)
-	fmt.Fprintf(os.Stdout, result)
+	if err != nil {
+		log.Error(err)
+		exitStatus = 1
+		return
+	}
+	fmt.Fprintf(os.Stdout, strings.TrimSpace(result))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseHostList(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
+func responseHostList(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	channel.Write(ToResponse(pc.proxy.Registry.GetHosts(activeFilterAll), nil))
+	channel.Write(toResponse(pc.proxy.Registry.GetHosts(activeFilterAll), nil))
 	return
 }

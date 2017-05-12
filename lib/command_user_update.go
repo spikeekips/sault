@@ -15,12 +15,12 @@ var userUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update user",
 	Usage:     "[flags] <userName> [userName <new userName>] [publicKey <publicKeyFile>]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserUpdateOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseUserUpdateOptions,
 }
 
-func ParseUserUpdateOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseUserUpdateOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func ParseUserUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -99,9 +99,9 @@ func RequestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"user.update",
-			UserUpdateRequestData{
+			userUpdateRequestData{
 				User:         userName,
 				NewUserName:  newUserName,
 				NewPublicKey: newPublicKeyString,
@@ -121,74 +121,74 @@ func RequestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+	var data userResponseData
+	if err := json.Unmarshal(rm.Result, &data); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
-	fmt.Fprintf(os.Stdout, PrintUser(data))
+	fmt.Fprintf(os.Stdout, printUser(data))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data UserUpdateRequestData
+func responseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data userUpdateRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to update user: %v", data)
 	if !pc.userData.IsAdmin && !pc.proxy.Config.Server.AllowUserCanUpdate {
 		err = fmt.Errorf("not allowed to update publicKey")
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	var userData UserRegistryData
 	if data.NewUserName != "" {
 		if userData, err = pc.proxy.Registry.UpdateUserName(data.User, data.NewUserName); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	if data.NewPublicKey != "" {
 		if _, err = ParsePublicKeyFromString(data.NewPublicKey); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 
 		if userData, err = pc.proxy.Registry.UpdateUserPublicKey(data.User, data.NewPublicKey); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
 	return
 }

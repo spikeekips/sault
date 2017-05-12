@@ -29,45 +29,45 @@ func makeUsers(registry Registry, c int) (users []UserRegistryData) {
 }
 
 func TestNewRegistry(t *testing.T) {
-	sourceType := "file"
+	sourceType := "toml"
 
 	registryToml, _ := ioutil.TempFile("/tmp/", "sault-test")
 	defer os.Remove(registryToml.Name())
 
-	configSource := ConfigFileRegistry{
+	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	_, err := NewRegistry(sourceType, configSource)
+	_, err := NewRegistry(sourceType, configSource, false)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFileRegistry(t *testing.T) {
-	sourceType := "file"
+	sourceType := "toml"
 
 	registryToml, _ := ioutil.TempFile("/tmp/", "sault-test")
 	defer os.Remove(registryToml.Name())
 
-	configSource := ConfigFileRegistry{
+	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	registry, _ := NewRegistry(sourceType, configSource)
-	if registry.GetType() != "file" {
+	registry, _ := NewRegistry(sourceType, configSource, false)
+	if registry.GetType() != "toml" {
 		t.Errorf("invalid registry type, `%v`", registry.GetType())
 	}
 }
 
 func registrySetup() (registry Registry) {
-	sourceType := "file"
+	sourceType := "toml"
 
 	registryToml, _ := ioutil.TempFile("/tmp/", "sault-test")
 	defer os.Remove(registryToml.Name())
 
-	configSource := ConfigFileRegistry{
+	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	registry, _ = NewRegistry(sourceType, configSource)
+	registry, _ = NewRegistry(sourceType, configSource, false)
 	return
 }
 
@@ -104,8 +104,8 @@ func TestRegistryAddUser(t *testing.T) {
 		t.Errorf("userData.PublicKey != publicKeyString, `%v` != `%v`", userData.PublicKey, publicKeyString)
 	}
 
-	if len(registry.(*FileRegistry).DataSource.User) != 1 {
-		t.Errorf("wrong user count, %d", len(registry.(*FileRegistry).DataSource.User))
+	if len(registry.(*tomlRegistry).DataSource.User) != 1 {
+		t.Errorf("wrong user count, %d", len(registry.(*tomlRegistry).DataSource.User))
 	}
 }
 
@@ -261,7 +261,7 @@ func TestRegistryHostData(t *testing.T) {
 	if hostData.ClientPrivateKey != Base64ClientPrivateKey(clientPrivateKey) {
 		t.Errorf("hostData.ClientPrivateKey != clientPrivateKey: `%v` != `%v`", hostData.ClientPrivateKey, clientPrivateKey)
 	}
-	if signer, _ := hostData.ClientPrivateKey.GetSigner(); signer != nil {
+	if signer, _ := hostData.ClientPrivateKey.getSigner(); signer != nil {
 		t.Errorf("hostData.ClientPrivateKey is empty and the signer also must be <nil>, but `%v`", signer)
 	}
 }
@@ -406,7 +406,7 @@ func TestRegistryConnect(t *testing.T) {
 	address := "192.168.99.110"
 	var port uint64
 
-	var hostsData []HostRegistryData
+	var hostsData []hostRegistryData
 	var usersData []UserRegistryData
 	{
 		hostData, _ := registry.AddHost(
@@ -652,7 +652,7 @@ deactivated = false
 
 func TestRegistrySync(t *testing.T) {
 	registry := registrySetup()
-	defer os.Remove(registry.(*FileRegistry).Path)
+	defer os.Remove(registry.(*tomlRegistry).Path)
 
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
@@ -704,7 +704,7 @@ deactivated = false
 	if err != nil {
 		t.Error(err)
 	}
-	synced, err := ioutil.ReadFile(registry.(*FileRegistry).Path)
+	synced, err := ioutil.ReadFile(registry.(*tomlRegistry).Path)
 	if err != nil {
 		t.Error(err)
 	}

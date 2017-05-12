@@ -7,16 +7,18 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
+// Proxy is the core strcut to proxying connections
 type Proxy struct {
 	Config   *Config
 	Registry Registry
 }
 
+// NewProxy makes the new Proxy instance
 func NewProxy(config *Config, registry Registry) (*Proxy, error) {
 	return &Proxy{Config: config, Registry: registry}, nil
 }
 
-func (p *Proxy) Run() error {
+func (p *Proxy) run() error {
 	listener, err := net.Listen("tcp", p.Config.Server.Bind)
 	if err != nil {
 		log.Errorf("net.Listen failed: %v", err)

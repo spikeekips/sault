@@ -2,13 +2,14 @@ package sault
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-var DefaultConfigDir = "./"
+var defaultConfigDir = "./"
 var serverOptionsTemplate = OptionsTemplate{
 	Name:  "server",
 	Help:  "run sault server",
@@ -17,19 +18,19 @@ var serverOptionsTemplate = OptionsTemplate{
 		OptionTemplate{
 			Name:      "ConfigDir",
 			Help:      "This directory contains the configuration files (default is current directory)",
-			ValueType: &struct{ Type FlagConfigDirs }{FlagConfigDirs{}},
+			ValueType: &struct{ Type flagConfigDirs }{flagConfigDirs{}},
 		},
 	},
-	ParseFunc: ParseServerOptions,
+	ParseFunc: parseServerOptions,
 }
 
 func init() {
-	DefaultConfigDir, _ = filepath.Abs(filepath.Clean(DefaultConfigDir))
+	defaultConfigDir, _ = filepath.Abs(filepath.Clean(defaultConfigDir))
 }
 
-type FlagConfigDirs []string
+type flagConfigDirs []string
 
-func (f *FlagConfigDirs) String() string {
+func (f *flagConfigDirs) String() string {
 	// if set `return string(jsoned)`, the default value in the help message was
 	// `(default [])`, this is not what I want.
 	//
@@ -39,7 +40,7 @@ func (f *FlagConfigDirs) String() string {
 	return ""
 }
 
-func (f *FlagConfigDirs) Set(v string) error {
+func (f *flagConfigDirs) Set(v string) error {
 	if fi, err := os.Stat(v); err != nil {
 		log.Errorf("configDir, `%s` does not exists, skipped", v)
 		return nil
@@ -54,7 +55,7 @@ func (f *FlagConfigDirs) Set(v string) error {
 	return nil
 }
 
-func ParseServerOptions(op *Options, args []string) error {
+func parseServerOptions(op *Options, args []string) error {
 	options := op.Values(false)
 
 	op.Extra = map[string]interface{}{}
@@ -62,9 +63,9 @@ func ParseServerOptions(op *Options, args []string) error {
 	var configFiles []string
 	var baseDirectory string
 
-	configDirs := options["Options"].(OptionsValues)["ConfigDir"].(*FlagConfigDirs)
+	configDirs := options["Options"].(OptionsValues)["ConfigDir"].(*flagConfigDirs)
 	if len(*configDirs) < 1 {
-		configDirs.Set(DefaultConfigDir)
+		configDirs.Set(defaultConfigDir)
 	}
 
 	for _, configDir := range *configDirs {
@@ -97,7 +98,21 @@ func ParseServerOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RunServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
+	cs, err := config.Registry.GetSource()
+	if err != nil {
+		return nil, err
+	}
+
+	registry, err := NewRegistry(config.Registry.Type, cs, initialize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load registry: %v", err)
+	}
+
+	return registry, nil
+}
+
+func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	log.Info("Hallå världen...")
 	var config *Config
 	{
@@ -110,7 +125,7 @@ func RunServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 			"LogLevel":      string(*globalOptions["LogLevel"].(*FlagLogLevel)),
 			"LogOutput":     string(*globalOptions["LogOutput"].(*FlagLogOutput)),
 		}
-		config, err = LoadConfig(flagArgs)
+		config, err = loadConfig(flagArgs)
 		if err != nil {
 			log.Errorf("failed to load configs: %v", err)
 
@@ -118,7 +133,7 @@ func RunServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 			return
 		}
 
-		if err := config.Validate(); err != nil {
+		if err := config.validate(); err != nil {
 			log.Errorf("%v", err)
 
 			exitStatus = 1
@@ -138,16 +153,9 @@ func RunServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 		}
 	}
 
-	configSourceRegistry, err := config.Registry.GetSource()
+	registry, err := getRegistryFromConfig(config, false)
 	if err != nil {
 		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
-	registry, err := NewRegistry(config.Registry.Type, configSourceRegistry)
-	if err != nil {
-		log.Errorf("failed to load registry: %v", err)
 
 		exitStatus = 1
 		return
@@ -160,7 +168,7 @@ func RunServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 			log.Fatalf("something wrong: %v", err)
 		}
 
-		if err = proxy.Run(); err != nil {
+		if err = proxy.run(); err != nil {
 			log.Fatalf("something wrong: %v", err)
 		}
 	}

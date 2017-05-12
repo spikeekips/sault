@@ -22,7 +22,7 @@ global_client_key_path = "./client.key"
 
 	configFile.Write([]byte(configTOML))
 
-	config, err := LoadConfig(map[string]interface{}{
+	config, err := loadConfig(map[string]interface{}{
 		"BaseDirectory": BaseDirectory,
 		"Configs":       []string{configFile.Name()},
 	})
@@ -36,7 +36,7 @@ global_client_key_path = "./client.key"
 
 	newConfigFile.Write([]byte(config.String()))
 
-	newConfig, err := LoadConfig(map[string]interface{}{
+	newConfig, err := loadConfig(map[string]interface{}{
 		"BaseDirectory": BaseDirectory,
 		"Configs":       []string{newConfigFile.Name()},
 	})
@@ -79,7 +79,7 @@ global_client_key_path = "{{.lastGlobalClientKeyPath}}"
 	defer os.Remove(configFile1.Name())
 	configFile1.Write([]byte(bw.String()))
 
-	config, err := LoadConfig(map[string]interface{}{
+	config, err := loadConfig(map[string]interface{}{
 		"BaseDirectory": BaseDirectory,
 		"Configs": []string{
 			configFile0.Name(),
@@ -109,7 +109,7 @@ global_client_key_path = "./client.key"
 
 	configFile.Write([]byte(configTOML))
 
-	config, _ := LoadConfig(map[string]interface{}{
+	config, _ := loadConfig(map[string]interface{}{
 		"BaseDirectory": BaseDirectory,
 		"Configs":       []string{configFile.Name()},
 	})
@@ -126,11 +126,11 @@ global_client_key_path = "./client.key"
   },
   "Log": {
     "Format": "text",
-    "Level": "info",
+    "Level": "error",
     "Output": "stdout"
   },
   "Registry": {
-    "Type": "file",
+    "Type": "toml",
     "Source": {
       "File": {
         "Path": "{{.BaseDirectory}}registry.toml"

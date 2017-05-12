@@ -12,20 +12,20 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-type FlagClientPrivateKey struct {
+type flagClientPrivateKey struct {
 	Path string
 	s    []byte
 }
 
-func (f *FlagClientPrivateKey) String() string {
+func (f *flagClientPrivateKey) String() string {
 	return f.Path
 }
 
-func (f *FlagClientPrivateKey) Bytes() []byte {
+func (f *flagClientPrivateKey) Bytes() []byte {
 	return f.s
 }
 
-func (f *FlagClientPrivateKey) Set(v string) error {
+func (f *flagClientPrivateKey) Set(v string) error {
 	keyFile := filepath.Clean(v)
 
 	b, err := ioutil.ReadFile(keyFile)
@@ -36,18 +36,18 @@ func (f *FlagClientPrivateKey) Set(v string) error {
 		return fmt.Errorf("invalid clientPrivateKey; clientPrivateKey must be without passphrase")
 	}
 
-	*f = FlagClientPrivateKey{Path: keyFile, s: b}
+	*f = flagClientPrivateKey{Path: keyFile, s: b}
 
 	return nil
 }
 
-type FlagAccounts []string
+type flagAccounts []string
 
-func (f *FlagAccounts) String() string {
+func (f *flagAccounts) String() string {
 	return fmt.Sprintf("%v", *f)
 }
 
-func (f *FlagAccounts) Set(v string) error {
+func (f *flagAccounts) Set(v string) error {
 	n := StringFilter(
 		strings.Split(v, ","),
 		func(n string) bool {
@@ -55,7 +55,7 @@ func (f *FlagAccounts) Set(v string) error {
 		},
 	)
 
-	*f = FlagAccounts(n)
+	*f = flagAccounts(n)
 
 	return nil
 }
@@ -65,24 +65,24 @@ var hostAddOptionsTemplate = OptionsTemplate{
 	Help:  "add new host",
 	Usage: "[flags] <hostName> <default account>@<address:port>",
 	Options: []OptionTemplate{
-		AtOptionTemplate,
-		POptionTemplate,
+		atOptionTemplate,
+		pOptionTemplate,
 		OptionTemplate{
 			Name:      "Accounts",
 			Help:      "available accounts of host",
-			ValueType: &struct{ Type FlagAccounts }{FlagAccounts{}},
+			ValueType: &struct{ Type flagAccounts }{flagAccounts{}},
 		},
 		OptionTemplate{
 			Name:      "ClientPrivateKey",
 			Help:      "private key file to connect host",
-			ValueType: &struct{ Type FlagClientPrivateKey }{FlagClientPrivateKey{}},
+			ValueType: &struct{ Type flagClientPrivateKey }{flagClientPrivateKey{}},
 		},
 	},
-	ParseFunc: ParseHostAddOptions,
+	ParseFunc: parseHostAddOptions,
 }
 
-func ParseHostAddOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostAddOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -119,12 +119,12 @@ func ParseHostAddOptions(op *Options, args []string) error {
 		op.Extra["Port"] = port
 	}
 
-	op.Extra["ClientPrivateKeyString"] = string(op.Vars["ClientPrivateKey"].(*FlagClientPrivateKey).Bytes())
+	op.Extra["ClientPrivateKeyString"] = string(op.Vars["ClientPrivateKey"].(*flagClientPrivateKey).Bytes())
 
 	return nil
 }
 
-func RequestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -140,13 +140,13 @@ func RequestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"host.add",
-			HostAddRequestData{
+			hostAddRequestData{
 				Host:           ov["HostName"].(string),
 				DefaultAccount: ov["DefaultAccount"].(string),
 				Accounts: []string(
-					*ov["Options"].(OptionsValues)["Accounts"].(*FlagAccounts),
+					*ov["Options"].(OptionsValues)["Accounts"].(*flagAccounts),
 				),
 				Address:          ov["Address"].(string),
 				Port:             ov["Port"].(uint64),
@@ -167,43 +167,64 @@ func RequestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var hostData HostRegistryData
-	if err := json.Unmarshal(responseMsg.Result, &hostData); err != nil {
+	var hostData hostRegistryData
+	if err := json.Unmarshal(rm.Result, &hostData); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := ov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, PrintHost(saultServerHostName, saultServerPort, hostData))
+	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data HostAddRequestData
+func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data hostAddRequestData
 	json.Unmarshal(msg.Data, &data)
+
+	log.Debugf("check the connectivity: %v", data)
+	signer, err := GetPrivateKeySignerFromString(data.ClientPrivateKey)
+	if signer != nil {
+		log.Debugf("ClientPrivateKey for host will be used")
+	} else {
+		signer = pc.proxy.Config.Server.globalClientKeySigner
+		log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
+	}
+
+	_, err = createSSHClient(
+		signer,
+		data.DefaultAccount,
+		data.getFullAddress(),
+	)
+	if err != nil {
+		err = fmt.Errorf("failed to check the connectivity: %v", err)
+
+		channel.Write(toResponse(nil, err))
+		return
+	}
 
 	log.Debugf("trying to add new host: %v", data)
 	hostData, err := pc.proxy.Registry.AddHost(
@@ -217,16 +238,16 @@ func ResponseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	if err != nil {
 		log.Errorf("failed to add host: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(hostData, nil))
+	channel.Write(toResponse(hostData, nil))
 	return
 }

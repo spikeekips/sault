@@ -30,6 +30,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
+// GetPrivateKeySigner loads private key signer from file
 func GetPrivateKeySigner(keyFilePath string) (saultSsh.Signer, error) {
 	b, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
@@ -39,6 +40,7 @@ func GetPrivateKeySigner(keyFilePath string) (saultSsh.Signer, error) {
 	return GetPrivateKeySignerFromString(string(b))
 }
 
+// GetPrivateKeySignerFromString loads private key signer from string
 func GetPrivateKeySignerFromString(s string) (saultSsh.Signer, error) {
 	signer, err := saultSsh.ParsePrivateKey([]byte(s))
 	if err != nil {
@@ -48,8 +50,8 @@ func GetPrivateKeySignerFromString(s string) (saultSsh.Signer, error) {
 	return signer, nil
 }
 
-// FingerprintMD5 from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
-func FingerprintMD5(key saultSsh.PublicKey) string {
+// FingerprintMD5PublicKey makes md5 finterprint string of ssh public key; from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
+func FingerprintMD5PublicKey(key saultSsh.PublicKey) string {
 	hash := md5.Sum(key.Marshal())
 	out := ""
 	for i := 0; i < 16; i++ {
@@ -61,13 +63,15 @@ func FingerprintMD5(key saultSsh.PublicKey) string {
 	return out
 }
 
-// FingerprintSHA256 from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
-func FingerprintSHA256(key saultSsh.PublicKey) string {
+// FingerprintSHA256PublicKey makes the sha256 fingerprint string of ssh public
+// key; from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
+func FingerprintSHA256PublicKey(key saultSsh.PublicKey) string {
 	hash := sha256.Sum256(key.Marshal())
 	b64hash := base64.StdEncoding.EncodeToString(hash[:])
 	return strings.TrimRight(b64hash, "=")
 }
 
+// ParseLogLevel parses log level string
 func ParseLogLevel(v string) (log.Level, error) {
 	if v == "quiet" {
 		return log.FatalLevel, nil
@@ -81,6 +85,7 @@ func ParseLogLevel(v string) (log.Level, error) {
 	return level, err
 }
 
+// ParseLogOutput parses log output string
 func ParseLogOutput(output string, level string) (io.Writer, error) {
 	if level == "quiet" {
 		return ioutil.Discard, nil
@@ -100,6 +105,7 @@ func ParseLogOutput(output string, level string) (io.Writer, error) {
 	}
 }
 
+// ParsePublicKeyFromString parses string and makes PublicKey
 func ParsePublicKeyFromString(s string) (saultSsh.PublicKey, error) {
 	body := s
 	f := strings.Fields(s)
@@ -117,6 +123,7 @@ func ParsePublicKeyFromString(s string) (saultSsh.PublicKey, error) {
 	return saultSsh.ParsePublicKey([]byte(key))
 }
 
+// ParseHostAccount splits the `@` connected account and host name
 func ParseHostAccount(s string) (userName, hostName string, err error) {
 	s = strings.TrimSpace(s)
 	if len(s) < 1 {
@@ -145,6 +152,7 @@ func ParseHostAccount(s string) (userName, hostName string, err error) {
 	return
 }
 
+// ParseAccountName splits the `+` connected account and host name
 func ParseAccountName(s string) (userName, hostName string, err error) {
 	userName = ""
 	hostName = ""
@@ -169,28 +177,24 @@ func ParseAccountName(s string) (userName, hostName string, err error) {
 	return
 }
 
-func GetAuthorizedKeyFromString(publicKey string) (string, error) {
-	parsed, err := ParsePublicKeyFromString(publicKey)
-	if err != nil {
-		return "", nil
-	}
-	return GetAuthorizedKeyFromPublicKey(parsed), nil
-}
-
-func GetAuthorizedKeyFromPublicKey(publicKey saultSsh.PublicKey) string {
+// GetAuthorizedKey strips the public key string
+func GetAuthorizedKey(publicKey saultSsh.PublicKey) string {
 	return strings.TrimSpace(string(saultSsh.MarshalAuthorizedKey(publicKey)))
 }
 
+// GetUUID generates the uuid version5 string
 func GetUUID() string {
 	s, _ := uuid.NewV5(uuid.NamespaceURL, []byte(time.Now().Format("Jan _2 15:04:05.000000000")))
 	return s.String()
 }
 
+// CreateRSAPrivateKey makes RSA private key
 func CreateRSAPrivateKey(bits int) (privateKey *rsa.PrivateKey, err error) {
 	privateKey, err = rsa.GenerateKey(rand.Reader, bits)
 	return
 }
 
+// EncodePrivateKey encode private key as pem format
 func EncodePrivateKey(privateKey *rsa.PrivateKey) ([]byte, error) {
 	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
 
@@ -202,6 +206,7 @@ func EncodePrivateKey(privateKey *rsa.PrivateKey) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
+// EncodePublicKey generates public key string
 func EncodePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
 	pub, err := saultSsh.NewPublicKey(publicKey)
 	if err != nil {
@@ -231,6 +236,9 @@ func StringMap(vs []string, f func(string) string) []string {
 	return vsm
 }
 
+// ParseTolerateFilePath parse the tolerate marked string, the tolerated
+// string(`@`prefixed path) means that if directory or file does not exit, skip
+// it instead of occuring error.
 func ParseTolerateFilePath(path string) (isTolerated bool, realPath string) {
 	realPath = path
 	if string([]rune(path)[0]) != "@" {
@@ -242,6 +250,7 @@ func ParseTolerateFilePath(path string) (isTolerated bool, realPath string) {
 	return
 }
 
+// BaseJoin joins the path
 func BaseJoin(base string, paths ...string) string {
 	merged := base
 	for _, p := range paths {
@@ -255,6 +264,7 @@ func BaseJoin(base string, paths ...string) string {
 	return merged
 }
 
+// MakeFirstLowerCase replace the first char to lower case
 func MakeFirstLowerCase(s string) string {
 	if len(s) < 2 {
 		return strings.ToLower(s)
@@ -268,6 +278,7 @@ func MakeFirstLowerCase(s string) string {
 	return string(bytes.Join([][]byte{lc, rest}, nil))
 }
 
+// TermSize contains the terminal dimension information
 type TermSize struct {
 	Row    uint16
 	Col    uint16
@@ -275,6 +286,7 @@ type TermSize struct {
 	Ypixel uint16
 }
 
+// GetTermSize returns the TermSize
 func GetTermSize() (*TermSize, error) {
 	ts := &TermSize{}
 	retCode, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
@@ -289,6 +301,7 @@ func GetTermSize() (*TermSize, error) {
 	return ts, nil
 }
 
+// CheckUserName checkes whether user name is valid or not
 func CheckUserName(s string) bool {
 	if len(s) > 32 { // see `man useradd`
 		return false
@@ -297,6 +310,7 @@ func CheckUserName(s string) bool {
 	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
 }
 
+// CheckHostName checkes whether host name is valid or not
 func CheckHostName(s string) bool {
 	if len(s) > 64 { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
 		return false
@@ -305,19 +319,26 @@ func CheckHostName(s string) bool {
 	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
 }
 
-var CommonTempalteFMap template.FuncMap
-
-func FormatResponse(t string, values map[string]interface{}) string {
-	tmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(t)
-
-	values["line"] = strings.Repeat("-", int(CurrentTermSize.Col))
-
-	bw := bytes.NewBuffer([]byte{})
-	tmpl.Execute(bw, values)
-
-	return strings.TrimSpace(bw.String())
+func colorFunc(attr color.Attribute) func(string) template.HTML {
+	return func(s string) template.HTML {
+		return template.HTML(color.New(attr).SprintFunc()(s))
+	}
 }
 
+var commonTempalteFMap = template.FuncMap{
+	"red":     colorFunc(color.FgRed),
+	"green":   colorFunc(color.FgGreen),
+	"yellow":  colorFunc(color.FgYellow),
+	"blue":    colorFunc(color.FgBlue),
+	"magenta": colorFunc(color.FgMagenta),
+	"cyan":    colorFunc(color.FgCyan),
+	"escape": func(s string) template.HTML {
+		return template.HTML(s)
+	},
+}
+
+// SplitHostPort is similar to net.SplitHostPort, but it can parse without
+// ":port"
 func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err error) {
 	port = defaultPort
 	if !regexp.MustCompile(`\:[1-9][0-9]+$`).MatchString(s) {
@@ -338,23 +359,29 @@ func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err 
 	return
 }
 
-var CurrentTermSize TermSize
+var currentTermSize TermSize
 
-func init() {
-	CommonTempalteFMap = template.FuncMap{
-		"red":     color.New(color.FgRed).SprintFunc(),
-		"green":   color.New(color.FgGreen).SprintFunc(),
-		"yellow":  color.New(color.FgYellow).SprintFunc(),
-		"blue":    color.New(color.FgBlue).SprintFunc(),
-		"magenta": color.New(color.FgMagenta).SprintFunc(),
-		"cyan":    color.New(color.FgCyan).SprintFunc(),
-		"escape": func(s string) template.HTML {
-			return template.HTML(s)
-		},
+// ExecuteCommonTemplate templates with commonTempalteFMap
+func ExecuteCommonTemplate(t string, values map[string]interface{}) (string, error) {
+	tmpl, err := template.New("t").Funcs(commonTempalteFMap).Parse(t)
+	if err != nil {
+		return "", err
 	}
 
+	if values == nil {
+		values = map[string]interface{}{}
+	}
+	values["line"] = strings.Repeat("-", int(currentTermSize.Col))
+
+	bw := bytes.NewBuffer([]byte{})
+	tmpl.Execute(bw, values)
+
+	return bw.String(), nil
+}
+
+func init() {
 	termSize, err := GetTermSize()
 	if err == nil {
-		CurrentTermSize = *termSize
+		currentTermSize = *termSize
 	}
 }

@@ -16,39 +16,45 @@ import (
 var commandForNotAdmin map[string]bool
 var userOptionsTemplate OptionsTemplate
 var hostOptionsTemplate OptionsTemplate
+
+// RequestCommands has command to rquest to sault server
 var RequestCommands map[string]func(OptionsValues, OptionsValues) int
-var ResponseCommands map[string]func(*proxyConnection, saultSsh.Channel, CommandMsg) (uint32, error)
+var responseCommands map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error)
+
+// GlobalOptionsTemplate has global flags
 var GlobalOptionsTemplate OptionsTemplate
-var DefaultLogFormat = "text"
-var DefaultLogLevel = "info"
-var DefaultLogOutput = "stdout"
-var AtOptionTemplate = OptionTemplate{
+var defaultLogFormat = "text"
+var defaultLogLevel = "error"
+var defaultLogOutput = "stdout"
+var atOptionTemplate = OptionTemplate{
 	Name:         "At",
 	DefaultValue: "sault@localhost",
 	Help:         "sault server, sault@<sault server>",
-	ValueType:    &struct{ Type FlagSaultServer }{FlagSaultServer("sault@localhost")},
+	ValueType:    &struct{ Type flagSaultServer }{flagSaultServer("sault@localhost")},
 }
 
-var POptionTemplate = OptionTemplate{
+var pOptionTemplate = OptionTemplate{
 	Name:         "P",
-	DefaultValue: DefaultServerPort,
+	DefaultValue: defaultServerPort,
 	Help:         "sault server port",
 }
 
+// FlagLogFormat set the log format
 type FlagLogFormat string
 
 func (l *FlagLogFormat) String() string {
 	return string(*l)
 }
 
+// Set value
 func (l *FlagLogFormat) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogFormat(DefaultLogFormat)
+		*l = FlagLogFormat(defaultLogFormat)
 		return nil
 	}
 
 	nv := strings.ToLower(value)
-	for _, f := range AvailableLogFormats {
+	for _, f := range availableLogFormats {
 		if f == nv {
 			*l = FlagLogFormat(nv)
 			return nil
@@ -58,20 +64,22 @@ func (l *FlagLogFormat) Set(value string) error {
 	return errors.New("")
 }
 
+// FlagLogLevel set the log level
 type FlagLogLevel string
 
 func (l *FlagLogLevel) String() string {
 	return string(*l)
 }
 
+// Set value
 func (l *FlagLogLevel) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogLevel(DefaultLogLevel)
+		*l = FlagLogLevel(defaultLogLevel)
 		return nil
 	}
 
 	nv := strings.ToLower(value)
-	for _, f := range AvailableLogLevel {
+	for _, f := range availableLogLevel {
 		if f == nv {
 			*l = FlagLogLevel(nv)
 			return nil
@@ -81,15 +89,17 @@ func (l *FlagLogLevel) Set(value string) error {
 	return errors.New("")
 }
 
+// FlagLogOutput set the output for logging
 type FlagLogOutput string
 
 func (l *FlagLogOutput) String() string {
 	return string(*l)
 }
 
+// Set value
 func (l *FlagLogOutput) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogOutput(DefaultLogOutput)
+		*l = FlagLogOutput(defaultLogOutput)
 		return nil
 	}
 
@@ -103,13 +113,13 @@ func (l *FlagLogOutput) Set(value string) error {
 	return errors.New("")
 }
 
-type FlagSaultServer string
+type flagSaultServer string
 
-func (f *FlagSaultServer) String() string {
+func (f *flagSaultServer) String() string {
 	return string(*f)
 }
 
-func (f *FlagSaultServer) Set(v string) error {
+func (f *flagSaultServer) Set(v string) error {
 	_, _, err := ParseHostAccount(v)
 	if err != nil {
 		return err
@@ -118,13 +128,11 @@ func (f *FlagSaultServer) Set(v string) error {
 	return nil
 }
 
-func ParseBaseCommandOptions(op *Options, args []string) error {
+func parseBaseCommandOptions(op *Options, args []string) error {
 	values := op.Values(false)["Options"].(OptionsValues)
 
-	op.Extra = map[string]interface{}{}
-
 	{
-		saultServer := string(*values["At"].(*FlagSaultServer))
+		saultServer := string(*values["At"].(*flagSaultServer))
 		serverName, hostName, err := ParseHostAccount(saultServer)
 		if err != nil {
 			return err
@@ -139,29 +147,29 @@ func ParseBaseCommandOptions(op *Options, args []string) error {
 	return nil
 }
 
-func ToResponse(result interface{}, resultError error) []byte {
+func toResponse(result interface{}, resultError error) []byte {
 	if resultError != nil {
 		return saultSsh.Marshal(
-			ResponseMsg{Error: resultError.Error()},
+			responseMsg{Error: resultError.Error()},
 		)
 	}
 
 	jsoned, err := json.Marshal(result)
 	if err != nil {
 		return saultSsh.Marshal(
-			ResponseMsg{Error: err.Error()},
+			responseMsg{Error: err.Error()},
 		)
 	}
 
 	return saultSsh.Marshal(
-		ResponseMsg{Result: jsoned},
+		responseMsg{Result: jsoned},
 	)
 }
 
 func handleCommandMsg(
 	pc *proxyConnection,
 	channel saultSsh.Channel,
-	msg CommandMsg,
+	msg commandMsg,
 ) (exitStatus uint32, err error) {
 	exitStatus = 0
 
@@ -176,7 +184,7 @@ func handleCommandMsg(
 		}
 	}
 
-	if handler, ok := ResponseCommands[msg.Command]; ok {
+	if handler, ok := responseCommands[msg.Command]; ok {
 		exitStatus, err = handler(pc, channel, msg)
 		if err != nil {
 			log.Error(err)
@@ -190,17 +198,17 @@ func handleCommandMsg(
 	return
 }
 
-func SSHAgent() (saultSsh.AuthMethod, error) {
-	sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+func sshAgent() (saultSsh.AuthMethod, error) {
+	sa, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
 		return nil, err
 	}
 
-	return saultSsh.PublicKeysCallback(saultSshAgent.NewClient(sshAgent).Signers), nil
+	return saultSsh.PublicKeysCallback(saultSshAgent.NewClient(sa).Signers), nil
 }
 
 func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client, error) {
-	sshAgentAuth, err := SSHAgent()
+	sshAgentAuth, err := sshAgent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to ssh agent: `%v`", err)
 	}
@@ -223,7 +231,7 @@ func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client,
 	return connection, nil
 }
 
-func runCommand(connection *saultSsh.Client, msg *CommandMsg) (output []byte, exitStatus int, err error) {
+func runCommand(connection *saultSsh.Client, msg *commandMsg) (output []byte, exitStatus int, err error) {
 	session, err := connection.NewSession()
 	if err != nil {
 		err = fmt.Errorf("failed to create session: %s", err)
@@ -282,21 +290,22 @@ func init() {
 		Options: []OptionTemplate{
 			OptionTemplate{
 				Name:      "LogFormat",
-				Help:      fmt.Sprintf("log format %s", AvailableLogFormats),
-				ValueType: &struct{ Type FlagLogFormat }{FlagLogFormat(DefaultLogFormat)},
+				Help:      fmt.Sprintf("log format %s", availableLogFormats),
+				ValueType: &struct{ Type FlagLogFormat }{FlagLogFormat(defaultLogFormat)},
 			},
 			OptionTemplate{
 				Name:      "LogLevel",
-				Help:      fmt.Sprintf("log level %s", AvailableLogLevel),
-				ValueType: &struct{ Type FlagLogLevel }{FlagLogLevel(DefaultLogLevel)},
+				Help:      fmt.Sprintf("log level %s", availableLogLevel),
+				ValueType: &struct{ Type FlagLogLevel }{FlagLogLevel(defaultLogLevel)},
 			},
 			OptionTemplate{
 				Name:      "LogOutput",
 				Help:      "log output [stdout stderr <filename>]",
-				ValueType: &struct{ Type FlagLogOutput }{FlagLogOutput(DefaultLogOutput)},
+				ValueType: &struct{ Type FlagLogOutput }{FlagLogOutput(defaultLogOutput)},
 			},
 		},
 		Commands: []OptionsTemplate{
+			initOptionsTemplate,
 			serverOptionsTemplate,
 			userOptionsTemplate,
 			hostOptionsTemplate,
@@ -306,40 +315,41 @@ func init() {
 	}
 
 	RequestCommands = map[string]func(OptionsValues, OptionsValues) int{
-		"server":      RunServer,
-		"user.get":    RequestUserGet,
-		"user.list":   RequestUserList,
-		"user.add":    RequestUserAdd,
-		"user.remove": RequestUserRemove,
-		"user.active": RequestUserActive,
-		"user.admin":  RequestUserAdmin,
-		"user.update": RequestUserUpdate,
-		"host.get":    RequestHostGet,
-		"host.list":   RequestHostList,
-		"host.add":    RequestHostAdd,
-		"host.remove": RequestHostRemove,
-		"host.update": RequestHostUpdate,
-		"host.active": RequestHostActive,
-		"connect":     RequestConnect,
-		"whoami":      RequestWhoAmI,
+		"init":        runInit,
+		"server":      runServer,
+		"user.get":    requestUserGet,
+		"user.list":   requestUserList,
+		"user.add":    requestUserAdd,
+		"user.remove": requestUserRemove,
+		"user.active": requestUserActive,
+		"user.admin":  requestUserAdmin,
+		"user.update": requestUserUpdate,
+		"host.get":    requestHostGet,
+		"host.list":   requestHostList,
+		"host.add":    requestHostAdd,
+		"host.remove": requestHostRemove,
+		"host.update": requestHostUpdate,
+		"host.active": requestHostActive,
+		"connect":     requestConnect,
+		"whoami":      requestWhoAmI,
 	}
-	ResponseCommands = map[string]func(*proxyConnection, saultSsh.Channel, CommandMsg) (uint32, error){
-		"user.get":    ResponseUserGet,
-		"user.list":   ResponseUserList,
-		"user.add":    ResponseUserAdd,
-		"user.remove": ResponseUserRemove,
-		"user.active": ResponseUserActive,
-		"user.admin":  ResponseUserAdmin,
-		"user.update": ResponseUserUpdate,
-		"host.get":    ResponseHostGet,
-		"host.list":   ResponseHostList,
-		"host.add":    ResponseHostAdd,
-		"host.remove": ResponseHostRemove,
-		"host.update": ResponseHostUpdate,
-		"host.active": ResponseHostActive,
-		"connect":     ResponseConnect,
-		"whoami":      ResponseWhoAmI,
-		"publicKey":   ResponseUpdatePublicKey,
+	responseCommands = map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error){
+		"user.get":    responseUserGet,
+		"user.list":   responseUserList,
+		"user.add":    responseUserAdd,
+		"user.remove": responseUserRemove,
+		"user.active": responseUserActive,
+		"user.admin":  responseUserAdmin,
+		"user.update": responseUserUpdate,
+		"host.get":    responseHostGet,
+		"host.list":   responseHostList,
+		"host.add":    responseHostAdd,
+		"host.remove": responseHostRemove,
+		"host.update": responseHostUpdate,
+		"host.active": responseHostActive,
+		"connect":     responseConnect,
+		"whoami":      responseWhoAmI,
+		"publicKey":   responseUpdatePublicKey,
 	}
 
 	// this is for commands thru native ssh client

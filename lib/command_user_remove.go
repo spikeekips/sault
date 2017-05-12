@@ -13,12 +13,12 @@ var userRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove user",
 	Usage:     "[flags] <userName>",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseUserRemoveOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseUserRemoveOptions,
 }
 
-func ParseUserRemoveOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseUserRemoveOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func ParseUserRemoveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestUserRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -50,9 +50,9 @@ func RequestUserRemove(options OptionsValues, globalOptions OptionsValues) (exit
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"user.remove",
-			UserRemoveRequestData{
+			userRemoveRequestData{
 				User: userName,
 			},
 		)
@@ -70,15 +70,15 @@ func RequestUserRemove(options OptionsValues, globalOptions OptionsValues) (exit
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
@@ -91,8 +91,8 @@ func RequestUserRemove(options OptionsValues, globalOptions OptionsValues) (exit
 	return
 }
 
-func ResponseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data UserRemoveRequestData
+func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data userRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to remove user: %v", data)
@@ -100,16 +100,16 @@ func ResponseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	if err != nil {
 		log.Errorf("failed to remove user: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(nil, nil))
+	channel.Write(toResponse(nil, nil))
 	return
 }

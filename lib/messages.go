@@ -1,6 +1,9 @@
 package sault
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 var exitStatusNotAllowed uint32 = 254
 var exitStatusSuccess uint32
@@ -9,66 +12,66 @@ type exitStatusMsg struct {
 	Status uint32
 }
 
-type ExecMsg struct {
+type execMsg struct {
 	Command string
 }
 
-type CommandMsg struct {
+type commandMsg struct {
 	Command string
 	Data    []byte
 }
 
-func NewCommandMsg(command string, s interface{}) (*CommandMsg, error) {
+func newCommandMsg(command string, s interface{}) (*commandMsg, error) {
 	jsoned, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
 	}
 
-	msg := CommandMsg{Command: command, Data: jsoned}
+	msg := commandMsg{Command: command, Data: jsoned}
 
 	return &msg, nil
 }
 
-type ResponseMsg struct {
+type responseMsg struct {
 	Result []byte
 	Error  string
 }
 
-type UserAddRequestData struct {
+type userAddRequestData struct {
 	User      string
 	PublicKey string
 }
 
-type UserRemoveRequestData struct {
+type userRemoveRequestData struct {
 	User string
 }
 
-type UserAdminRequestData struct {
+type userAdminRequestData struct {
 	User     string
 	SetAdmin bool
 }
 
-type UserActiveRequestData struct {
+type userActiveRequestData struct {
 	User   string
 	Active bool
 }
 
-type UserUpdateRequestData struct {
+type userUpdateRequestData struct {
 	User         string
 	NewUserName  string
 	NewPublicKey string
 }
 
-type UserGetRequestData struct {
+type userGetRequestData struct {
 	User      string
 	PublicKey string
 }
 
-type HostGetRequestData struct {
+type hostGetRequestData struct {
 	Host string
 }
 
-type HostAddRequestData struct {
+type hostAddRequestData struct {
 	Host             string
 	DefaultAccount   string
 	Accounts         []string
@@ -77,11 +80,20 @@ type HostAddRequestData struct {
 	ClientPrivateKey string
 }
 
-type HostRemoveRequestData struct {
+func (p hostAddRequestData) getFullAddress() string {
+	port := p.Port
+	if p.Port < 1 {
+		port = 22
+	}
+
+	return fmt.Sprintf("%s:%d", p.Address, port)
+}
+
+type hostRemoveRequestData struct {
 	Host string
 }
 
-type HostUpdateRequestData struct {
+type hostUpdateRequestData struct {
 	Host                string
 	NewHostName         string
 	NewDefaultAccount   string
@@ -91,25 +103,25 @@ type HostUpdateRequestData struct {
 	NewClientPrivateKey string
 }
 
-type HostActiveRequestData struct {
+type hostActiveRequestData struct {
 	Host   string
 	Active bool
 }
 
-type ConnectRequestData struct {
+type connectRequestData struct {
 	Host          string
 	User          string
 	TargetAccount string
 	Disconnect    bool
 }
 
-type UserResponseData struct {
+type userResponseData struct {
 	UserData  UserRegistryData
 	Connected map[string][]string
 }
 
-func NewUserResponseData(registry Registry, userData UserRegistryData) UserResponseData {
-	return UserResponseData{
+func newUserResponseData(registry Registry, userData UserRegistryData) userResponseData {
+	return userResponseData{
 		UserData:  userData,
 		Connected: registry.GetConnectedHosts(userData.User),
 	}

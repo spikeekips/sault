@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// DefaultLogFormatter has detailed time format
 var DefaultLogFormatter = &log.TextFormatter{
 	FullTimestamp: true,
 	TimestampFormat:

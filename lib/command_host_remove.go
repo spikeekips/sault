@@ -13,12 +13,12 @@ var hostRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove host",
 	Usage:     "[flags] <hostName>",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostRemoveOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseHostRemoveOptions,
 }
 
-func ParseHostRemoveOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostRemoveOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func ParseHostRemoveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestHostRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -57,9 +57,9 @@ func RequestHostRemove(options OptionsValues, globalOptions OptionsValues) (exit
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"host.remove",
-			HostRemoveRequestData{Host: hostName},
+			hostRemoveRequestData{Host: hostName},
 		)
 		if err != nil {
 			log.Errorf("failed to make message: %v", err)
@@ -75,15 +75,15 @@ func RequestHostRemove(options OptionsValues, globalOptions OptionsValues) (exit
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
@@ -96,8 +96,8 @@ func RequestHostRemove(options OptionsValues, globalOptions OptionsValues) (exit
 	return
 }
 
-func ResponseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data HostRemoveRequestData
+func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data hostRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to remove host: %v", data)
@@ -105,16 +105,16 @@ func ResponseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	if err != nil {
 		log.Errorf("failed to remove host: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(nil, nil))
+	channel.Write(toResponse(nil, nil))
 	return
 }

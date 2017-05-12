@@ -10,10 +10,10 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-type ClientType uint8
+type clientType uint8
 
 const (
-	saultClient ClientType = iota + 1
+	saultClient clientType = iota + 1
 	sshClient
 )
 
@@ -25,11 +25,11 @@ type proxyConnection struct {
 	innerClient     *saultSsh.Client
 
 	userData          UserRegistryData
-	hostData          HostRegistryData
+	hostData          hostRegistryData
 	manualAccountName string
 
 	insideSault bool
-	clientType  ClientType
+	clientType  clientType
 }
 
 func (pc *proxyConnection) String() {
@@ -40,7 +40,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		"RemoteAddr": conn.RemoteAddr(),
 		"user":       conn.User(),
 		//"key":        FingerprintSHA256(key),
-		"key": FingerprintMD5(key),
+		"key": FingerprintMD5PublicKey(key),
 	})
 
 	requestLog.Debug("trying to authenticate")
@@ -62,9 +62,9 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		}
 	}
 
-	var hostData HostRegistryData
+	var hostData hostRegistryData
 	if hostName == pc.proxy.Config.Server.ServerName {
-		hostData = HostRegistryData{Host: pc.proxy.Config.Server.ServerName}
+		hostData = hostRegistryData{Host: pc.proxy.Config.Server.ServerName}
 		/*
 			if !userData.IsAdmin {
 				requestLog.Debugf("trying to access as admin mode, but failed: %v, %v", userData, hostData)
@@ -120,7 +120,20 @@ func (pc *proxyConnection) handleNewConnection() error {
 			}()
 		}
 	} else {
-		innerClient, err := pc.createInnerClient()
+		signer, err := pc.hostData.ClientPrivateKey.getSigner()
+		if err != nil {
+			log.Errorf("fail to load inner client key: %v", err)
+			return err
+		}
+
+		if signer != nil {
+			log.Debugf("ClientPrivateKey will be used")
+		} else {
+			signer = pc.proxy.Config.Server.globalClientKeySigner
+			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
+		}
+
+		innerClient, err := createSSHClient(signer, pc.hostData.DefaultAccount, pc.hostData.GetFullAddress())
 		if err != nil {
 			log.Errorf("fail to create inner client: %v", err)
 			return err
@@ -168,14 +181,14 @@ L:
 			break L
 		}
 
-		var msg CommandMsg
+		var msg commandMsg
 		if err := saultSsh.Unmarshal(request.Payload[4:], &msg); err == nil {
 			pc.clientType = saultClient
 		} else {
 			log.Errorf("got invalid CommandMsg: %v", err)
 
-			var execMsg ExecMsg // when sent command using native ssh client
-			if err := saultSsh.Unmarshal(request.Payload, &execMsg); err != nil {
+			var em execMsg // when sent command using native ssh client
+			if err := saultSsh.Unmarshal(request.Payload, &em); err != nil {
 				log.Errorf("got invalid execMsg: %v", err)
 				request.Reply(false, nil)
 
@@ -183,9 +196,9 @@ L:
 			}
 
 			pc.clientType = sshClient
-			log.Errorf("but got execMsg: %v", execMsg)
-			splitedCommand := strings.SplitN(execMsg.Command, " ", 2)
-			msg = CommandMsg{
+			log.Errorf("but got execMsg: %v", em)
+			splitedCommand := strings.SplitN(em.Command, " ", 2)
+			msg = commandMsg{
 				Command: splitedCommand[0],
 				Data:    []byte(strings.Join(splitedCommand[1:], " ")),
 			}
@@ -288,32 +301,20 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 	return nil
 }
 
-func (pc *proxyConnection) createInnerClient() (*saultSsh.Client, error) {
-	signer, err := pc.hostData.ClientPrivateKey.GetSigner()
-	if err != nil {
-		log.Errorf("fail to load inner client key: %v", err)
-		return nil, err
-	}
-
-	if signer != nil {
-		log.Debugf("ClientPrivateKey for host will be used")
-	} else {
-		signer = pc.proxy.Config.Server.globalClientKeySigner
-		log.Debugf("ClientPrivateKey for host is missing, so GlobalClientKeySigner will be used")
-	}
-
-	innerClientConfig := &saultSsh.ClientConfig{
-		User: pc.hostData.DefaultAccount,
+func createSSHClient(signer saultSsh.Signer, account, address string) (*saultSsh.Client, error) {
+	log.Debugf("trying to make ssh client: account=%v address=%v", account, address)
+	clientConfig := &saultSsh.ClientConfig{
+		User: account,
 		Auth: []saultSsh.AuthMethod{
 			saultSsh.PublicKeys(signer),
 		},
 		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
 	}
 
-	innerClient, err := saultSsh.Dial("tcp", pc.hostData.GetFullAddress(), innerClientConfig)
+	client, err := saultSsh.Dial("tcp", address, clientConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return innerClient, nil
+	return client, nil
 }

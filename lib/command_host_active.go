@@ -17,18 +17,18 @@ var hostActiveOptionsTemplate = OptionsTemplate{
 The deactivated host will be not allowed to be authenticated. The difference with "host remove" is, the "host remove" will remove host data, but the data of the deactivated host will be kept, so the *deactivating* host will be safer way to manage hosts.
 
 To active "spikeekips",
-$ sault host active server0
+{{ "$ sault host active server0" | magenta }}
 
 To deactivate "spikeekips",
-$ sault host active server0-
+{{ "$ sault host active server0-" | magenta }}
 	`,
 	Usage:     "[flags] <hostName>[-]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostActiveOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseHostActiveOptions,
 }
 
-func ParseHostActiveOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostActiveOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func ParseHostActiveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestHostActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -72,9 +72,9 @@ func RequestHostActive(options OptionsValues, globalOptions OptionsValues) (exit
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"host.active",
-			HostActiveRequestData{Host: hostName, Active: active},
+			hostActiveRequestData{Host: hostName, Active: active},
 		)
 		if err != nil {
 			log.Errorf("failed to make message: %v", err)
@@ -90,42 +90,42 @@ func RequestHostActive(options OptionsValues, globalOptions OptionsValues) (exit
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var hostData HostRegistryData
-	if err := json.Unmarshal(responseMsg.Result, &hostData); err != nil {
+	var hostData hostRegistryData
+	if err := json.Unmarshal(rm.Result, &hostData); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := ov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, PrintHost(saultServerHostName, saultServerPort, hostData))
+	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseHostActive(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data HostActiveRequestData
+func responseHostActive(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data hostActiveRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to active: %v", data)
@@ -133,19 +133,19 @@ func ResponseHostActive(pc *proxyConnection, channel saultSsh.Channel, msg Comma
 	if err != nil {
 		log.Errorf("failed to set active: %v", err)
 
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	var hostData HostRegistryData
+	var hostData hostRegistryData
 	hostData, _ = pc.proxy.Registry.GetHostByHostName(data.Host)
 
-	channel.Write(ToResponse(hostData, nil))
+	channel.Write(toResponse(hostData, nil))
 	return
 }

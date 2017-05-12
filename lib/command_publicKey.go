@@ -7,7 +7,7 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-func ResponseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
+func responseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to update publicKey")
 
 	publicKey := strings.TrimSpace(string(msg.Data))
@@ -32,15 +32,20 @@ func ResponseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg 
 		return
 	}
 
-	result := FormatResponse(`
+	result, err := ExecuteCommonTemplate(`
 {{ .result }}
 {{ .line }}
 successfully updated your publicKey
 `,
 		map[string]interface{}{
-			"result": PrintUser(NewUserResponseData(pc.proxy.Registry, userData)),
+			"result": printUser(newUserResponseData(pc.proxy.Registry, userData)),
 		},
 	)
+	if err != nil {
+		log.Error(err)
+		channel.Write([]byte(err.Error()))
+		return
+	}
 
 	channel.Write([]byte(result))
 	return

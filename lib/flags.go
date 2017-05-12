@@ -13,25 +13,26 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// OptionsValues is the values of flag options
 type OptionsValues map[string]interface{}
-type ErrInvalidCommand struct {
+type errInvalidCommand struct {
 	s string
 }
 
-func (e *ErrInvalidCommand) Error() string {
+func (e *errInvalidCommand) Error() string {
 	return e.s
 }
 
-type ErrMissingCommand struct {
+type errMissingCommand struct {
 	s string
 }
 
-func (e *ErrMissingCommand) Error() string {
+func (e *errMissingCommand) Error() string {
 	return "command is missing"
 }
 
-func PrintHelp(options *Options, err error) {
-	tmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(`
+func printHelp(options *Options, err error) {
+	tmpl, _ := template.New("t").Funcs(commonTempalteFMap).Parse(`
 Usage: {{.command }} {{.usage | escape }}
 {{ if ne .description "" }}
 {{ .line }}
@@ -39,7 +40,7 @@ Usage: {{.command }} {{.usage | escape }}
 {{ .line }} {{ end }}{{.globalFlags | escape }}{{.commands | escape}}
 `)
 
-	commandsTmpl, _ := template.New("t").Funcs(CommonTempalteFMap).Parse(`
+	commandsTmpl, _ := template.New("t").Funcs(commonTempalteFMap).Parse(`
 There are serveral commands:
 {{.commands | escape}}
 `)
@@ -50,7 +51,7 @@ There are serveral commands:
 		err = nil
 	} else {
 		switch err.(type) {
-		case *ErrMissingCommand, *ErrInvalidCommand:
+		case *errMissingCommand, *errInvalidCommand:
 			errorString = fmt.Sprintf("%v", err)
 			err = nil
 		default:
@@ -66,7 +67,7 @@ There are serveral commands:
 	var bw *bytes.Buffer
 
 	var commandsHelps string
-	if err == nil && options.HasCommands() {
+	if err == nil && options.hasCommands() {
 		bw = bytes.NewBuffer([]byte{})
 		var ch []string
 
@@ -98,7 +99,7 @@ There are serveral commands:
 	}
 
 	var globalFlags string
-	globalFlagsDefaults := GetDefaults(flagSet)
+	globalFlagsDefaults := getDefaults(flagSet)
 	if strings.TrimSpace(globalFlagsDefaults) == "" {
 		globalFlags = ""
 	} else {
@@ -109,6 +110,10 @@ global flags:
 			strings.TrimRight(globalFlagsDefaults, " \n"),
 		)
 	}
+	description, err := ExecuteCommonTemplate(options.Description, nil)
+	if err != nil {
+		log.Error(err)
+	}
 
 	bw = bytes.NewBuffer([]byte{})
 	tmpl.Execute(
@@ -116,10 +121,10 @@ global flags:
 		map[string]interface{}{
 			"command":     command,
 			"usage":       usage,
-			"description": options.Description,
+			"description": description,
 			"globalFlags": globalFlags,
 			"commands":    commandsHelps,
-			"line":        strings.Repeat("-", int(CurrentTermSize.Col)),
+			"line":        strings.Repeat("-", int(currentTermSize.Col)),
 		},
 	)
 
@@ -133,7 +138,7 @@ global flags:
 	)
 }
 
-func GetDefaults(flagSet *flag.FlagSet) string {
+func getDefaults(flagSet *flag.FlagSet) string {
 	bw := bytes.NewBuffer([]byte{})
 	flagSet.SetOutput(bw)
 	flagSet.PrintDefaults()
@@ -141,6 +146,7 @@ func GetDefaults(flagSet *flag.FlagSet) string {
 	return bw.String()
 }
 
+// Options is the flag option set
 type Options struct {
 	Name        string
 	Help        string
@@ -198,6 +204,7 @@ func setFlagFromOption(fs *flag.FlagSet, option OptionTemplate) interface{} {
 	return nil
 }
 
+// NewOptions make new Options
 func NewOptions(ost OptionsTemplate) (*Options, error) {
 	var options []OptionTemplate
 
@@ -243,31 +250,34 @@ func NewOptions(ost OptionsTemplate) (*Options, error) {
 	return &co, nil
 }
 
-func (op *Options) HasCommands() bool {
+func (op *Options) hasCommands() bool {
 	return len(op.Commands) > 0
 }
 
+// Parse tries to parse the input arguments
 func (op *Options) Parse(args []string) error {
 	if err := op.FlagSet.Parse(args); err != nil {
-		PrintHelp(op, err)
+		printHelp(op, err)
 		return err
 	}
 
 	if op.ParseFunc != nil {
+		op.Extra = map[string]interface{}{}
+
 		if err := op.ParseFunc(op, args); err != nil {
-			PrintHelp(op, err)
+			printHelp(op, err)
 			return err
 		}
 	}
 
-	if !op.HasCommands() {
+	if !op.hasCommands() {
 		return nil
 	}
 
 	commandArgs := op.FlagSet.Args()
 	if len(commandArgs) < 1 {
-		err := &ErrMissingCommand{}
-		PrintHelp(op, err)
+		err := &errMissingCommand{}
+		printHelp(op, err)
 		return err
 	}
 
@@ -282,8 +292,8 @@ func (op *Options) Parse(args []string) error {
 	}
 
 	if command == "" {
-		err := &ErrInvalidCommand{fmt.Sprintf("invalid command, `%s`", commandArgs[0])}
-		PrintHelp(op, err)
+		err := &errInvalidCommand{fmt.Sprintf("invalid command, `%s`", commandArgs[0])}
+		printHelp(op, err)
 
 		return err
 	}
@@ -294,6 +304,7 @@ func (op *Options) Parse(args []string) error {
 	return commandOptions.Parse(commandArgs[1:])
 }
 
+// Values marshals the parsed arguments and it's values
 func (op *Options) Values(deep bool) OptionsValues {
 	m := OptionsValues{
 		"Name":        op.Name,
@@ -326,6 +337,7 @@ func (op *Options) Values(deep bool) OptionsValues {
 	return m
 }
 
+// OptionTemplate is the template for one flag option
 type OptionTemplate struct {
 	Name         string
 	DefaultValue interface{}
@@ -333,6 +345,7 @@ type OptionTemplate struct {
 	ValueType    interface{}
 }
 
+// OptionsTemplate is the template for Options
 type OptionsTemplate struct {
 	Name        string
 	Usage       string

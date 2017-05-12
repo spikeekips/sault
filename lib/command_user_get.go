@@ -16,24 +16,24 @@ var userGetOptionsTemplate = OptionsTemplate{
 	Help:  "get user",
 	Usage: "[flags] <userName>",
 	Options: []OptionTemplate{
-		AtOptionTemplate,
-		POptionTemplate,
+		atOptionTemplate,
+		pOptionTemplate,
 		OptionTemplate{
 			Name:      "PublicKey",
 			Help:      "find user by public key; you can find user without userName",
-			ValueType: &struct{ Type FlagPublicKey }{FlagPublicKey("")},
+			ValueType: &struct{ Type flagPublicKey }{flagPublicKey("")},
 		},
 	},
-	ParseFunc: ParseUserGetOptions,
+	ParseFunc: parseUserGetOptions,
 }
 
-type FlagPublicKey string
+type flagPublicKey string
 
-func (f *FlagPublicKey) String() string {
+func (f *flagPublicKey) String() string {
 	return string(*f)
 }
 
-func (f *FlagPublicKey) Set(v string) error {
+func (f *flagPublicKey) Set(v string) error {
 	if _, err := os.Stat(v); err != nil {
 		return err
 	}
@@ -50,19 +50,19 @@ func (f *FlagPublicKey) Set(v string) error {
 		}
 	}
 
-	*f = FlagPublicKey(v)
+	*f = flagPublicKey(v)
 
 	return nil
 }
 
-func ParseUserGetOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseUserGetOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
 
 	values := op.Values(false)
-	publicKeyFile := string(*values["Options"].(OptionsValues)["PublicKey"].(*FlagPublicKey))
+	publicKeyFile := string(*values["Options"].(OptionsValues)["PublicKey"].(*flagPublicKey))
 
 	commandArgs := op.FlagSet.Args()
 	if publicKeyFile == "" && len(commandArgs) != 1 {
@@ -86,7 +86,7 @@ func ParseUserGetOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestUserGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := ov["SaultServerName"].(string)
@@ -105,9 +105,9 @@ func RequestUserGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"user.get",
-			UserGetRequestData{
+			userGetRequestData{
 				User:      userName,
 				PublicKey: publicKeyString,
 			},
@@ -126,46 +126,46 @@ func RequestUserGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var data UserResponseData
-	if err := json.Unmarshal(responseMsg.Result, &data); err != nil {
+	var data userResponseData
+	if err := json.Unmarshal(rm.Result, &data); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
-	fmt.Fprintf(os.Stdout, PrintUser(data))
+	fmt.Fprintf(os.Stdout, printUser(data))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data UserGetRequestData
+func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data userGetRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to get user data: %v", data)
 	if data.User == "" && data.PublicKey == "" {
 		err = fmt.Errorf("empty request: %v", data)
 		log.Error(err)
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
@@ -173,7 +173,7 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 	if data.User != "" {
 		userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 		if err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
@@ -182,7 +182,7 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 		publicKey, err = ParsePublicKeyFromString(data.PublicKey)
 		if err != nil {
 			log.Errorf("invalid PublicKey received: %v", err)
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 
@@ -190,7 +190,7 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 		userDataOfPublicKey, err = pc.proxy.Registry.GetUserByPublicKey(publicKey)
 		if userData.User != "" && userData.User != userDataOfPublicKey.User {
 			err = errors.New("user not found")
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 		userData = userDataOfPublicKey
@@ -198,10 +198,10 @@ func ResponseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg CommandM
 
 	if err != nil {
 		log.Errorf("failed to get user: %v", err)
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(NewUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
 	return
 }

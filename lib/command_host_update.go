@@ -17,12 +17,12 @@ var hostUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update host",
 	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",
-	Options:   []OptionTemplate{AtOptionTemplate, POptionTemplate},
-	ParseFunc: ParseHostUpdateOptions,
+	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
+	ParseFunc: parseHostUpdateOptions,
 }
 
-func ParseHostUpdateOptions(op *Options, args []string) error {
-	err := ParseBaseCommandOptions(op, args)
+func parseHostUpdateOptions(op *Options, args []string) error {
+	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func ParseHostUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func RequestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	ov := options["Commands"].(OptionsValues)
 	address := ov["SaultServerAddress"].(string)
 	serverName := options["Commands"].(OptionsValues)["SaultServerName"].(string)
@@ -150,9 +150,9 @@ func RequestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	var output []byte
 	{
 		var err error
-		msg, err := NewCommandMsg(
+		msg, err := newCommandMsg(
 			"host.update",
-			HostUpdateRequestData{
+			hostUpdateRequestData{
 				Host:                hostName,
 				NewHostName:         newHostName,
 				NewDefaultAccount:   newDefaultAccount,
@@ -176,90 +176,90 @@ func RequestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		}
 	}
 
-	var responseMsg ResponseMsg
-	if err := saultSsh.Unmarshal(output, &responseMsg); err != nil {
+	var rm responseMsg
+	if err := saultSsh.Unmarshal(output, &rm); err != nil {
 		log.Errorf("got invalid response: %v", err)
 		exitStatus = 1
 		return
 	}
 
-	if responseMsg.Error != "" {
-		log.Errorf("%s", responseMsg.Error)
+	if rm.Error != "" {
+		log.Errorf("%s", rm.Error)
 		exitStatus = 1
 
 		return
 	}
 
-	var hostData HostRegistryData
-	if err := json.Unmarshal(responseMsg.Result, &hostData); err != nil {
+	var hostData hostRegistryData
+	if err := json.Unmarshal(rm.Result, &hostData); err != nil {
 		log.Errorf("failed to unmarshal responseMsg: %v", err)
 		exitStatus = 1
 		return
 	}
 
 	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
-	log.Debugf("unmarshaled data: %v", string(jsoned))
+	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := ov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, PrintHost(saultServerHostName, saultServerPort, hostData))
+	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
 	exitStatus = 0
 
 	return
 }
 
-func ResponseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg CommandMsg) (exitStatus uint32, err error) {
-	var data HostUpdateRequestData
+func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data hostUpdateRequestData
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("trying to update host: %v", data)
 
-	var hostData HostRegistryData
+	var hostData hostRegistryData
 	if data.NewHostName != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostName(data.Host, data.NewHostName); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewDefaultAccount != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostDefaultAccount(data.Host, data.NewDefaultAccount); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if len(data.NewAccounts) > 0 {
 		if hostData, err = pc.proxy.Registry.UpdateHostAccounts(data.Host, data.NewAccounts); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewAddress != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostAddress(data.Host, data.NewAddress); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewPort != 0 {
 		if hostData, err = pc.proxy.Registry.UpdateHostPort(data.Host, data.NewPort); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewClientPrivateKey != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostClientPrivateKey(data.Host, data.NewClientPrivateKey); err != nil {
-			channel.Write(ToResponse(nil, err))
+			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(ToResponse(nil, err))
+		channel.Write(toResponse(nil, err))
 		return
 	}
 
-	channel.Write(ToResponse(hostData, nil))
+	channel.Write(toResponse(hostData, nil))
 	return
 }
