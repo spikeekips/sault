@@ -115,7 +115,8 @@ func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
 func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
 	log.Info("Hallå världen...")
 
-	ov := options["Commands"].(OptionsValues)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
 	var config *Config
 	{
 		var err error
@@ -123,9 +124,9 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 		flagArgs := map[string]interface{}{
 			"BaseDirectory": ov["BaseDirectory"].(string),
 			"Configs":       ov["Configs"].([]string),
-			"LogFormat":     string(*globalOptions["LogFormat"].(*FlagLogFormat)),
-			"LogLevel":      string(*globalOptions["LogLevel"].(*FlagLogLevel)),
-			"LogOutput":     string(*globalOptions["LogOutput"].(*FlagLogOutput)),
+			"LogFormat":     string(*gov["LogFormat"].(*FlagLogFormat)),
+			"LogLevel":      string(*gov["LogLevel"].(*FlagLogLevel)),
+			"LogOutput":     string(*gov["LogOutput"].(*FlagLogOutput)),
 		}
 		config, err = loadConfig(flagArgs)
 		if err != nil {

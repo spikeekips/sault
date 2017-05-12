@@ -13,7 +13,6 @@ var showClientKeysOptionsTemplate = OptionsTemplate{
 	Name:      "clientKeys",
 	Help:      "show publicKey for host client",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseShowClientKeysOptions,
 }
 
@@ -27,9 +26,9 @@ func parseShowClientKeysOptions(op *Options, args []string) error {
 }
 
 func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {

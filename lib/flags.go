@@ -318,9 +318,12 @@ func (op *Options) Values(deep bool) OptionsValues {
 	m["Options"] = values
 
 	if op.Extra != nil {
+		mo := m["Options"].(OptionsValues)
 		for k, v := range op.Extra {
-			m[k] = v
+			mo[k] = v
 		}
+
+		m["Options"] = mo
 	}
 
 	if deep {

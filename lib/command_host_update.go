@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -16,7 +17,6 @@ var hostUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update host",
 	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseHostUpdateOptions,
 }
 
@@ -109,9 +109,10 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 }
 
 func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := options["Commands"].(OptionsValues)["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -200,7 +201,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
-	saultServerHostName := ov["SaultServerHostName"].(string)
+	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
@@ -213,9 +214,62 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data hostUpdateRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to update host: %v", data)
+	hostData, err := pc.proxy.Registry.GetHostByHostName(data.Host)
+	if err != nil {
+		channel.Write(toResponse(nil, err))
+		return
+	}
 
-	var hostData hostRegistryData
+	log.Debugf("check the connectivity: %v", data)
+
+	var signer saultSsh.Signer
+	if data.NewClientPrivateKey != "" {
+		signer, err = GetPrivateKeySignerFromString(data.NewClientPrivateKey)
+		if err != nil {
+			err = fmt.Errorf("invalid ClientPrivateKey: %v", err)
+
+			channel.Write(toResponse(nil, err))
+			return
+		}
+		log.Debugf("NewClientPrivateKey will be used")
+	} else {
+		signer, err = hostData.ClientPrivateKey.getSigner()
+		if err == nil {
+			log.Debugf("ClientPrivateKey will be used")
+		} else {
+			signer = pc.proxy.Config.Server.globalClientKeySigner
+			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
+		}
+	}
+
+	defaultAccount := hostData.DefaultAccount
+	if data.NewDefaultAccount != "" {
+		defaultAccount = data.NewDefaultAccount
+	}
+
+	address := hostData.Address
+	port := hostData.GetPort()
+	if data.NewAddress != "" {
+		address = data.NewAddress
+	}
+	if data.NewPort != 0 {
+		port = data.NewPort
+	}
+
+	_, err = createSSHClient(
+		signer,
+		defaultAccount,
+		fmt.Sprintf("%s:%d", address, port),
+		time.Second*3,
+	)
+	if err != nil {
+		err = fmt.Errorf("failed to check the connectivity: %v", err)
+
+		channel.Write(toResponse(nil, err))
+		return
+	}
+
+	log.Debugf("trying to update host: %v", data)
 	if data.NewHostName != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostName(data.Host, data.NewHostName); err != nil {
 			channel.Write(toResponse(nil, err))

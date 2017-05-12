@@ -22,7 +22,6 @@ To deactivate "spikeekips",
 {{ "$ sault host active server0-" | magenta }}
 	`,
 	Usage:     "[flags] <hostName>[-]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseHostActiveOptions,
 }
 
@@ -53,9 +52,10 @@ func parseHostActiveOptions(op *Options, args []string) error {
 }
 
 func requestHostActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -114,7 +114,7 @@ func requestHostActive(options OptionsValues, globalOptions OptionsValues) (exit
 	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
-	saultServerHostName := ov["SaultServerHostName"].(string)
+	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 

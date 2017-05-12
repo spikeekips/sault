@@ -14,7 +14,6 @@ var userAddOptionsTemplate = OptionsTemplate{
 	Name:      "add",
 	Help:      "add user",
 	Usage:     "[flags] <userName> <publicKeyFile>",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseUserAddOptions,
 }
 
@@ -51,9 +50,10 @@ func parseUserAddOptions(op *Options, args []string) error {
 }
 
 func requestUserAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -147,7 +147,7 @@ func responseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 func printAddedUser(data userResponseData) string {
 	result, err := ExecuteCommonTemplate(`
 {{ .user | escape }}
-
+{{ .line }}
 new user added`,
 		map[string]interface{}{
 			"user": printUser(data),

@@ -15,8 +15,6 @@ var userGetOptionsTemplate = OptionsTemplate{
 	Help:  "get user",
 	Usage: "[flags] <userName>",
 	Options: []OptionTemplate{
-		atOptionTemplate,
-		pOptionTemplate,
 		OptionTemplate{
 			Name:      "PublicKey",
 			Help:      "find user by public key; you can find user without userName",
@@ -86,9 +84,10 @@ func parseUserGetOptions(op *Options, args []string) error {
 }
 
 func requestUserGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {

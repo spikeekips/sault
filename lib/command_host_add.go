@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -64,11 +65,9 @@ var hostAddOptionsTemplate = OptionsTemplate{
 	Help:  "add new host",
 	Usage: "[flags] <hostName> <default account>@<address:port>",
 	Options: []OptionTemplate{
-		atOptionTemplate,
-		pOptionTemplate,
 		OptionTemplate{
 			Name:      "Accounts",
-			Help:      "available accounts of host",
+			Help:      "available accounts of host. ex) spike,bae",
 			ValueType: &struct{ Type flagAccounts }{flagAccounts{}},
 		},
 		OptionTemplate{
@@ -124,9 +123,10 @@ func parseHostAddOptions(op *Options, args []string) error {
 }
 
 func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -142,11 +142,9 @@ func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 		msg, err := newCommandMsg(
 			"host.add",
 			hostAddRequestData{
-				Host:           ov["HostName"].(string),
-				DefaultAccount: ov["DefaultAccount"].(string),
-				Accounts: []string(
-					*ov["Options"].(OptionsValues)["Accounts"].(*flagAccounts),
-				),
+				Host:             ov["HostName"].(string),
+				DefaultAccount:   ov["DefaultAccount"].(string),
+				Accounts:         []string(*ov["Accounts"].(*flagAccounts)),
 				Address:          ov["Address"].(string),
 				Port:             ov["Port"].(uint64),
 				ClientPrivateKey: ov["ClientPrivateKeyString"].(string),
@@ -191,7 +189,7 @@ func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
-	saultServerHostName := ov["SaultServerHostName"].(string)
+	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 
@@ -205,18 +203,26 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	json.Unmarshal(msg.Data, &data)
 
 	log.Debugf("check the connectivity: %v", data)
-	signer, err := GetPrivateKeySignerFromString(data.ClientPrivateKey)
-	if signer != nil {
-		log.Debugf("ClientPrivateKey for host will be used")
-	} else {
+	var signer saultSsh.Signer
+	if data.ClientPrivateKey == "" {
 		signer = pc.proxy.Config.Server.globalClientKeySigner
 		log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
+	} else {
+		signer, err = GetPrivateKeySignerFromString(data.ClientPrivateKey)
+		if err != nil {
+			err = fmt.Errorf("invalid ClientPrivateKey: %v", err)
+
+			channel.Write(toResponse(nil, err))
+			return
+		}
+		log.Debugf("ClientPrivateKey for host will be used")
 	}
 
 	_, err = createSSHClient(
 		signer,
 		data.DefaultAccount,
 		data.getFullAddress(),
+		time.Second*3,
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to check the connectivity: %v", err)

@@ -27,16 +27,11 @@ var defaultLogFormat = "text"
 var defaultLogLevel = "error"
 var defaultLogOutput = "stdout"
 var atOptionTemplate = OptionTemplate{
-	Name:         "At",
-	DefaultValue: "sault@localhost",
-	Help:         "sault server, sault@<sault server>",
-	ValueType:    &struct{ Type flagSaultServer }{flagSaultServer("sault@localhost")},
-}
-
-var pOptionTemplate = OptionTemplate{
-	Name:         "P",
-	DefaultValue: defaultServerPort,
-	Help:         "sault server port",
+	Name: "At",
+	Help: "sault server, sault@<sault server[:port]>",
+	ValueType: &struct{ Type flagSaultServer }{
+		flagSaultServer(fmt.Sprintf("sault@localhost:%d", defaultServerPort)),
+	},
 }
 
 // FlagLogFormat set the log format
@@ -129,15 +124,22 @@ func (f *flagSaultServer) Set(v string) error {
 }
 
 func parseBaseCommandOptions(op *Options, args []string) error {
+	return nil
+}
+
+func parseGlobalOptions(op *Options, args []string) error {
 	values := op.Values(false)["Options"].(OptionsValues)
 
 	{
 		saultServer := string(*values["At"].(*flagSaultServer))
-		serverName, hostName, err := ParseHostAccount(saultServer)
+		serverName, fullHostName, err := ParseHostAccount(saultServer)
 		if err != nil {
 			return err
 		}
-		port := int(*values["P"].(*int))
+		hostName, port, err := SplitHostPort(fullHostName, defaultServerPort)
+		if err != nil {
+			return err
+		}
 
 		op.Extra["SaultServerName"] = serverName
 		op.Extra["SaultServerHostName"] = hostName
@@ -314,6 +316,7 @@ func init() {
 				Help:      "log output [stdout stderr <filename>]",
 				ValueType: &struct{ Type FlagLogOutput }{FlagLogOutput(defaultLogOutput)},
 			},
+			atOptionTemplate,
 		},
 		Commands: []OptionsTemplate{
 			initOptionsTemplate,
@@ -323,6 +326,7 @@ func init() {
 			connectOptionsTemplate,
 			whoAmIOptionsTemplate,
 		},
+		ParseFunc: parseGlobalOptions,
 	}
 
 	RequestCommands = map[string]func(OptionsValues, OptionsValues) int{

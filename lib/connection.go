@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
@@ -133,7 +134,7 @@ func (pc *proxyConnection) handleNewConnection() error {
 			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
 		}
 
-		innerClient, err := createSSHClient(signer, pc.hostData.DefaultAccount, pc.hostData.GetFullAddress())
+		innerClient, err := createSSHClient(signer, pc.hostData.DefaultAccount, pc.hostData.GetFullAddress(), 0)
 		if err != nil {
 			log.Errorf("fail to create inner client: %v", err)
 			return err
@@ -301,7 +302,7 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 	return nil
 }
 
-func createSSHClient(signer saultSsh.Signer, account, address string) (*saultSsh.Client, error) {
+func createSSHClient(signer saultSsh.Signer, account, address string, timeout time.Duration) (*saultSsh.Client, error) {
 	log.Debugf("trying to make ssh client: account=%v address=%v", account, address)
 	clientConfig := &saultSsh.ClientConfig{
 		User: account,
@@ -309,6 +310,7 @@ func createSSHClient(signer saultSsh.Signer, account, address string) (*saultSsh
 			saultSsh.PublicKeys(signer),
 		},
 		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
+		Timeout:         timeout,
 	}
 
 	client, err := saultSsh.Dial("tcp", address, clientConfig)

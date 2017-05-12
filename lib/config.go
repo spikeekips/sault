@@ -33,7 +33,7 @@ var availableRegistryType = [1]string{
 }
 
 var defaultServerName = "sault"
-var defaultServerPort = 2222
+var defaultServerPort uint64 = 2222
 var defaultServerBind string
 
 func init() {

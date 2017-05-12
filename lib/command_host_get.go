@@ -13,7 +13,6 @@ var hostGetOptionsTemplate = OptionsTemplate{
 	Name:      "get",
 	Help:      "get host",
 	Usage:     "[flags] <hostName>",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseHostGetOptions,
 }
 
@@ -41,9 +40,10 @@ func parseHostGetOptions(op *Options, args []string) error {
 }
 
 func requestHostGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -101,7 +101,7 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
-	saultServerHostName := ov["SaultServerHostName"].(string)
+	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
 

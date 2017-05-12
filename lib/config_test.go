@@ -118,7 +118,7 @@ global_client_key_path = "./client.key"
 	templateConfigJSON, _ := template.New("t").Parse(`
 {
   "Server": {
-    "Bind": ":2222",
+    "Bind": "{{ .ServerBind }}",
     "HostKeyPath": "./host.key",
     "GlobalClientKeyPath": "./client.key",
     "ServerName": "sault",
@@ -140,6 +140,7 @@ global_client_key_path = "./client.key"
 }
 	`)
 	templateConfigJSON.Execute(bw, map[string]interface{}{
+		"ServerBind":    defaultServerBind,
 		"BaseDirectory": BaseDirectory,
 	})
 

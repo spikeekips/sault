@@ -226,7 +226,8 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int
 	log.Info("första gången...")
 
 	// check whether ConfigDir is sault env or not
-	configDir := options["ConfigDir"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	configDir := ov["ConfigDir"].(string)
 	var created bool
 	{
 		var err error
@@ -275,8 +276,8 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int
 		return
 	}
 
-	adminName := options["AdminName"].(string)
-	publicKeyString := options["PublicKeyString"].(string)
+	adminName := ov["AdminName"].(string)
+	publicKeyString := ov["PublicKeyString"].(string)
 
 	userData, err := addAdmin(registry, adminName, publicKeyString)
 	if err != nil {

@@ -13,7 +13,6 @@ var whoAmIOptionsTemplate = OptionsTemplate{
 	Name:      "whoami",
 	Help:      "show mine",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseWhoAmIOptions,
 }
 
@@ -27,8 +26,9 @@ func parseWhoAmIOptions(op *Options, args []string) error {
 }
 
 func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	address := options["SaultServerAddress"].(string)
-	serverName := options["SaultServerName"].(string)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {

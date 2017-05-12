@@ -11,7 +11,6 @@ var showConfigOptionsTemplate = OptionsTemplate{
 	Name:      "config",
 	Help:      "show server configuration",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseShowConfigOptions,
 }
 
@@ -25,9 +24,9 @@ func parseShowConfigOptions(op *Options, args []string) error {
 }
 
 func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {

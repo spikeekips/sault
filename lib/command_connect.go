@@ -13,7 +13,6 @@ var connectOptionsTemplate = OptionsTemplate{
 	Name:      "connect",
 	Help:      "(dis)connect user and host",
 	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseConnectOptions,
 }
 
@@ -59,8 +58,10 @@ func parseConnectOptions(op *Options, args []string) error {
 }
 
 func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	serverName := options["SaultServerName"].(string)
-	address := options["SaultServerAddress"].(string)
+	ov := options["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	serverName := gov["SaultServerName"].(string)
+	address := gov["SaultServerAddress"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -70,16 +71,16 @@ func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 		return
 	}
 
-	disconnect := options["Disconnect"].(bool)
+	disconnect := ov["Disconnect"].(bool)
 	var output []byte
 	{
 		var err error
 		msg, err := newCommandMsg(
 			"connect",
 			connectRequestData{
-				Host:          options["HostName"].(string),
-				User:          options["UserName"].(string),
-				TargetAccount: options["TargetAccount"].(string),
+				Host:          ov["HostName"].(string),
+				User:          ov["UserName"].(string),
+				TargetAccount: ov["TargetAccount"].(string),
 				Disconnect:    disconnect,
 			},
 		)

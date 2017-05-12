@@ -42,20 +42,20 @@ func init() {
 		os.Exit(1)
 	}
 
-	ov := options.Values(true)
-	globalOptions = ov["Options"].(sault.OptionsValues)
-	commandOptions = ov["Commands"].(sault.OptionsValues)
+	globalOptions = options.Values(true)
+	commandOptions = globalOptions["Commands"].(sault.OptionsValues)
+	gov := globalOptions["Options"].(sault.OptionsValues)
 
 	// logging
 	logOutput, _ := sault.ParseLogOutput(
-		string(*globalOptions["LogOutput"].(*sault.FlagLogOutput)),
-		string(*globalOptions["LogLevel"].(*sault.FlagLogLevel)),
+		string(*gov["LogOutput"].(*sault.FlagLogOutput)),
+		string(*gov["LogLevel"].(*sault.FlagLogLevel)),
 	)
 	sault.Log.Out = logOutput
-	level, _ := sault.ParseLogLevel(string(*globalOptions["LogLevel"].(*sault.FlagLogLevel)))
+	level, _ := sault.ParseLogLevel(string(*gov["LogLevel"].(*sault.FlagLogLevel)))
 	sault.Log.Level = level
 
-	if string(*globalOptions["LogFormat"].(*sault.FlagLogFormat)) == "json" {
+	if string(*gov["LogFormat"].(*sault.FlagLogFormat)) == "json" {
 		sault.Log.Formatter = &logrus.JSONFormatter{}
 	} else {
 		sault.Log.Formatter = sault.DefaultLogFormatter
@@ -73,6 +73,10 @@ func main() {
 	sault.Log.Debugf("got command, `%s`:", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
+		{
+			jsoned, _ := json.MarshalIndent(globalOptions, "", "  ")
+			fmt.Println(string(jsoned))
+		}
 		exitStatus := run(commandOptions, globalOptions)
 		os.Exit(exitStatus)
 	}

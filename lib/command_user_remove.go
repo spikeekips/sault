@@ -12,7 +12,6 @@ var userRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove user",
 	Usage:     "[flags] <userName>",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseUserRemoveOptions,
 }
 
@@ -32,9 +31,10 @@ func parseUserRemoveOptions(op *Options, args []string) error {
 }
 
 func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {

@@ -13,7 +13,6 @@ var userListOptionsTemplate = OptionsTemplate{
 	Name:      "list",
 	Help:      "list users",
 	Usage:     "[flags]",
-	Options:   []OptionTemplate{atOptionTemplate, pOptionTemplate},
 	ParseFunc: parseUserLlstOptions,
 }
 
@@ -27,9 +26,9 @@ func parseUserLlstOptions(op *Options, args []string) error {
 }
 
 func requestUserList(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Commands"].(OptionsValues)
-	address := ov["SaultServerAddress"].(string)
-	serverName := ov["SaultServerName"].(string)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
+	serverName := gov["SaultServerName"].(string)
 
 	connection, err := makeConnectionForSaultServer(serverName, address)
 	if err != nil {
