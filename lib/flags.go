@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
 )
@@ -127,12 +126,11 @@ global flags:
 	)
 
 	if errorString != "" {
-		log.Errorf(errorString)
+		CommandOut.Errorf("%s", errorString)
 	}
 
-	fmt.Fprintf(
-		os.Stdout,
-		strings.TrimRight(strings.TrimLeft(bw.String(), " \n"), "\n")+"\n\n",
+	CommandOut.Println(
+		strings.TrimRight(strings.TrimLeft(bw.String(), " \n"), "\n") + "\n\n",
 	)
 }
 

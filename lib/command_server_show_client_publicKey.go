@@ -24,11 +24,11 @@ func parseShowClientKeysOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
 	var data clientKeysResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"server.clientKeys",
@@ -41,12 +41,12 @@ func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (
 	}
 
 	result, _ := ExecuteCommonTemplate(`
-* private key
+{{ "* private key" | yellow }}
 {{ .line }}
 {{ .privateKey | escape }}
 {{ .line }}
 
-* public key
+{{ "* public key" | yellow }}
 {{ .line }}
 {{ .publicKey | escape }}
 {{ .line }}
@@ -57,8 +57,6 @@ func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (
 		},
 	)
 	fmt.Println(strings.TrimSpace(result))
-
-	exitStatus = 0
 
 	return
 }

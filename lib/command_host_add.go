@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -99,18 +98,21 @@ func parseHostAddOptions(op *Options, args []string) error {
 }
 
 var maxAuthTries int = 3
+var authMethosTries []string
 
-func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
-	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
-	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-
+func init() {
 	authMethosTries := []string{
 		"publicKey",
 	}
 	for i := 0; i < maxAuthTries; i++ {
 		authMethosTries = append(authMethosTries, "password")
 	}
+}
+
+func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (err error) {
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
+	gov := globalOptions["Options"].(OptionsValues)
+	address := gov["SaultServerAddress"].(string)
 
 	data := hostAddRequestData{
 		Host:           ov["HostName"].(string),
@@ -171,7 +173,7 @@ Tries:
 			//
 		}
 
-		exitStatus, err = RunCommand(
+		err = RunCommand(
 			gov["SaultServerName"].(string),
 			address,
 			"host.add",
@@ -223,9 +225,7 @@ Tries:
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
-
-	exitStatus = 0
+	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
 
 	return
 }

@@ -2,7 +2,6 @@ package sault
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -24,11 +23,11 @@ func parseWhoAmIOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
 	var data userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"whoami",
@@ -40,8 +39,7 @@ func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStat
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, printUser(data)+"\n")
-	exitStatus = 0
+	CommandOut.Println(printUser(data) + "\n")
 
 	return
 }

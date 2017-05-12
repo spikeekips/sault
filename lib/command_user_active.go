@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 
 	"github.com/spikeekips/sault/ssh"
@@ -51,19 +50,16 @@ func parseUserActiveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserActive(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestUserActive(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	userName := ov["UserName"].(string)
-	active := ov["Active"].(bool)
-
 	var data userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.active",
-		userActiveRequestData{User: userName, Active: active},
+		userActiveRequestData{User: ov["UserName"].(string), Active: ov["Active"].(bool)},
 		&data,
 	)
 	if err != nil {
@@ -71,9 +67,7 @@ func requestUserActive(options OptionsValues, globalOptions OptionsValues) (exit
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, printUser(data))
-
-	exitStatus = 0
+	CommandOut.Println(printUser(data))
 
 	return
 }

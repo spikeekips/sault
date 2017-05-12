@@ -1,8 +1,6 @@
 package sault
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -24,12 +22,12 @@ func parseHostListOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostList(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestHostList(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
 	var hostList map[string]hostRegistryData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.list",
@@ -72,9 +70,7 @@ no hosts
 		log.Error(err)
 		return
 	}
-	fmt.Fprintf(os.Stdout, strings.TrimSpace(result))
-
-	exitStatus = 0
+	CommandOut.Println(strings.TrimSpace(result))
 
 	return
 }

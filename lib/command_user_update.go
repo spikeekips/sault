@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -77,23 +76,19 @@ func parseUserUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	userName := ov["UserName"].(string)
-	newUserName := ov["NewUserName"].(string)
-	newPublicKeyString := ov["NewPublicKey"].(string)
-
 	var data userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.update",
 		userUpdateRequestData{
-			User:         userName,
-			NewUserName:  newUserName,
-			NewPublicKey: newPublicKeyString,
+			User:         ov["UserName"].(string),
+			NewUserName:  ov["NewUserName"].(string),
+			NewPublicKey: ov["NewPublicKey"].(string),
 		},
 		&data,
 	)
@@ -102,9 +97,7 @@ func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, printUser(data))
-
-	exitStatus = 0
+	CommandOut.Println(printUser(data))
 
 	return
 }

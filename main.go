@@ -75,19 +75,18 @@ func main() {
 	sault.Log.Debugf("got command, `%s`:", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
-		exitStatus, err := run(commandOptions, globalOptions)
+		var exitStatus int
+		err := run(commandOptions, globalOptions)
 		if err != nil {
 			sault.CommandOut.Error(err)
-			if exitStatus == 0 {
-				exitStatus = 1
-			}
+			exitStatus = 1
 		}
 		os.Exit(exitStatus)
 	}
 
 	switch command {
 	case "version":
-		fmt.Printf(`   Version: %s
+		sault.CommandOut.Printf(`   Version: %s
  BuildDate: %s
 CommitHash: %s
  GitBranch: %s`,

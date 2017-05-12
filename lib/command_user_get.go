@@ -83,7 +83,7 @@ func parseUserGetOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
@@ -91,7 +91,7 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 	publicKeyString := ov["publicKeyString"].(string)
 
 	var data userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.get",
@@ -106,9 +106,7 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, printUser(data))
-
-	exitStatus = 0
+	CommandOut.Println(printUser(data))
 
 	return
 }

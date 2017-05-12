@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -30,13 +29,13 @@ func parseUserRemoveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
 	userName := ov["UserName"].(string)
 
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.remove",
@@ -50,9 +49,7 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (exit
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "user, `%s` was removed", userName)
-
-	exitStatus = 0
+	CommandOut.Printf("user, `%s` was removed", userName)
 
 	return
 }

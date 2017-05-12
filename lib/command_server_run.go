@@ -112,7 +112,7 @@ func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
 	return registry, nil
 }
 
-func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func runServer(options OptionsValues, globalOptions OptionsValues) (err error) {
 	log.Info("Hallå världen...")
 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)

@@ -1,8 +1,6 @@
 package sault
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -24,11 +22,11 @@ func parseUserLlstOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserList(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestUserList(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
 	var data []userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.list",
@@ -57,9 +55,7 @@ found {{ len .users }} user(s){{ else }}no users{{ end }}
 			"users": printedUsers,
 		},
 	)
-	fmt.Fprintf(os.Stdout, strings.TrimSpace(result))
-
-	exitStatus = 0
+	CommandOut.Println(strings.TrimSpace(result))
 
 	return
 }

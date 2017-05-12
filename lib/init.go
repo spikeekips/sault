@@ -57,6 +57,10 @@ func (c *commandOut) Error(err error) {
 }
 
 func init() {
+	log.Level, _ = ParseLogLevel(DefaultLogLevel)
+	log.Out = DefaultLogOutputValue
+	log.Formatter = DefaultLogFormatter
+
 	defaultTOML = toml.DefaultConfig
 	defaultTOML.MissingField = func(typ reflect.Type, key string) error {
 		log.Errorf("field corresponding to `%s' is not defined in %v; but skipped", key, typ)

@@ -23,11 +23,11 @@ func parseShowConfigOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
 	var data serverConfigResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"server.config",
@@ -49,8 +49,6 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exit
 		},
 	)
 	fmt.Println(strings.TrimSpace(result))
-
-	exitStatus = 0
 
 	return
 }

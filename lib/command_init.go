@@ -222,7 +222,7 @@ func addAdmin(registry Registry, adminName, publicKeyString string) (UserRegistr
 	return userData, nil
 }
 
-func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func runInit(options OptionsValues, globalOptions OptionsValues) (err error) {
 	log.Info("första gången...")
 
 	// check whether ConfigDir is sault env or not
@@ -295,7 +295,7 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Fprintf(os.Stdout, strings.TrimSpace(gettingStarted)+"\n")
+	CommandOut.Println(strings.TrimSpace(gettingStarted) + "\n")
 
 	return
 }

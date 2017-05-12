@@ -38,18 +38,16 @@ func parsehostAliveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	hostNames := ov["Hosts"].([]string)
-
 	var data []hostAliveResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"host.alive",
-		hostAliveRequestData{Hosts: hostNames},
+		hostAliveRequestData{Hosts: ov["Hosts"].([]string)},
 		&data,
 	)
 	if err != nil {

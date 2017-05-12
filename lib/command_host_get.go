@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -39,13 +38,13 @@ func parseHostGetOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostGet(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
 	var hostData hostRegistryData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.get",
@@ -62,9 +61,7 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (exitSta
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
-
-	exitStatus = 0
+	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
 
 	return
 }

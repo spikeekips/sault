@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -100,7 +99,7 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
@@ -128,7 +127,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	}
 
 	var hostData hostRegistryData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.update",
@@ -151,9 +150,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
-	fmt.Fprintf(os.Stdout, printHost(saultServerHostName, saultServerPort, hostData))
-
-	exitStatus = 0
+	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
 
 	return
 }

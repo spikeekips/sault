@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"regexp"
 
 	"github.com/spikeekips/sault/ssh"
@@ -59,12 +58,12 @@ func parseLinkOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestLink(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
+func requestLink(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
 	var data userResponseData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.link",
@@ -81,9 +80,7 @@ func requestLink(options OptionsValues, globalOptions OptionsValues) (exitStatus
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, printUser(data))
-
-	exitStatus = 0
+	CommandOut.Println(printUser(data))
 
 	return
 }

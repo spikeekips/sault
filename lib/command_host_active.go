@@ -53,13 +53,13 @@ func parseHostActiveOptions(op *Options, args []string) error {
 func requestHostActive(
 	options OptionsValues,
 	globalOptions OptionsValues,
-) (exitStatus int, err error) {
+) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
 	var hostData hostRegistryData
-	exitStatus, err = RunCommand(
+	err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.active",
@@ -78,8 +78,6 @@ func requestHostActive(
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
-
-	exitStatus = 0
 
 	return
 }

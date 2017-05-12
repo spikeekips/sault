@@ -18,7 +18,7 @@ var userOptionsTemplate OptionsTemplate
 var hostOptionsTemplate OptionsTemplate
 
 // RequestCommands has command to rquest to sault server
-var RequestCommands map[string]func(OptionsValues, OptionsValues) (int, error)
+var RequestCommands map[string]func(OptionsValues, OptionsValues) error
 var responseCommands map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error)
 
 // GlobalOptionsTemplate has global flags
@@ -233,7 +233,7 @@ func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client,
 	return connection, nil
 }
 
-func RunCommand(serverName, address, command string, data interface{}, out interface{}) (exitStatus int, err error) {
+func RunCommand(serverName, address, command string, data interface{}, out interface{}) (err error) {
 	var connection *saultSsh.Client
 	connection, err = makeConnectionForSaultServer(serverName, address)
 	if err != nil {
@@ -374,7 +374,7 @@ func init() {
 		ParseFunc: parseGlobalOptions,
 	}
 
-	RequestCommands = map[string]func(OptionsValues, OptionsValues) (int, error){
+	RequestCommands = map[string]func(OptionsValues, OptionsValues) error{
 		"init":              runInit,
 		"server.run":        runServer,
 		"server.config":     requestShowConfig,
