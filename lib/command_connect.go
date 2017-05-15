@@ -9,14 +9,16 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-var connectOptionsTemplate = OptionsTemplate{
-	Name:      "connect",
-	Help:      "(dis)connect user and host",
+var linkOptionsTemplate = OptionsTemplate{
+	Name: "link",
+	Help: "(un)link user and host",
+	Description: `
+	`,
 	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
-	ParseFunc: parseConnectOptions,
+	ParseFunc: parseLinkOptions,
 }
 
-func parseConnectOptions(op *Options, args []string) error {
+func parseLinkOptions(op *Options, args []string) error {
 	err := parseBaseCommandOptions(op, args)
 	if err != nil {
 		return err
@@ -29,14 +31,14 @@ func parseConnectOptions(op *Options, args []string) error {
 
 	userName, accountAndHostName := commandArgs[0], commandArgs[1]
 
-	var disconnect bool
+	var unlink bool
 	if regexp.MustCompile(`\-$`).FindString(accountAndHostName) == "" {
-		disconnect = false
+		unlink = false
 	} else {
 		accountAndHostName = accountAndHostName[0 : len(accountAndHostName)-1]
-		disconnect = true
+		unlink = true
 	}
-	op.Extra["Disconnect"] = disconnect
+	op.Extra["Unlink"] = unlink
 
 	{
 		if !CheckUserName(userName) {
@@ -46,19 +48,19 @@ func parseConnectOptions(op *Options, args []string) error {
 		op.Extra["UserName"] = userName
 	}
 	{
-		account, hostName, err := ParseAccountName(accountAndHostName)
+		account, requestLink, err := ParseAccountName(accountAndHostName)
 		if err != nil {
 			return fmt.Errorf("invalid [<account>@]<hostName>: %v", err)
 		}
 		op.Extra["TargetAccount"] = account
-		op.Extra["HostName"] = hostName
+		op.Extra["HostName"] = requestLink
 	}
 
 	return nil
 }
 
-func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
-	ov := options["Options"].(OptionsValues)
+func requestLink(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	serverName := gov["SaultServerName"].(string)
 	address := gov["SaultServerAddress"].(string)
@@ -71,17 +73,17 @@ func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 		return
 	}
 
-	disconnect := ov["Disconnect"].(bool)
+	unlink := ov["Unlink"].(bool)
 	var output []byte
 	{
 		var err error
 		msg, err := newCommandMsg(
-			"connect",
-			connectRequestData{
+			"user.link",
+			linkRequestData{
 				Host:          ov["HostName"].(string),
 				User:          ov["UserName"].(string),
 				TargetAccount: ov["TargetAccount"].(string),
-				Disconnect:    disconnect,
+				Unlink:        unlink,
 			},
 		)
 		if err != nil {
@@ -129,27 +131,27 @@ func requestConnect(options OptionsValues, globalOptions OptionsValues) (exitSta
 	return
 }
 
-func responseConnect(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
-	var data connectRequestData
+func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+	var data linkRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to connect user and host: %v", data)
+	log.Debugf("trying to (un)link user and host: %v", data)
 
 	if data.TargetAccount == "" {
-		if data.Disconnect {
-			err = pc.proxy.Registry.DisconnectAll(data.Host, data.User)
+		if data.Unlink {
+			err = pc.proxy.Registry.UnlinkAll(data.Host, data.User)
 		} else {
-			err = pc.proxy.Registry.ConnectAll(data.Host, data.User)
+			err = pc.proxy.Registry.LinkAll(data.Host, data.User)
 		}
 	} else {
-		if data.Disconnect {
-			err = pc.proxy.Registry.Disconnect(
+		if data.Unlink {
+			err = pc.proxy.Registry.Unlink(
 				data.Host,
 				data.User,
 				[]string{data.TargetAccount},
 			)
 		} else {
-			err = pc.proxy.Registry.Connect(
+			err = pc.proxy.Registry.Link(
 				data.Host,
 				data.User,
 				[]string{data.TargetAccount},
@@ -157,7 +159,7 @@ func responseConnect(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		}
 	}
 	if err != nil {
-		log.Errorf("failed to connect: %v", err)
+		log.Errorf("failed to link: %v", err)
 
 		channel.Write(toResponse(nil, err))
 		return

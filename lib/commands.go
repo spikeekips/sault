@@ -280,6 +280,7 @@ func init() {
 			userUpdateOptionsTemplate,
 			userActiveOptionsTemplate,
 			userAdminOptionsTemplate,
+			linkOptionsTemplate,
 		},
 	}
 
@@ -323,7 +324,6 @@ func init() {
 			serverOptionsTemplate,
 			userOptionsTemplate,
 			hostOptionsTemplate,
-			connectOptionsTemplate,
 			whoAmIOptionsTemplate,
 		},
 		ParseFunc: parseGlobalOptions,
@@ -347,7 +347,7 @@ func init() {
 		"host.remove":       requestHostRemove,
 		"host.update":       requestHostUpdate,
 		"host.active":       requestHostActive,
-		"connect":           requestConnect,
+		"user.connect":      requestLink,
 		"whoami":            requestWhoAmI,
 	}
 	responseCommands = map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error){
@@ -360,13 +360,13 @@ func init() {
 		"user.active":       responseUserActive,
 		"user.admin":        responseUserAdmin,
 		"user.update":       responseUserUpdate,
+		"user.connect":      responseLink,
 		"host.get":          responseHostGet,
 		"host.list":         responseHostList,
 		"host.add":          responseHostAdd,
 		"host.remove":       responseHostRemove,
 		"host.update":       responseHostUpdate,
 		"host.active":       responseHostActive,
-		"connect":           responseConnect,
 		"whoami":            responseWhoAmI,
 		"publicKey":         responseUpdatePublicKey,
 	}

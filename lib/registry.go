@@ -161,13 +161,13 @@ type Registry interface {
 	UpdateHostPort(hostName string, port uint64) (hostRegistryData, error)
 	UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (hostRegistryData, error)
 
-	Connect(hostName, userName string, targetAccounts []string) error
-	Disconnect(hostName, userName string, targetAccounts []string) error
-	ConnectAll(hostName, userName string) error
-	DisconnectAll(hostName, userName string) error
-	IsConnectedAll(hostName, userName string) bool
-	IsConnected(hostName, userName, targetAccount string) bool
-	GetConnectedHosts(userName string) map[string][]string
+	Link(hostName, userName string, targetAccounts []string) error
+	Unlink(hostName, userName string, targetAccounts []string) error
+	LinkAll(hostName, userName string) error
+	UnlinkAll(hostName, userName string) error
+	IsLinkedAll(hostName, userName string) bool
+	IsLinked(hostName, userName, targetAccount string) bool
+	GetLinkedHosts(userName string) map[string][]string
 }
 
 // NewRegistry makes the new Registry

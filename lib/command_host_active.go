@@ -15,10 +15,10 @@ var hostActiveOptionsTemplate = OptionsTemplate{
 	Description: `
 The deactivated host will be not allowed to be authenticated. The difference with "host remove" is, the "host remove" will remove host data, but the data of the deactivated host will be kept, so the *deactivating* host will be safer way to manage hosts.
 
-To active "spikeekips",
+To active "server0",
 {{ "$ sault host active server0" | magenta }}
 
-To deactivate "spikeekips",
+To deactivate "server0", just add "{{ "-" | yellow }}" in the end of host name,
 {{ "$ sault host active server0-" | magenta }}
 	`,
 	Usage:     "[flags] <hostName>[-]",

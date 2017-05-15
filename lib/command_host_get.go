@@ -134,14 +134,14 @@ Address:          {{ .host.DefaultAccount }}@{{ .host.Address }}:{{ .host.Port }
 Accounts:         [ {{ .accounts }} ]
 ClientPrivateKey: {{ $l := len .clientPrivateKey }}{{ if eq $l 0 }}-{{ else }}
 {{ .clientPrivateKey | escape }}{{end}}
-Connect: $ {{ .Connect | escape }}
+Connect: {{ .Connect | magenta }}
 `,
 		map[string]interface{}{
 			"host":             hostData,
 			"accounts":         strings.Join(hostData.Accounts, " "),
 			"clientPrivateKey": strings.TrimSpace(string(hostData.ClientPrivateKey)),
 			"Connect": fmt.Sprintf(
-				`ssh -p %d %s+%s@%s`,
+				`$ ssh -p %d %s+%s@%s`,
 				saultServerPort,
 				hostData.DefaultAccount,
 				hostData.Host,

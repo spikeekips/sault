@@ -18,7 +18,7 @@ The deactivated user will be not allowed to be authenticated. The difference wit
 To active "spikeekips",
 {{ "$ sault user active spikeekips" | magenta }}
 
-To deactivate "spikeekips",
+To deactivate "spikeekips", just add "{{ "-" | yellow }}" in the end of user name,
 {{ "$ sault user active spikeekips-" | magenta }}
 	`,
 	Usage:     "[flags] <userName>[-]",

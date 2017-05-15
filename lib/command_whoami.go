@@ -98,13 +98,13 @@ func printUser(data userResponseData) string {
 	result, err := ExecuteCommonTemplate(`
 {{ "User:"|yellow }}      {{ .user.User | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 PublicKey: {{ .user.PublicKey | escape }}
-{{ $length := len .connected }}Connected hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
-{{ range $key, $accounts := .connected }}{{ $key | escape }} {{ $accounts }}
+{{ $length := len .linked }}Linked hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
+{{ range $key, $accounts := .linked }}{{ $key | escape }} {{ $accounts }}
 {{ end }}{{ end }}
 `,
 		map[string]interface{}{
-			"user":      data.UserData,
-			"connected": data.Connected,
+			"user":   data.UserData,
+			"linked": data.Linked,
 		},
 	)
 	if err != nil {

@@ -399,7 +399,7 @@ func TestRegistryRemoveHost(t *testing.T) {
 	}
 }
 
-func TestRegistryConnect(t *testing.T) {
+func TestRegistryLink(t *testing.T) {
 	registry := registrySetup()
 
 	defaultAccount := "ubuntu"
@@ -449,24 +449,24 @@ func TestRegistryConnect(t *testing.T) {
 	}
 
 	targetAccounts := []string{"a", "b"}
-	err := registry.Connect(hostsData[0].Host, usersData[0].User, targetAccounts)
+	err := registry.Link(hostsData[0].Host, usersData[0].User, targetAccounts)
 	if err != nil {
 		t.Errorf("%v %v|||", err, usersData[0], makeUserName())
 	}
 
 	for _, a := range targetAccounts {
-		if registry.IsConnected(hostsData[0].Host, usersData[1].User, a) {
-			t.Errorf("`%s` was connected", a)
+		if registry.IsLinked(hostsData[0].Host, usersData[1].User, a) {
+			t.Errorf("`%s` was linked", a)
 		}
 	}
 	for _, a := range targetAccounts {
-		if registry.IsConnected(hostsData[1].Host, usersData[0].User, a) {
-			t.Errorf("`%s` was not connected, but connected", a)
+		if registry.IsLinked(hostsData[1].Host, usersData[0].User, a) {
+			t.Errorf("`%s` was not linked, but linked", a)
 		}
 	}
 }
 
-func TestRegistryDisconnect(t *testing.T) {
+func TestRegistryUnlink(t *testing.T) {
 	registry := registrySetup()
 
 	defaultAccount := "ubuntu"
@@ -499,11 +499,11 @@ func TestRegistryDisconnect(t *testing.T) {
 	}
 
 	targetAccounts := []string{"a", "b"}
-	registry.Connect(hostData.Host, usersData[0].User, targetAccounts)
-	registry.Disconnect(hostData.Host, usersData[0].User, []string{targetAccounts[0]})
+	registry.Link(hostData.Host, usersData[0].User, targetAccounts)
+	registry.Unlink(hostData.Host, usersData[0].User, []string{targetAccounts[0]})
 }
 
-func TestRegistryConnectAll(t *testing.T) {
+func TestRegistryLinkAll(t *testing.T) {
 	registry := registrySetup()
 
 	defaultAccount := "ubuntu"
@@ -529,37 +529,36 @@ func TestRegistryConnectAll(t *testing.T) {
 
 	targetAccounts := []string{"a", "b"}
 	{
-		err := registry.ConnectAll(hostData.Host, usersData[0].User)
+		err := registry.LinkAll(hostData.Host, usersData[0].User)
 		if err != nil {
 			t.Error(err)
 		}
 	}
-	if !registry.IsConnectedAll(hostData.Host, usersData[0].User) {
-		t.Errorf("! registry.IsConnectedAll")
+	if !registry.IsLinkedAll(hostData.Host, usersData[0].User) {
+		t.Errorf("! registry.IsLinkedAll")
 	}
 
 	for _, a := range targetAccounts {
-		if !registry.IsConnected(hostData.Host, usersData[0].User, a) {
-			t.Errorf("`%s` was not connected", a)
+		if !registry.IsLinked(hostData.Host, usersData[0].User, a) {
+			t.Errorf("`%s` was not linked", a)
 		}
 	}
 
 	{
-		err := registry.DisconnectAll(hostData.Host, usersData[0].User)
+		err := registry.UnlinkAll(hostData.Host, usersData[0].User)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
-	if registry.IsConnectedAll(hostData.Host, usersData[0].User) {
-		t.Errorf("registry.IsConnectedAll")
+	if registry.IsLinkedAll(hostData.Host, usersData[0].User) {
+		t.Errorf("registry.IsLinkedAll")
 	}
 	for _, a := range targetAccounts {
-		if registry.IsConnected(hostData.Host, usersData[0].User, a) {
-			t.Errorf("`%s` was connected, but disconnected", a)
+		if registry.IsLinked(hostData.Host, usersData[0].User, a) {
+			t.Errorf("`%s` was linked, but unlinked", a)
 		}
 	}
-
 }
 
 func TestRegistrySave(t *testing.T) {

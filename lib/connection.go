@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/ssh"
@@ -15,7 +14,7 @@ type clientType uint8
 
 const (
 	saultClient clientType = iota + 1
-	sshClient
+	nativeSSHClient
 )
 
 type proxyConnection struct {
@@ -23,7 +22,7 @@ type proxyConnection struct {
 	proxy *Proxy
 
 	sshServerConfig *saultSsh.ServerConfig
-	innerClient     *saultSsh.Client
+	innerClient     *sshClient
 
 	userData          UserRegistryData
 	hostData          hostRegistryData
@@ -83,7 +82,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		}
 
 		if !userData.IsAdmin {
-			if !pc.proxy.Registry.IsConnected(hostData.Host, userData.User, manualAccountName) {
+			if !pc.proxy.Registry.IsLinked(hostData.Host, userData.User, manualAccountName) {
 				requestLog.Errorf("host, `%v` and user, `%v` is not connected", hostData, userData)
 				return nil, errors.New("authentication failed")
 			}
@@ -134,12 +133,15 @@ func (pc *proxyConnection) handleNewConnection() error {
 			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
 		}
 
-		innerClient, err := createSSHClient(signer, pc.hostData.DefaultAccount, pc.hostData.GetFullAddress(), 0)
-		if err != nil {
+		innerClient := newsshClient(pc.hostData.DefaultAccount, pc.hostData.GetFullAddress())
+		innerClient.addAuthMethod(saultSsh.PublicKeys(signer))
+		innerClient.setTimeout(0)
+
+		if err := innerClient.connect(); err != nil {
 			log.Errorf("fail to create inner client: %v", err)
 			return err
 		}
-		defer innerClient.Close()
+		defer innerClient.close()
 
 		pc.innerClient = innerClient
 
@@ -196,7 +198,7 @@ L:
 				break L
 			}
 
-			pc.clientType = sshClient
+			pc.clientType = nativeSSHClient
 			log.Errorf("but got execMsg: %v", em)
 			splitedCommand := strings.SplitN(em.Command, " ", 2)
 			msg = commandMsg{
@@ -237,7 +239,7 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 	defer proxyChannel.Close()
 	proxyChannel.SetProxy(true)
 
-	innerChannel, innerRequests, err := pc.innerClient.OpenChannel(
+	innerChannel, innerRequests, err := pc.innerClient.client.OpenChannel(
 		newChannel.ChannelType(),
 		newChannel.ExtraData(),
 	)
@@ -300,23 +302,4 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 	}
 
 	return nil
-}
-
-func createSSHClient(signer saultSsh.Signer, account, address string, timeout time.Duration) (*saultSsh.Client, error) {
-	log.Debugf("trying to make ssh client: account=%v address=%v", account, address)
-	clientConfig := &saultSsh.ClientConfig{
-		User: account,
-		Auth: []saultSsh.AuthMethod{
-			saultSsh.PublicKeys(signer),
-		},
-		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
-		Timeout:         timeout,
-	}
-
-	client, err := saultSsh.Dial("tcp", address, clientConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
 }

@@ -256,13 +256,10 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		port = data.NewPort
 	}
 
-	_, err = createSSHClient(
-		signer,
-		defaultAccount,
-		fmt.Sprintf("%s:%d", address, port),
-		time.Second*3,
-	)
-	if err != nil {
+	sc := newsshClient(defaultAccount, fmt.Sprintf("%s:%d", address, port))
+	sc.addAuthMethod(saultSsh.PublicKeys(signer))
+	sc.setTimeout(time.Second * 3)
+	if err = sc.connect(); err != nil {
 		err = fmt.Errorf("failed to check the connectivity: %v", err)
 
 		channel.Write(toResponse(nil, err))

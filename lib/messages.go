@@ -32,6 +32,10 @@ func newCommandMsg(command string, s interface{}) (*commandMsg, error) {
 	return &msg, nil
 }
 
+func (c commandMsg) String() string {
+	return fmt.Sprintf("{Command: %s Data: %s...}", c.Command, c.Data[:50])
+}
+
 type responseMsg struct {
 	Result []byte
 	Error  string
@@ -78,6 +82,8 @@ type hostAddRequestData struct {
 	Address          string
 	Port             uint64
 	ClientPrivateKey string
+	AuthMethod       string
+	Password         string
 }
 
 func (p hostAddRequestData) getFullAddress() string {
@@ -108,22 +114,22 @@ type hostActiveRequestData struct {
 	Active bool
 }
 
-type connectRequestData struct {
+type linkRequestData struct {
 	Host          string
 	User          string
 	TargetAccount string
-	Disconnect    bool
+	Unlink        bool
 }
 
 type userResponseData struct {
-	UserData  UserRegistryData
-	Connected map[string][]string
+	UserData UserRegistryData
+	Linked   map[string][]string
 }
 
 func newUserResponseData(registry Registry, userData UserRegistryData) userResponseData {
 	return userResponseData{
-		UserData:  userData,
-		Connected: registry.GetConnectedHosts(userData.User),
+		UserData: userData,
+		Linked:   registry.GetLinkedHosts(userData.User),
 	}
 }
 

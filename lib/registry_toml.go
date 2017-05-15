@@ -13,14 +13,14 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-type tomlConnectedUserRegistryData struct {
+type tomlLinkedUserRegistryData struct {
 	Account []string
 }
 
 type tomlRegistryDataSource struct {
-	User      map[string]UserRegistryData
-	Host      map[string]hostRegistryData
-	Connected map[string]map[string]tomlConnectedUserRegistryData
+	User   map[string]UserRegistryData
+	Host   map[string]hostRegistryData
+	Linked map[string]map[string]tomlLinkedUserRegistryData
 }
 
 type tomlRegistry struct {
@@ -76,9 +76,9 @@ func newTOMLRegistry(config configTOMLRegistry, initialize bool) (*tomlRegistry,
 	defer f.Close()
 
 	dataSource := &tomlRegistryDataSource{
-		User:      map[string]UserRegistryData{},
-		Host:      map[string]hostRegistryData{},
-		Connected: map[string]map[string]tomlConnectedUserRegistryData{},
+		User:   map[string]UserRegistryData{},
+		Host:   map[string]hostRegistryData{},
+		Linked: map[string]map[string]tomlLinkedUserRegistryData{},
 	}
 	if err := toml.NewDecoder(f).Decode(dataSource); err != nil {
 		return nil, err
@@ -294,11 +294,11 @@ func (r *tomlRegistry) RemoveUser(userName string) error {
 
 	delete(r.DataSource.User, userName)
 
-	for hostName, users := range r.DataSource.Connected {
+	for hostName, users := range r.DataSource.Linked {
 		if _, ok := users[userName]; !ok {
 			continue
 		}
-		delete(r.DataSource.Connected[hostName], userName)
+		delete(r.DataSource.Linked[hostName], userName)
 	}
 
 	return nil
@@ -355,13 +355,13 @@ func (r *tomlRegistry) UpdateUserName(userName, newUserName string) (UserRegistr
 
 	r.DataSource.User[newUserName] = userData
 
-	for hostName, users := range r.DataSource.Connected {
+	for hostName, users := range r.DataSource.Linked {
 		if _, ok := users[userName]; !ok {
 			continue
 		}
-		r.DataSource.Connected[hostName][newUserName] = r.DataSource.Connected[hostName][userName]
+		r.DataSource.Linked[hostName][newUserName] = r.DataSource.Linked[hostName][userName]
 
-		delete(r.DataSource.Connected[hostName], userName)
+		delete(r.DataSource.Linked[hostName], userName)
 	}
 
 	return userData, nil
@@ -456,8 +456,8 @@ func (r *tomlRegistry) RemoveHost(hostName string) error {
 
 	delete(r.DataSource.Host, hostName)
 
-	if _, ok := r.DataSource.Connected[hostName]; ok {
-		delete(r.DataSource.Connected, hostName)
+	if _, ok := r.DataSource.Linked[hostName]; ok {
+		delete(r.DataSource.Linked, hostName)
 	}
 
 	return nil
@@ -481,9 +481,9 @@ func (r *tomlRegistry) UpdateHostName(hostName, newHostName string) (hostRegistr
 	delete(r.DataSource.Host, hostName)
 	r.DataSource.Host[newHostName] = hostData
 
-	if _, ok := r.DataSource.Connected[hostName]; ok {
-		r.DataSource.Connected[newHostName] = r.DataSource.Connected[hostName]
-		delete(r.DataSource.Connected, hostName)
+	if _, ok := r.DataSource.Linked[hostName]; ok {
+		r.DataSource.Linked[newHostName] = r.DataSource.Linked[hostName]
+		delete(r.DataSource.Linked, hostName)
 	}
 
 	return hostData, nil
@@ -606,7 +606,7 @@ func (r *tomlRegistry) UpdateHostClientPrivateKey(hostName, clientPrivateKey str
 	return hostData, nil
 }
 
-func (r *tomlRegistry) IsConnectedAll(hostName, userName string) bool {
+func (r *tomlRegistry) IsLinkedAll(hostName, userName string) bool {
 	if _, err := r.GetHostByHostName(hostName); err != nil {
 		return false
 	}
@@ -615,11 +615,11 @@ func (r *tomlRegistry) IsConnectedAll(hostName, userName string) bool {
 		return false
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
 		return false
 	}
-	uc, ok := r.DataSource.Connected[hostName][userName]
+	uc, ok := r.DataSource.Linked[hostName][userName]
 	if !ok {
 		return false
 	}
@@ -633,8 +633,8 @@ func (r *tomlRegistry) IsConnectedAll(hostName, userName string) bool {
 	return false
 }
 
-func (r *tomlRegistry) IsConnected(hostName, userName, targetAccount string) bool {
-	if r.IsConnectedAll(hostName, userName) {
+func (r *tomlRegistry) IsLinked(hostName, userName, targetAccount string) bool {
+	if r.IsLinkedAll(hostName, userName) {
 		return true
 	}
 
@@ -646,11 +646,11 @@ func (r *tomlRegistry) IsConnected(hostName, userName, targetAccount string) boo
 		return false
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
 		return false
 	}
-	uc, ok := r.DataSource.Connected[hostName][userName]
+	uc, ok := r.DataSource.Linked[hostName][userName]
 	if !ok {
 		return false
 	}
@@ -664,7 +664,7 @@ func (r *tomlRegistry) IsConnected(hostName, userName, targetAccount string) boo
 	return false
 }
 
-func (r *tomlRegistry) ConnectAll(hostName, userName string) error {
+func (r *tomlRegistry) LinkAll(hostName, userName string) error {
 	if _, err := r.GetHostByHostName(hostName); err != nil {
 		return fmt.Errorf("hostName, `%s`, not found", hostName)
 	}
@@ -673,17 +673,17 @@ func (r *tomlRegistry) ConnectAll(hostName, userName string) error {
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
-		r.DataSource.Connected[hostName] = map[string]tomlConnectedUserRegistryData{}
+		r.DataSource.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
 	}
-	r.DataSource.Connected[hostName][userName] = tomlConnectedUserRegistryData{Account: []string{"*"}}
+	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: []string{"*"}}
 
 	return nil
 }
 
-func (r *tomlRegistry) Connect(hostName, userName string, targetAccounts []string) error {
-	if r.IsConnectedAll(hostName, userName) {
+func (r *tomlRegistry) Link(hostName, userName string, targetAccounts []string) error {
+	if r.IsLinkedAll(hostName, userName) {
 		return nil
 	}
 
@@ -695,13 +695,13 @@ func (r *tomlRegistry) Connect(hostName, userName string, targetAccounts []strin
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
-		r.DataSource.Connected[hostName] = map[string]tomlConnectedUserRegistryData{}
+		r.DataSource.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
 	}
-	uc, ok := r.DataSource.Connected[hostName][userName]
+	uc, ok := r.DataSource.Linked[hostName][userName]
 	if !ok {
-		r.DataSource.Connected[hostName][userName] = tomlConnectedUserRegistryData{Account: targetAccounts}
+		r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: targetAccounts}
 		return nil
 	}
 
@@ -722,13 +722,13 @@ func (r *tomlRegistry) Connect(hostName, userName string, targetAccounts []strin
 		filtered = append(filtered, a)
 	}
 
-	r.DataSource.Connected[hostName][userName] = tomlConnectedUserRegistryData{Account: filtered}
+	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
 
 	return nil
 }
-func (r *tomlRegistry) Disconnect(hostName, userName string, targetAccounts []string) error {
-	if r.IsConnectedAll(hostName, userName) {
-		return errors.New("currently all account connected, DisconnectAll() first")
+func (r *tomlRegistry) Unlink(hostName, userName string, targetAccounts []string) error {
+	if r.IsLinkedAll(hostName, userName) {
+		return errors.New("currently all account linked, UnlinkAll() first")
 	}
 
 	if _, err := r.GetHostByHostName(hostName); err != nil {
@@ -739,11 +739,11 @@ func (r *tomlRegistry) Disconnect(hostName, userName string, targetAccounts []st
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
 		return nil
 	}
-	uc, ok := r.DataSource.Connected[hostName][userName]
+	uc, ok := r.DataSource.Linked[hostName][userName]
 	if !ok {
 		return nil
 	}
@@ -764,12 +764,12 @@ func (r *tomlRegistry) Disconnect(hostName, userName string, targetAccounts []st
 		filtered = append(filtered, a)
 	}
 
-	r.DataSource.Connected[hostName][userName] = tomlConnectedUserRegistryData{Account: filtered}
+	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
 
 	return nil
 }
 
-func (r *tomlRegistry) DisconnectAll(hostName, userName string) error {
+func (r *tomlRegistry) UnlinkAll(hostName, userName string) error {
 	if _, err := r.GetHostByHostName(hostName); err != nil {
 		return fmt.Errorf("hostName, `%s`, not found", hostName)
 	}
@@ -778,27 +778,27 @@ func (r *tomlRegistry) DisconnectAll(hostName, userName string) error {
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Connected[hostName]
+	_, ok := r.DataSource.Linked[hostName]
 	if !ok {
 		return nil
 	}
-	delete(r.DataSource.Connected[hostName], userName)
+	delete(r.DataSource.Linked[hostName], userName)
 
 	return nil
 }
 
-func (r *tomlRegistry) GetConnectedHosts(userName string) map[string][]string {
-	connected := map[string][]string{}
+func (r *tomlRegistry) GetLinkedHosts(userName string) map[string][]string {
+	linked := map[string][]string{}
 	for _, hostData := range r.GetHosts(activeFilterAll) {
-		if _, ok := r.DataSource.Connected[hostData.Host]; !ok {
+		if _, ok := r.DataSource.Linked[hostData.Host]; !ok {
 			continue
 		}
-		if ch, ok := r.DataSource.Connected[hostData.Host][userName]; !ok {
+		if ch, ok := r.DataSource.Linked[hostData.Host][userName]; !ok {
 			continue
 		} else {
-			connected[hostData.Host] = ch.Account
+			linked[hostData.Host] = ch.Account
 		}
 	}
 
-	return connected
+	return linked
 }
