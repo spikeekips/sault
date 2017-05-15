@@ -57,7 +57,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		var err error
 		userData, err = pc.proxy.Registry.GetActiveUserByPublicKey(key)
 		if err != nil {
-			requestLog.Debugf("trying to access as inside-sault mode, but failed: %v", err)
+			requestLog.Debugf("%v", err)
 			return nil, errors.New("authentication failed*")
 		}
 	}
@@ -120,21 +120,10 @@ func (pc *proxyConnection) handleNewConnection() error {
 			}()
 		}
 	} else {
-		signer, err := pc.hostData.ClientPrivateKey.getSigner()
-		if err != nil {
-			log.Errorf("fail to load inner client key: %v", err)
-			return err
-		}
-
-		if signer != nil {
-			log.Debugf("ClientPrivateKey will be used")
-		} else {
-			signer = pc.proxy.Config.Server.globalClientKeySigner
-			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
-		}
-
 		innerClient := newsshClient(pc.hostData.DefaultAccount, pc.hostData.GetFullAddress())
-		innerClient.addAuthMethod(saultSsh.PublicKeys(signer))
+		innerClient.addAuthMethod(
+			saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner),
+		)
 		innerClient.setTimeout(0)
 
 		if err := innerClient.connect(); err != nil {

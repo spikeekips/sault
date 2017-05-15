@@ -51,7 +51,6 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exit
 {{ .line }}
 {{ .config | escape }}
 {{ .line }}
-json format config.
 	`,
 		map[string]interface{}{
 			"config": string(output),
@@ -67,7 +66,6 @@ json format config.
 func responseShowConfig(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	jsoned := pc.proxy.Config.ToJSON()
-	channel.Write([]byte(jsoned))
+	channel.Write([]byte(pc.proxy.Config.String()))
 	return
 }

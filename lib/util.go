@@ -335,6 +335,9 @@ var commonTempalteFMap = template.FuncMap{
 	"escape": func(s string) template.HTML {
 		return template.HTML(s)
 	},
+	"join": func(a []string) string {
+		return fmt.Sprintf("[ %s ]", strings.Join(a, " "))
+	},
 }
 
 // SplitHostPort is similar to net.SplitHostPort, but it can parse without

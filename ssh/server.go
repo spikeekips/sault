@@ -188,7 +188,7 @@ func (s *connection) serverHandshake(config *ServerConfig) (*Permissions, error)
 	if config.ServerVersion != "" {
 		s.serverVersion = []byte(config.ServerVersion)
 	} else {
-		s.serverVersion = []byte(packageVersion)
+		s.serverVersion = []byte(PackageVersion)
 	}
 	var err error
 	s.clientVersion, err = exchangeVersions(s.sshConn.conn, s.serverVersion)

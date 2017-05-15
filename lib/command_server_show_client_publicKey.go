@@ -75,10 +75,14 @@ func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (
 
 	result, _ := ExecuteCommonTemplate(`
 * private key
+{{ .line }}
 {{ .privateKey | escape }}
+{{ .line }}
 
 * public key
+{{ .line }}
 {{ .publicKey | escape }}
+{{ .line }}
 	`,
 		map[string]interface{}{
 			"privateKey": strings.TrimSpace(data.PrivateKey),

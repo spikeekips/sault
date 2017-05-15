@@ -6,7 +6,8 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	sault "github.com/spikeekips/sault/lib"
+	"github.com/spikeekips/sault/lib"
+	"github.com/spikeekips/sault/ssh"
 )
 
 var (
@@ -21,7 +22,8 @@ var globalOptions sault.OptionsValues
 var commandOptions sault.OptionsValues
 
 func init() {
-	// flags
+	saultSsh.PackageVersion = fmt.Sprintf("%s-sault-%s", saultSsh.PackageVersion, version)
+
 	optionsTemplate := sault.GlobalOptionsTemplate
 
 	optionsTemplate.Commands = append(

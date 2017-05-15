@@ -93,7 +93,7 @@ func (c *connection) clientHandshake(dialAddress string, config *ClientConfig) e
 	if config.ClientVersion != "" {
 		c.clientVersion = []byte(config.ClientVersion)
 	} else {
-		c.clientVersion = []byte(packageVersion)
+		c.clientVersion = []byte(PackageVersion)
 	}
 	var err error
 	c.serverVersion, err = exchangeVersions(c.sshConn.conn, c.clientVersion)

@@ -129,17 +129,14 @@ func responseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 
 func printHost(saultServerHostName string, saultServerPort uint64, hostData hostRegistryData) string {
 	result, err := ExecuteCommonTemplate(`
-{{ "Host:"|green }}             {{ .host.Host | green }} {{ if .host.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
-Address:          {{ .host.DefaultAccount }}@{{ .host.Address }}:{{ .host.Port }}
-Accounts:         [ {{ .accounts }} ]
-ClientPrivateKey: {{ $l := len .clientPrivateKey }}{{ if eq $l 0 }}-{{ else }}
-{{ .clientPrivateKey | escape }}{{end}}
-Connect: {{ .Connect | magenta }}
+{{ "Host:"|green }}      {{ .host.Host | green }} {{ if .host.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
+Address:   {{ .host.DefaultAccount }}@{{ .host.Address }}:{{ .host.Port }}
+Accounts:  [ {{ .accounts }} ]
+Connect:   {{ .Connect | magenta }}
 `,
 		map[string]interface{}{
-			"host":             hostData,
-			"accounts":         strings.Join(hostData.Accounts, " "),
-			"clientPrivateKey": strings.TrimSpace(string(hostData.ClientPrivateKey)),
+			"host":     hostData,
+			"accounts": strings.Join(hostData.Accounts, " "),
 			"Connect": fmt.Sprintf(
 				`$ ssh -p %d %s+%s@%s`,
 				saultServerPort,

@@ -3,9 +3,7 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +14,7 @@ import (
 var hostUpdateOptionsTemplate = OptionsTemplate{
 	Name:      "update",
 	Help:      "update host",
-	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>] [clientPrivateKey <clientPrivateKey>]",
+	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>]",
 	ParseFunc: parseHostUpdateOptions,
 }
 
@@ -87,19 +85,6 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 				return fmt.Errorf("invalid port: `%v`", err)
 			}
 			op.Extra["NewPort"] = port
-		case "clientPrivateKey":
-			keyFile := filepath.Clean(i[1])
-
-			b, err := ioutil.ReadFile(keyFile)
-			if err != nil {
-				return fmt.Errorf("clientPrivateKey: %v", err)
-			}
-			if _, err := GetPrivateKeySignerFromString(string(b)); err != nil {
-				return fmt.Errorf("invalid clientPrivateKey; clientPrivateKey must be correct private key and without passphrase")
-			}
-
-			op.Extra["NewClientPrivateKey"] = keyFile
-			op.Extra["NewClientPrivateKeyString"] = string(b)
 		default:
 			return fmt.Errorf("unknown value, `%v`", i)
 		}
@@ -124,7 +109,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 
 	hostName := ov["HostName"].(string)
 
-	var newHostName, newDefaultAccount, newAddress, newClientPrivateKeyString string
+	var newHostName, newDefaultAccount, newAddress string
 	var newAccounts []string
 	var newPort uint64
 
@@ -136,9 +121,6 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 	}
 	if v, ok := ov["NewAddress"]; ok {
 		newAddress = v.(string)
-	}
-	if v, ok := ov["NewClientPrivateKeyString"]; ok {
-		newClientPrivateKeyString = v.(string)
 	}
 	if v, ok := ov["NewAccounts"]; ok {
 		newAccounts = v.([]string)
@@ -153,13 +135,12 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		msg, err := newCommandMsg(
 			"host.update",
 			hostUpdateRequestData{
-				Host:                hostName,
-				NewHostName:         newHostName,
-				NewDefaultAccount:   newDefaultAccount,
-				NewAccounts:         newAccounts,
-				NewAddress:          newAddress,
-				NewPort:             newPort,
-				NewClientPrivateKey: newClientPrivateKeyString,
+				Host:              hostName,
+				NewHostName:       newHostName,
+				NewDefaultAccount: newDefaultAccount,
+				NewAccounts:       newAccounts,
+				NewAddress:        newAddress,
+				NewPort:           newPort,
 			},
 		)
 		if err != nil {
@@ -222,25 +203,7 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 
 	log.Debugf("check the connectivity: %v", data)
 
-	var signer saultSsh.Signer
-	if data.NewClientPrivateKey != "" {
-		signer, err = GetPrivateKeySignerFromString(data.NewClientPrivateKey)
-		if err != nil {
-			err = fmt.Errorf("invalid ClientPrivateKey: %v", err)
-
-			channel.Write(toResponse(nil, err))
-			return
-		}
-		log.Debugf("NewClientPrivateKey will be used")
-	} else {
-		signer, err = hostData.ClientPrivateKey.getSigner()
-		if err == nil {
-			log.Debugf("ClientPrivateKey will be used")
-		} else {
-			signer = pc.proxy.Config.Server.globalClientKeySigner
-			log.Debugf("ClientPrivateKey is missing, GlobalClientKeySigner will be used")
-		}
-	}
+	signer := pc.proxy.Config.Server.globalClientKeySigner
 
 	defaultAccount := hostData.DefaultAccount
 	if data.NewDefaultAccount != "" {
@@ -293,12 +256,6 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	}
 	if data.NewPort != 0 {
 		if hostData, err = pc.proxy.Registry.UpdateHostPort(data.Host, data.NewPort); err != nil {
-			channel.Write(toResponse(nil, err))
-			return
-		}
-	}
-	if data.NewClientPrivateKey != "" {
-		if hostData, err = pc.proxy.Registry.UpdateHostClientPrivateKey(data.Host, data.NewClientPrivateKey); err != nil {
 			channel.Write(toResponse(nil, err))
 			return
 		}

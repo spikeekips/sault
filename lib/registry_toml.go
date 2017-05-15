@@ -80,7 +80,8 @@ func newTOMLRegistry(config configTOMLRegistry, initialize bool) (*tomlRegistry,
 		Host:   map[string]hostRegistryData{},
 		Linked: map[string]map[string]tomlLinkedUserRegistryData{},
 	}
-	if err := toml.NewDecoder(f).Decode(dataSource); err != nil {
+
+	if err := defaultTOML.NewDecoder(f).Decode(dataSource); err != nil {
 		return nil, err
 	}
 	r.DataSource = dataSource
@@ -396,15 +397,8 @@ func (r *tomlRegistry) AddHost(
 	defaultAccount,
 	address string,
 	port uint64,
-	clientPrivateKey string,
 	accounts []string,
 ) (hostRegistryData, error) {
-	if clientPrivateKey != "" {
-		if _, err := GetPrivateKeySignerFromString(clientPrivateKey); err != nil {
-			return hostRegistryData{}, fmt.Errorf("invalid clientPrivateKey: %v", err)
-		}
-	}
-
 	if _, err := r.GetHostByHostName(hostName); err == nil {
 		return hostRegistryData{}, fmt.Errorf("hostName, `%s` already added", hostName)
 	}
@@ -419,12 +413,6 @@ func (r *tomlRegistry) AddHost(
 		Address:        address,
 		Port:           port,
 		Accounts:       accounts,
-	}
-	if clientPrivateKey != "" {
-		if _, err := GetPrivateKeySignerFromString(clientPrivateKey); err != nil {
-			return hostRegistryData{}, err
-		}
-		hostData.ClientPrivateKey = Base64ClientPrivateKey(clientPrivateKey)
 	}
 
 	r.DataSource.Host[hostName] = hostData
@@ -572,34 +560,6 @@ func (r *tomlRegistry) UpdateHostPort(hostName string, port uint64) (hostRegistr
 	}
 
 	hostData.Port = port
-
-	r.DataSource.Host[hostName] = hostData
-
-	return hostData, nil
-}
-
-func (r *tomlRegistry) UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (hostRegistryData, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return hostRegistryData{}, err
-	}
-
-	{
-		newSigner, err := GetPrivateKeySignerFromString(clientPrivateKey)
-		if err != nil {
-			return hostRegistryData{}, err
-		}
-
-		if string(hostData.ClientPrivateKey) != "" {
-			signer, _ := GetPrivateKeySignerFromString(string(hostData.ClientPrivateKey))
-
-			if string(newSigner.PublicKey().Marshal()) == string(signer.PublicKey().Marshal()) {
-				return hostData, nil
-			}
-		}
-	}
-
-	hostData.ClientPrivateKey = Base64ClientPrivateKey(clientPrivateKey)
 
 	r.DataSource.Host[hostName] = hostData
 

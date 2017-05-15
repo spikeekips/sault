@@ -1,10 +1,8 @@
 package sault
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -57,48 +55,13 @@ func (u UserRegistryData) String() string {
 	return fmt.Sprintf("{%s%s %s}", u.User, a, "...")
 }
 
-// Base64ClientPrivateKey is the toml field to handle ClientPrivateKey
-type Base64ClientPrivateKey string
-
-// UnmarshalText encode pem-encoded private key to base64
-func (d *Base64ClientPrivateKey) UnmarshalText(data []byte) error {
-	decodedClientPrivateKey, err := base64.StdEncoding.DecodeString(string(data))
-	if err != nil {
-		return err
-	}
-
-	*d = Base64ClientPrivateKey(string(decodedClientPrivateKey))
-	return nil
-}
-
-// MarshalText returns the private key string
-func (d Base64ClientPrivateKey) MarshalText() ([]byte, error) {
-	encodedClientPrivateKey := base64.StdEncoding.EncodeToString([]byte(d))
-	return []byte(encodedClientPrivateKey), nil
-}
-
-func (d Base64ClientPrivateKey) getSigner() (saultSsh.Signer, error) {
-	if string(d) == "" {
-		return nil, nil
-	}
-
-	signer, err := GetPrivateKeySignerFromString(strings.TrimSpace(string(d)))
-	if err != nil {
-		log.Errorf("failed to load client private key: %v", err)
-		return nil, err
-	}
-
-	return signer, nil
-}
-
 type hostRegistryData struct {
-	Host             string // must be unique
-	DefaultAccount   string
-	Accounts         []string
-	Address          string
-	Port             uint64
-	ClientPrivateKey Base64ClientPrivateKey
-	Deactivated      bool
+	Host           string // must be unique
+	DefaultAccount string
+	Accounts       []string
+	Address        string
+	Port           uint64
+	Deactivated    bool
 }
 
 func (p hostRegistryData) String() string {
@@ -144,7 +107,6 @@ type Registry interface {
 		defaultAccount,
 		address string,
 		port uint64,
-		clientPrivateKey string,
 		accounts []string,
 	) (hostRegistryData, error)
 	GetHostCount(f activeFilter) int
@@ -159,7 +121,6 @@ type Registry interface {
 	UpdateHostAccounts(hostName string, accounts []string) (hostRegistryData, error)
 	UpdateHostAddress(hostName, address string) (hostRegistryData, error)
 	UpdateHostPort(hostName string, port uint64) (hostRegistryData, error)
-	UpdateHostClientPrivateKey(hostName, clientPrivateKey string) (hostRegistryData, error)
 
 	Link(hostName, userName string, targetAccounts []string) error
 	Unlink(hostName, userName string, targetAccounts []string) error

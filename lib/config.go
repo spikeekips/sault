@@ -203,7 +203,7 @@ func loadConfigFromFile(filePath string, config *Config) (*Config, error) {
 		return nil, err
 	}
 
-	if err := toml.NewDecoder(f).Decode(config); err != nil {
+	if err := defaultTOML.NewDecoder(f).Decode(config); err != nil {
 		return nil, err
 	}
 
