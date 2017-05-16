@@ -200,17 +200,17 @@ func handleCommandMsg(
 	return
 }
 
-func sshAgent() (saultSsh.AuthMethod, error) {
+func defaultSshAgent() (saultSsh.AuthMethod, error) {
 	sa, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
 		return nil, err
 	}
 
-	return saultSsh.PublicKeysCallback(saultSshAgent.NewClient(sa).Signers), nil
+	return saultSsh.PublicKeysCallback(sshAgent.NewClient(sa).Signers), nil
 }
 
 func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client, error) {
-	sshAgentAuth, err := sshAgent()
+	sshAgentAuth, err := defaultSshAgent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to ssh agent: `%v`", err)
 	}

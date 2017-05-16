@@ -582,10 +582,6 @@ func (ch *channel) Stderr() io.ReadWriter {
 	return ch.Extended(1)
 }
 
-func (ch *channel) SendEOF() error {
-	return ch.sendMessage(channelEOFMsg{PeersId: ch.remoteId})
-}
-
 func (ch *channel) SendRequest(name string, wantReply bool, payload []byte) (bool, error) {
 	if !ch.decided {
 		return false, errUndecided

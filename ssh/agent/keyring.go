@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package saultSshAgent
+package sshAgent
 
 import (
 	"bytes"
@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spikeekips/sault/ssh"
+	ssh "github.com/spikeekips/sault/ssh"
 )
 
 type privKey struct {
-	signer  saultSsh.Signer
+	signer  ssh.Signer
 	comment string
 	expire  *time.Time
 }
@@ -72,7 +72,7 @@ func (r *keyring) removeLocked(want []byte) error {
 }
 
 // Remove removes all identities with the given public key.
-func (r *keyring) Remove(key saultSsh.PublicKey) error {
+func (r *keyring) Remove(key ssh.PublicKey) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.locked {
@@ -152,14 +152,14 @@ func (r *keyring) Add(key AddedKey) error {
 	if r.locked {
 		return errLocked
 	}
-	signer, err := saultSsh.NewSignerFromKey(key.PrivateKey)
+	signer, err := ssh.NewSignerFromKey(key.PrivateKey)
 
 	if err != nil {
 		return err
 	}
 
 	if cert := key.Certificate; cert != nil {
-		signer, err = saultSsh.NewCertSigner(cert, signer)
+		signer, err = ssh.NewCertSigner(cert, signer)
 		if err != nil {
 			return err
 		}
@@ -181,7 +181,7 @@ func (r *keyring) Add(key AddedKey) error {
 }
 
 // Sign returns a signature for the data.
-func (r *keyring) Sign(key saultSsh.PublicKey, data []byte) (*saultSsh.Signature, error) {
+func (r *keyring) Sign(key ssh.PublicKey, data []byte) (*ssh.Signature, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.locked {
@@ -199,7 +199,7 @@ func (r *keyring) Sign(key saultSsh.PublicKey, data []byte) (*saultSsh.Signature
 }
 
 // Signers returns signers for all the known keys.
-func (r *keyring) Signers() ([]saultSsh.Signer, error) {
+func (r *keyring) Signers() ([]ssh.Signer, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.locked {
@@ -207,7 +207,7 @@ func (r *keyring) Signers() ([]saultSsh.Signer, error) {
 	}
 
 	r.expireKeysLocked()
-	s := make([]saultSsh.Signer, 0, len(r.keys))
+	s := make([]ssh.Signer, 0, len(r.keys))
 	for _, k := range r.keys {
 		s = append(s, k.signer)
 	}
