@@ -38,66 +38,24 @@ func parsehostAliveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
 
 	hostNames := ov["Hosts"].([]string)
 
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"host.alive",
-			hostAliveRequestData{Hosts: hostNames},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
-
 	var data []hostAliveResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"host.alive",
+		hostAliveRequestData{Hosts: hostNames},
+		&data,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	var maxHostNameLength int
 	for _, result := range data {
@@ -107,9 +65,10 @@ func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (exitS
 	}
 
 	if len(data) < 1 {
-		fmt.Println("no hosts found")
+		CommandOut.Println("no hosts found")
 	} else {
-		t, err := ExecuteCommonTemplate(`
+		var t string
+		t, err = ExecuteCommonTemplate(`
 {{ $format := .nameFormat }}{{ $length := len .data }}{{ if ne $length 0 }}Checked the hosts can be accessible or not.{{ range $result := .data }}
 {{ if $result.Alive }}{{ $result.Host | align_format $format | green }}{{ else }}{{ $result.Host | align_format $format | red }}{{ end }} : {{ if $result.Alive }}-{{ else }}{{ $result.Error }}{{ end }}{{ end }}
 {{ .line }}{{ end }}
@@ -122,8 +81,9 @@ The unavailable host is {{ "red" | red }}.
 		)
 		if err != nil {
 			log.Error(err)
+			return
 		}
-		fmt.Println(strings.TrimSpace(t))
+		CommandOut.Println(strings.TrimSpace(t))
 	}
 
 	return

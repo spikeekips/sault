@@ -38,53 +38,20 @@ func parseHostRemoveOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
 
 	hostName := ov["HostName"].(string)
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"host.remove",
-			hostRemoveRequestData{Host: hostName},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"host.remove",
+		hostRemoveRequestData{Host: hostName},
+		nil,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
 
@@ -103,14 +70,11 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	err = pc.proxy.Registry.RemoveHost(data.Host)
 	if err != nil {
 		log.Errorf("failed to remove host: %v", err)
-
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 

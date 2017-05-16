@@ -33,7 +33,11 @@ func newCommandMsg(command string, s interface{}) (*commandMsg, error) {
 }
 
 func (c commandMsg) String() string {
-	return fmt.Sprintf("{Command: %s Data: %s...}", c.Command, c.Data[:50])
+	l := len(c.Data)
+	if l > 50 {
+		l = 50
+	}
+	return fmt.Sprintf("{Command: %s Data: %s...}", c.Command, c.Data[:l])
 }
 
 type responseMsg struct {
@@ -148,4 +152,8 @@ type hostAliveResponseData struct {
 	Host  string
 	Alive bool
 	Error string
+}
+
+type serverConfigResponseData struct {
+	Config string
 }

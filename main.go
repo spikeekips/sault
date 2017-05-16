@@ -75,7 +75,13 @@ func main() {
 	sault.Log.Debugf("got command, `%s`:", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
-		exitStatus := run(commandOptions, globalOptions)
+		exitStatus, err := run(commandOptions, globalOptions)
+		if err != nil {
+			sault.CommandOut.Error(err)
+			if exitStatus == 0 {
+				exitStatus = 1
+			}
+		}
 		os.Exit(exitStatus)
 	}
 
@@ -90,6 +96,9 @@ CommitHash: %s
 			commitHash,
 			gitBranch,
 		)
+	default:
+		sault.CommandOut.Error(fmt.Errorf("unknown command: `%s`", command))
+		os.Exit(1)
 	}
 
 	os.Exit(0)

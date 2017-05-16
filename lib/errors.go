@@ -39,6 +39,19 @@ func parseCommandError(s string) (*commandError, error) {
 	return &ce, nil
 }
 
+type RunCommandError struct {
+	E           error
+	RemoteError error
+}
+
+func (e *RunCommandError) Error() string {
+	if e.E != nil {
+		return fmt.Sprintf("failed to send command to sault server: %v", e.E)
+	}
+
+	return e.RemoteError.Error()
+}
+
 type InvalidHostName struct {
 	name string
 }

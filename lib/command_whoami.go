@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -25,53 +24,21 @@ func parseWhoAmIOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
-
-	var output []byte
-	{
-		var err error
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "whoami"})
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
 
 	var data userResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"whoami",
+		nil,
+		&data,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	fmt.Fprintf(os.Stdout, printUser(data)+"\n")
 	exitStatus = 0

@@ -222,7 +222,7 @@ func addAdmin(registry Registry, adminName, publicKeyString string) (UserRegistr
 	return userData, nil
 }
 
-func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	log.Info("första gången...")
 
 	// check whether ConfigDir is sault env or not
@@ -230,23 +230,20 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int
 	configDir := ov["ConfigDir"].(string)
 	var created bool
 	{
-		var err error
 		if created, err = checkConfigDir(configDir); err != nil {
 			log.Errorf("invalid ConfigDir: %v", err)
-			exitStatus = 1
 			return
 		}
 
 		if !created {
-			files, err := ioutil.ReadDir(configDir)
+			var files []os.FileInfo
+			files, err = ioutil.ReadDir(configDir)
 			if err != nil {
 				log.Errorf("invalid ConfigDir: %v", err)
-				exitStatus = 1
 				return
 			}
 			if len(files) > 1 {
 				log.Errorf("ConfigDir, `%s` must be empty", configDir)
-				exitStatus = 1
 				return
 			}
 		}
@@ -261,35 +258,35 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (exitStatus int
 	config := newDefaultConfig(configDir)
 
 	if created {
-		if err := createDefaultFiles(config, configDir); err != nil {
+		if err = createDefaultFiles(config, configDir); err != nil {
 			log.Error(err)
-			exitStatus = 1
 			return
 		}
 	}
 
-	registry, err := getRegistryFromConfig(config, true)
+	var registry Registry
+	registry, err = getRegistryFromConfig(config, true)
 	if err != nil {
 		log.Error(err)
 
-		exitStatus = 1
 		return
 	}
 
 	adminName := ov["AdminName"].(string)
 	publicKeyString := ov["PublicKeyString"].(string)
 
-	userData, err := addAdmin(registry, adminName, publicKeyString)
+	var userData UserRegistryData
+	userData, err = addAdmin(registry, adminName, publicKeyString)
 	if err != nil {
 		log.Error(err)
-		exitStatus = 1
 		return
 	}
 	userResponseData := newUserResponseData(registry, userData)
 
 	log.Info("kom igång~")
 
-	gettingStarted, err := ExecuteCommonTemplate(
+	var gettingStarted string
+	gettingStarted, err = ExecuteCommonTemplate(
 		gettingStartedTemplate,
 		map[string]interface{}{
 			"userAdded": printUser(userResponseData),

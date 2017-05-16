@@ -18,23 +18,11 @@ var userOptionsTemplate OptionsTemplate
 var hostOptionsTemplate OptionsTemplate
 
 // RequestCommands has command to rquest to sault server
-var RequestCommands map[string]func(OptionsValues, OptionsValues) int
+var RequestCommands map[string]func(OptionsValues, OptionsValues) (int, error)
 var responseCommands map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error)
 
 // GlobalOptionsTemplate has global flags
 var GlobalOptionsTemplate OptionsTemplate
-
-// default log format
-var DefaultLogFormat = "text"
-
-// default log level
-var DefaultLogLevel = "quiet"
-
-// default log output
-var DefaultLogOutput = "stdout"
-
-// default log output value
-var DefaultLogOutputValue = os.Stdout
 
 var atOptionTemplate = OptionTemplate{
 	Name: "At",
@@ -130,6 +118,8 @@ func (f *flagSaultServer) Set(v string) error {
 		return err
 	}
 
+	*f = flagSaultServer(v)
+
 	return nil
 }
 
@@ -205,7 +195,7 @@ func handleCommandMsg(
 	}
 
 	err = fmt.Errorf("unknown msg: %v", msg.Command)
-	exitStatus = 1
+	//exitStatus = 1
 
 	return
 }
@@ -243,25 +233,69 @@ func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client,
 	return connection, nil
 }
 
-func runCommand(connection *saultSsh.Client, msg *commandMsg) (output []byte, exitStatus int, err error) {
+func RunCommand(serverName, address, command string, data interface{}, out interface{}) (exitStatus int, err error) {
+	var connection *saultSsh.Client
+	connection, err = makeConnectionForSaultServer(serverName, address)
+	if err != nil {
+		err = &RunCommandError{E: err}
+		return
+	}
+
+	var msg *commandMsg
+	msg, err = newCommandMsg(command, data)
+	if err != nil {
+		err = &RunCommandError{E: err}
+		return
+	}
+
+	var output []byte
+
 	session, err := connection.NewSession()
 	if err != nil {
-		err = fmt.Errorf("failed to create session: %s", err)
+		err = &RunCommandError{E: fmt.Errorf("failed to create session: %s", err)}
 		return
 	}
 	defer session.Close()
 
 	// marshal command
+	log.Debugf("run command: %v", msg)
 	output, err = session.Output(string(saultSsh.Marshal(msg)))
 	if err != nil {
 		if exitError, ok := err.(*saultSsh.ExitError); ok {
-			exitStatus = exitError.Waitmsg.ExitStatus()
-			err = fmt.Errorf("got exitError: %v", exitError)
+			err = &RunCommandError{E: fmt.Errorf("got exitError: %v", exitError)}
 			return
 		}
-		err = fmt.Errorf("command %v was failed: %v", err)
+		err = &RunCommandError{E: fmt.Errorf("command %v was failed: %v", err)}
 		return
 	}
+
+	if err != nil {
+		err = &RunCommandError{E: err}
+		return
+	}
+
+	var rm responseMsg
+	if err = saultSsh.Unmarshal(output, &rm); err != nil {
+		err = &RunCommandError{E: err}
+		return
+	}
+
+	if rm.Error != "" {
+		err = &RunCommandError{RemoteError: errors.New(rm.Error)}
+		return
+	}
+
+	if out == nil {
+		return
+	}
+
+	if err = json.Unmarshal(rm.Result, out); err != nil {
+		err = &RunCommandError{E: err}
+		return
+	}
+
+	jsoned, _ := json.MarshalIndent(out, "", "  ")
+	log.Debugf("received data %v", string(jsoned))
 
 	return
 }
@@ -340,7 +374,7 @@ func init() {
 		ParseFunc: parseGlobalOptions,
 	}
 
-	RequestCommands = map[string]func(OptionsValues, OptionsValues) int{
+	RequestCommands = map[string]func(OptionsValues, OptionsValues) (int, error){
 		"init":              runInit,
 		"server.run":        runServer,
 		"server.config":     requestShowConfig,
@@ -359,7 +393,7 @@ func init() {
 		"host.update":       requestHostUpdate,
 		"host.active":       requestHostActive,
 		"host.alive":        requesthostAlive,
-		"user.connect":      requestLink,
+		"user.link":         requestLink,
 		"whoami":            requestWhoAmI,
 	}
 	responseCommands = map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error){
@@ -372,7 +406,7 @@ func init() {
 		"user.active":       responseUserActive,
 		"user.admin":        responseUserAdmin,
 		"user.update":       responseUserUpdate,
-		"user.connect":      responseLink,
+		"user.link":         responseLink,
 		"host.get":          responseHostGet,
 		"host.list":         responseHostList,
 		"host.add":          responseHostAdd,

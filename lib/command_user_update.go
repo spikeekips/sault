@@ -77,72 +77,30 @@ func parseUserUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
 
 	userName := ov["UserName"].(string)
 	newUserName := ov["NewUserName"].(string)
 	newPublicKeyString := ov["NewPublicKey"].(string)
 
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"user.update",
-			userUpdateRequestData{
-				User:         userName,
-				NewUserName:  newUserName,
-				NewPublicKey: newPublicKeyString,
-			},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
-
 	var data userResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"user.update",
+		userUpdateRequestData{
+			User:         userName,
+			NewUserName:  newUserName,
+			NewPublicKey: newPublicKeyString,
+		},
+		&data,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	fmt.Fprintf(os.Stdout, printUser(data))
 
@@ -158,33 +116,28 @@ func responseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	log.Debugf("trying to update user: %v", data)
 	if !pc.userData.IsAdmin && !pc.proxy.Config.Server.AllowUserCanUpdate {
 		err = fmt.Errorf("not allowed to update publicKey")
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	var userData UserRegistryData
 	if data.NewUserName != "" {
 		if userData, err = pc.proxy.Registry.UpdateUserName(data.User, data.NewUserName); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	if data.NewPublicKey != "" {
 		if _, err = ParsePublicKeyFromString(data.NewPublicKey); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 
 		if userData, err = pc.proxy.Registry.UpdateUserPublicKey(data.User, data.NewPublicKey); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 

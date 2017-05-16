@@ -23,28 +23,20 @@ func parseShowConfigOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
 
-	connection, err := makeConnectionForSaultServer(serverName, address)
+	var data serverConfigResponseData
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"server.config",
+		nil,
+		&data,
+	)
 	if err != nil {
 		log.Error(err)
-
-		exitStatus = 1
 		return
-	}
-
-	var output []byte
-	{
-		var err error
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "server.config"})
-		if err != nil {
-			log.Error(err)
-			return
-		}
 	}
 
 	result, _ := ExecuteCommonTemplate(`
@@ -53,7 +45,7 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exit
 {{ .line }}
 	`,
 		map[string]interface{}{
-			"config": string(output),
+			"config": data.Config,
 		},
 	)
 	fmt.Println(strings.TrimSpace(result))
@@ -66,6 +58,7 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (exit
 func responseShowConfig(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	log.Debugf("trying to get hosts")
 
-	channel.Write([]byte(pc.proxy.Config.String()))
+	data := serverConfigResponseData{Config: pc.proxy.Config.String()}
+	channel.Write(toResponse(data, nil))
 	return
 }

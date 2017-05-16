@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -25,53 +24,22 @@ func parseHostListOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostList(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostList(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
-
-	var output []byte
-	{
-		var err error
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "host.list"})
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
 
 	var hostList map[string]hostRegistryData
-	if err := json.Unmarshal(rm.Result, &hostList); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		address,
+		"host.list",
+		nil,
+		&hostList,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(hostList, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
@@ -84,9 +52,10 @@ func requestHostList(options OptionsValues, globalOptions OptionsValues) (exitSt
 		)
 	}
 
-	result, err := ExecuteCommonTemplate(`
+	var result string
+	result, err = ExecuteCommonTemplate(`
 {{ $length := len .hostList }}
-{{ if ne $length 0 }}
+{{ if ne $length 0 }}{{ .line}}
 {{ .hostsPrinted | escape }}
 {{ .line}}
 found {{ $length }} hosts
@@ -101,7 +70,6 @@ no hosts
 	)
 	if err != nil {
 		log.Error(err)
-		exitStatus = 1
 		return
 	}
 	fmt.Fprintf(os.Stdout, strings.TrimSpace(result))

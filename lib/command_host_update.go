@@ -100,19 +100,10 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
 
 	hostName := ov["HostName"].(string)
 
@@ -136,58 +127,26 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 		newPort = v.(uint64)
 	}
 
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"host.update",
-			hostUpdateRequestData{
-				Host:              hostName,
-				NewHostName:       newHostName,
-				NewDefaultAccount: newDefaultAccount,
-				NewAccounts:       newAccounts,
-				NewAddress:        newAddress,
-				NewPort:           newPort,
-				Force:             *ov["Force"].(*bool),
-			},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
-
 	var hostData hostRegistryData
-	if err := json.Unmarshal(rm.Result, &hostData); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		address,
+		"host.update",
+		hostUpdateRequestData{
+			Host:              hostName,
+			NewHostName:       newHostName,
+			NewDefaultAccount: newDefaultAccount,
+			NewAccounts:       newAccounts,
+			NewAddress:        newAddress,
+			NewPort:           newPort,
+			Force:             *ov["Force"].(*bool),
+		},
+		&hostData,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(hostData, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
@@ -205,7 +164,6 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 
 	hostData, err := pc.proxy.Registry.GetHostByHostName(data.Host)
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
@@ -233,8 +191,6 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		sc.setTimeout(time.Second * 3)
 		if err = sc.connect(); err != nil {
 			err = fmt.Errorf("failed to check the connectivity: %v", err)
-
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
@@ -242,38 +198,32 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	log.Debugf("trying to update host: %v", data)
 	if data.NewHostName != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostName(data.Host, data.NewHostName); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewDefaultAccount != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostDefaultAccount(data.Host, data.NewDefaultAccount); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if len(data.NewAccounts) > 0 {
 		if hostData, err = pc.proxy.Registry.UpdateHostAccounts(data.Host, data.NewAccounts); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewAddress != "" {
 		if hostData, err = pc.proxy.Registry.UpdateHostAddress(data.Host, data.NewAddress); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 	if data.NewPort != 0 {
 		if hostData, err = pc.proxy.Registry.UpdateHostPort(data.Host, data.NewPort); err != nil {
-			channel.Write(toResponse(nil, err))
 			return
 		}
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 

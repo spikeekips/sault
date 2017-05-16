@@ -42,70 +42,24 @@ func parseUserAdminOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
 
 	userName := ov["UserName"].(string)
 	setAdmin := ov["SetAdmin"].(bool)
 
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"user.admin",
-			userAdminRequestData{
-				User:     userName,
-				SetAdmin: setAdmin,
-			},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
-
 	var data userResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"user.admin",
+		userAdminRequestData{
+			User:     userName,
+			SetAdmin: setAdmin,
+		},
+		&data,
+	)
 
 	fmt.Fprintf(os.Stdout, printUser(data))
 
@@ -122,14 +76,11 @@ func responseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg comman
 	err = pc.proxy.Registry.SetAdmin(data.User, data.SetAdmin)
 	if err != nil {
 		log.Errorf("failed to admin: %v", err)
-
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 

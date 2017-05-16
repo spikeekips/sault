@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -25,51 +24,29 @@ func parseUserLlstOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestUserList(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestUserList(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	gov := globalOptions["Options"].(OptionsValues)
-	address := gov["SaultServerAddress"].(string)
-	serverName := gov["SaultServerName"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-		exitStatus = 1
-		return
-	}
-
-	var output []byte
-	{
-		var err error
-		output, exitStatus, err = runCommand(connection, &commandMsg{Command: "user.list"})
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Error(err)
-		exitStatus = 1
-		return
-	}
 
 	var data []userResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal responseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"user.list",
+		nil,
+		&data,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	var printedUsers []string
 	for _, u := range data {
 		printedUsers = append(printedUsers, printUser(u))
 	}
 
-	result, err := ExecuteCommonTemplate(
+	var result string
+	result, err = ExecuteCommonTemplate(
 		`
 {{ $length := len .users }}{{ if ne $length 0 }}{{ .line }}{{ range $user := .users }}
 {{ $user | escape }}
@@ -80,11 +57,6 @@ found {{ len .users }} user(s){{ else }}no users{{ end }}
 			"users": printedUsers,
 		},
 	)
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Error(err)
-		exitStatus = 1
-		return
-	}
 	fmt.Fprintf(os.Stdout, strings.TrimSpace(result))
 
 	exitStatus = 0

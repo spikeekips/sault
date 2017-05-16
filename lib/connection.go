@@ -201,6 +201,7 @@ L:
 		exitStatus, err := handleCommandMsg(pc, proxyChannel, msg)
 		if err != nil {
 			log.Errorf("exitStatus: %v, err: %v", exitStatus, err)
+			proxyChannel.Write(toResponse(nil, err))
 		}
 
 		proxyChannel.SendRequest(

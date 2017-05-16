@@ -112,15 +112,13 @@ func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
 	return registry, nil
 }
 
-func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	log.Info("Hallå världen...")
 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 	var config *Config
 	{
-		var err error
-
 		flagArgs := map[string]interface{}{
 			"BaseDirectory": ov["BaseDirectory"].(string),
 			"Configs":       ov["Configs"].([]string),
@@ -132,14 +130,12 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 		if err != nil {
 			log.Errorf("failed to load configs: %v", err)
 
-			exitStatus = 1
 			return
 		}
 
-		if err := config.validate(); err != nil {
+		if err = config.validate(); err != nil {
 			log.Errorf("%v", err)
 
-			exitStatus = 1
 			return
 		}
 
@@ -155,19 +151,17 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 			log.Formatter = DefaultLogFormatter
 		}
 	}
-	fmt.Println(config.ToJSON())
 
-	registry, err := getRegistryFromConfig(config, false)
+	var registry Registry
+	registry, err = getRegistryFromConfig(config, false)
 	if err != nil {
 		log.Error(err)
 
-		exitStatus = 1
 		return
 	}
 
 	var proxy *Proxy
 	{
-		var err error
 		if proxy, err = NewProxy(config, registry); err != nil {
 			log.Fatalf("something wrong: %v", err)
 		}

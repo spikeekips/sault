@@ -59,70 +59,27 @@ func parseLinkOptions(op *Options, args []string) error {
 	return nil
 }
 
-func requestLink(options OptionsValues, globalOptions OptionsValues) (exitStatus int) {
+func requestLink(options OptionsValues, globalOptions OptionsValues) (exitStatus int, err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
-	serverName := gov["SaultServerName"].(string)
-	address := gov["SaultServerAddress"].(string)
-
-	connection, err := makeConnectionForSaultServer(serverName, address)
-	if err != nil {
-		log.Error(err)
-
-		exitStatus = 1
-		return
-	}
-
-	unlink := ov["Unlink"].(bool)
-	var output []byte
-	{
-		var err error
-		msg, err := newCommandMsg(
-			"user.link",
-			linkRequestData{
-				Host:          ov["HostName"].(string),
-				User:          ov["UserName"].(string),
-				TargetAccount: ov["TargetAccount"].(string),
-				Unlink:        unlink,
-			},
-		)
-		if err != nil {
-			log.Errorf("failed to make message: %v", err)
-			exitStatus = 1
-			return
-		}
-
-		log.Debug("msg sent")
-		output, exitStatus, err = runCommand(connection, msg)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-	}
-
-	var rm responseMsg
-	if err := saultSsh.Unmarshal(output, &rm); err != nil {
-		log.Errorf("got invalid response: %v", err)
-		exitStatus = 1
-		return
-	}
-
-	if rm.Error != "" {
-		log.Errorf("%s", rm.Error)
-		exitStatus = 1
-
-		return
-	}
 
 	var data userResponseData
-	if err := json.Unmarshal(rm.Result, &data); err != nil {
-		log.Errorf("failed to unmarshal ResponseMsg: %v", err)
-		exitStatus = 1
+	exitStatus, err = RunCommand(
+		gov["SaultServerName"].(string),
+		gov["SaultServerAddress"].(string),
+		"user.link",
+		linkRequestData{
+			Host:          ov["HostName"].(string),
+			User:          ov["UserName"].(string),
+			TargetAccount: ov["TargetAccount"].(string),
+			Unlink:        ov["Unlink"].(bool),
+		},
+		&data,
+	)
+	if err != nil {
+		log.Error(err)
 		return
 	}
-
-	jsoned, _ := json.MarshalIndent(data, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
 
 	fmt.Fprintf(os.Stdout, printUser(data))
 
@@ -160,14 +117,11 @@ func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg)
 	}
 	if err != nil {
 		log.Errorf("failed to link: %v", err)
-
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		channel.Write(toResponse(nil, err))
 		return
 	}
 
