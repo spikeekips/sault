@@ -84,6 +84,7 @@ type hostAddRequestData struct {
 	ClientPrivateKey string
 	AuthMethod       string
 	Password         string
+	Force            bool
 }
 
 func (p hostAddRequestData) getFullAddress() string {
@@ -107,11 +108,16 @@ type hostUpdateRequestData struct {
 	NewAddress          string
 	NewPort             uint64
 	NewClientPrivateKey string
+	Force               bool
 }
 
 type hostActiveRequestData struct {
 	Host   string
 	Active bool
+}
+
+type hostAliveRequestData struct {
+	Hosts []string
 }
 
 type linkRequestData struct {
@@ -136,4 +142,10 @@ func newUserResponseData(registry Registry, userData UserRegistryData) userRespo
 type clientKeysResponseData struct {
 	PrivateKey string
 	PublicKey  string
+}
+
+type hostAliveResponseData struct {
+	Host  string
+	Alive bool
+	Error string
 }

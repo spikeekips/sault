@@ -2,6 +2,7 @@ package sault
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type commandErrorType uint
@@ -17,7 +18,8 @@ const (
 )
 
 func (e *commandError) Error() string {
-	return e.Message
+	jsoned, _ := json.Marshal(e)
+	return string(jsoned)
 }
 
 func newCommandError(t commandErrorType, err error) *commandError {
@@ -35,4 +37,12 @@ func parseCommandError(s string) (*commandError, error) {
 	}
 
 	return &ce, nil
+}
+
+type InvalidHostName struct {
+	name string
+}
+
+func (e *InvalidHostName) Error() string {
+	return fmt.Sprintf(`invalid hostName, "%s": hostName must be "%s" and less than %d`, e.name, reHostName, maxLengthHostName)
 }

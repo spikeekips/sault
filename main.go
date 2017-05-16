@@ -75,10 +75,6 @@ func main() {
 	sault.Log.Debugf("got command, `%s`:", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
-		{
-			jsoned, _ := json.MarshalIndent(globalOptions, "", "  ")
-			fmt.Println(string(jsoned))
-		}
 		exitStatus := run(commandOptions, globalOptions)
 		os.Exit(exitStatus)
 	}

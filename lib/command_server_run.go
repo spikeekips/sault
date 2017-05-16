@@ -155,6 +155,7 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (exitStatus i
 			log.Formatter = DefaultLogFormatter
 		}
 	}
+	fmt.Println(config.ToJSON())
 
 	registry, err := getRegistryFromConfig(config, false)
 	if err != nil {

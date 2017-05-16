@@ -126,7 +126,7 @@ global_client_key_path = "./client.key"
   },
   "Log": {
     "Format": "text",
-    "Level": "error",
+    "Level": "quiet",
     "Output": "stdout"
   },
   "Registry": {

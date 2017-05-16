@@ -12,9 +12,16 @@ import (
 )
 
 var hostUpdateOptionsTemplate = OptionsTemplate{
-	Name:      "update",
-	Help:      "update host",
-	Usage:     "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>]",
+	Name:  "update",
+	Help:  "update host",
+	Usage: "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>]",
+	Options: []OptionTemplate{
+		OptionTemplate{
+			Name:         "Force",
+			Help:         "pass to inject client public key to host",
+			DefaultValue: false,
+		},
+	},
 	ParseFunc: parseHostUpdateOptions,
 }
 
@@ -141,6 +148,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (exit
 				NewAccounts:       newAccounts,
 				NewAddress:        newAddress,
 				NewPort:           newPort,
+				Force:             *ov["Force"].(*bool),
 			},
 		)
 		if err != nil {
@@ -201,32 +209,34 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		return
 	}
 
-	log.Debugf("check the connectivity: %v", data)
+	if data.Force {
+		log.Debugf("skip to check connectivity: %v", data)
+	} else {
+		log.Debugf("check the connectivity: %v", data)
 
-	signer := pc.proxy.Config.Server.globalClientKeySigner
+		defaultAccount := hostData.DefaultAccount
+		if data.NewDefaultAccount != "" {
+			defaultAccount = data.NewDefaultAccount
+		}
 
-	defaultAccount := hostData.DefaultAccount
-	if data.NewDefaultAccount != "" {
-		defaultAccount = data.NewDefaultAccount
-	}
+		address := hostData.Address
+		port := hostData.GetPort()
+		if data.NewAddress != "" {
+			address = data.NewAddress
+		}
+		if data.NewPort != 0 {
+			port = data.NewPort
+		}
 
-	address := hostData.Address
-	port := hostData.GetPort()
-	if data.NewAddress != "" {
-		address = data.NewAddress
-	}
-	if data.NewPort != 0 {
-		port = data.NewPort
-	}
+		sc := newsshClient(defaultAccount, fmt.Sprintf("%s:%d", address, port))
+		sc.addAuthMethod(saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner))
+		sc.setTimeout(time.Second * 3)
+		if err = sc.connect(); err != nil {
+			err = fmt.Errorf("failed to check the connectivity: %v", err)
 
-	sc := newsshClient(defaultAccount, fmt.Sprintf("%s:%d", address, port))
-	sc.addAuthMethod(saultSsh.PublicKeys(signer))
-	sc.setTimeout(time.Second * 3)
-	if err = sc.connect(); err != nil {
-		err = fmt.Errorf("failed to check the connectivity: %v", err)
-
-		channel.Write(toResponse(nil, err))
-		return
+			channel.Write(toResponse(nil, err))
+			return
+		}
 	}
 
 	log.Debugf("trying to update host: %v", data)

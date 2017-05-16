@@ -210,14 +210,12 @@ func TestRegistryAddHost(t *testing.T) {
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
 	port := uint64(22)
-	clientPrivateKey := ""
 
 	_, err := registry.AddHost(
 		hostName,
 		defaultAccount,
 		address,
 		port,
-		clientPrivateKey,
 		[]string{},
 	)
 	if err != nil {
@@ -235,14 +233,12 @@ func TestRegistryHostData(t *testing.T) {
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
 	port := uint64(22)
-	clientPrivateKey := ""
 
 	hostData, _ := registry.AddHost(
 		hostName,
 		defaultAccount,
 		address,
 		port,
-		clientPrivateKey,
 		[]string{},
 	)
 
@@ -258,12 +254,6 @@ func TestRegistryHostData(t *testing.T) {
 	if hostData.Port != port {
 		t.Errorf("hostData.Port != port: `%v` != `%v`", hostData.Port, port)
 	}
-	if hostData.ClientPrivateKey != Base64ClientPrivateKey(clientPrivateKey) {
-		t.Errorf("hostData.ClientPrivateKey != clientPrivateKey: `%v` != `%v`", hostData.ClientPrivateKey, clientPrivateKey)
-	}
-	if signer, _ := hostData.ClientPrivateKey.getSigner(); signer != nil {
-		t.Errorf("hostData.ClientPrivateKey is empty and the signer also must be <nil>, but `%v`", signer)
-	}
 }
 
 func TestRegistryHostDataWithoutPort(t *testing.T) {
@@ -273,14 +263,12 @@ func TestRegistryHostDataWithoutPort(t *testing.T) {
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
 	var port uint64
-	clientPrivateKey := ""
 
 	hostData, _ := registry.AddHost(
 		hostName,
 		defaultAccount,
 		address,
 		port,
-		clientPrivateKey,
 		[]string{},
 	)
 
@@ -297,61 +285,6 @@ func TestRegistryHostDataWithoutPort(t *testing.T) {
 	}
 }
 
-func TestRegistryHostDataInvalidClientPrivateKey(t *testing.T) {
-	registry := registrySetup()
-
-	hostName := "server0"
-	defaultAccount := "ubuntu"
-	address := "192.168.99.110"
-	var port uint64
-	clientPrivateKey := generatePrivateKey()
-
-	hostData, err := registry.AddHost(
-		hostName,
-		defaultAccount,
-		address,
-		port,
-		clientPrivateKey,
-		[]string{},
-	)
-	if err != nil {
-		t.Errorf("failed to add hostData")
-	}
-
-	if hostData.ClientPrivateKey == Base64ClientPrivateKey("") {
-		t.Error("hostData.ClientPrivateKey was set, but <nil>")
-	}
-
-	latestHostCount := registry.GetHostCount(activeFilterAll)
-
-	// invalid ClientPrivateKey
-	hostName = "server1"
-	invalidClientPrivateKey := `
------BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAx0yz3QRFewa8zuVkwsAZyC9UCnEfkCZJ6d2r8moGLraCkZpo
-b498TV481bTLq7HBVWMNYJCwyevSbCvoSq7PI1UuFz03Q8MZrxUzEQUeiy3S/Hd1
-9GV2cQKBgQCPoBUoGh2RgvdKyfV+8hnXRcfgf5EEeBwN77xm4gyTIh2/1AYXMrEz
-mcDVxXw9zpsWq/Xxs84OoArVL2mZj6wSnDyGjHCBpQiWRlFJ/j0soGmgLb3cZxGa
-+Msh98PiCWJ/aDaQrUak1Y1z4OtJZR7OgC+kaXanm7RtKPL3bS+bd
------END RSA PRIVATE KEY-----
-		`
-
-	_, err = registry.AddHost(
-		hostName,
-		defaultAccount,
-		address,
-		port,
-		invalidClientPrivateKey,
-		[]string{},
-	)
-	if err == nil {
-		t.Errorf("with invalid ClientPrivateKey, must be failed to AddHost")
-	}
-	if hostCount := registry.GetHostCount(activeFilterAll); hostCount != latestHostCount {
-		t.Errorf("wrong hostCount, `%v`", hostCount)
-	}
-}
-
 func TestRegistryRemoveHost(t *testing.T) {
 	registry := registrySetup()
 
@@ -359,14 +292,12 @@ func TestRegistryRemoveHost(t *testing.T) {
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
 	var port uint64
-	clientPrivateKey := ""
 
 	_, _ = registry.AddHost(
 		hostName,
 		defaultAccount,
 		address,
 		port,
-		clientPrivateKey,
 		[]string{},
 	)
 
@@ -377,7 +308,6 @@ func TestRegistryRemoveHost(t *testing.T) {
 		defaultAccount,
 		address,
 		port,
-		clientPrivateKey,
 		[]string{},
 	)
 	if registry.GetHostCount(activeFilterAll) != latestHostCount+1 {
@@ -414,7 +344,6 @@ func TestRegistryLink(t *testing.T) {
 			defaultAccount,
 			address,
 			port,
-			"",
 			[]string{},
 		)
 		hostsData = append(hostsData, hostData)
@@ -426,7 +355,6 @@ func TestRegistryLink(t *testing.T) {
 			defaultAccount,
 			address,
 			port,
-			"",
 			[]string{},
 		)
 		hostsData = append(hostsData, hostData)
@@ -479,7 +407,6 @@ func TestRegistryUnlink(t *testing.T) {
 		defaultAccount,
 		address,
 		port,
-		"",
 		[]string{},
 	)
 	{
@@ -516,7 +443,6 @@ func TestRegistryLinkAll(t *testing.T) {
 		defaultAccount,
 		address,
 		port,
-		"",
 		[]string{},
 	)
 	{
@@ -577,7 +503,6 @@ func TestRegistrySave(t *testing.T) {
 		defaultAccount,
 		address,
 		port,
-		"",
 		[]string{},
 	)
 
@@ -594,7 +519,6 @@ default_account = "{{.host.DefaultAccount}}"
 accounts = ["{{.host.DefaultAccount}}"]
 address = "{{.host.Address}}"
 port = {{.host.Port}}
-client_private_key = "{{.host.ClientPrivateKey}}"
 deactivated = false
 	`)
 
@@ -666,7 +590,6 @@ func TestRegistrySync(t *testing.T) {
 		defaultAccount,
 		address,
 		port,
-		"",
 		[]string{},
 	)
 
@@ -683,7 +606,6 @@ default_account = "{{.host.DefaultAccount}}"
 accounts = ["{{.host.DefaultAccount}}"]
 address = "{{.host.Address}}"
 port = {{.host.Port}}
-client_private_key = "{{.host.ClientPrivateKey}}"
 deactivated = false
 	`)
 

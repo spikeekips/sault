@@ -23,9 +23,19 @@ var responseCommands map[string]func(*proxyConnection, saultSsh.Channel, command
 
 // GlobalOptionsTemplate has global flags
 var GlobalOptionsTemplate OptionsTemplate
-var defaultLogFormat = "text"
-var defaultLogLevel = "error"
-var defaultLogOutput = "stdout"
+
+// default log format
+var DefaultLogFormat = "text"
+
+// default log level
+var DefaultLogLevel = "quiet"
+
+// default log output
+var DefaultLogOutput = "stdout"
+
+// default log output value
+var DefaultLogOutputValue = os.Stdout
+
 var atOptionTemplate = OptionTemplate{
 	Name: "At",
 	Help: "sault server, sault@<sault server[:port]>",
@@ -44,7 +54,7 @@ func (l *FlagLogFormat) String() string {
 // Set value
 func (l *FlagLogFormat) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogFormat(defaultLogFormat)
+		*l = FlagLogFormat(DefaultLogFormat)
 		return nil
 	}
 
@@ -69,7 +79,7 @@ func (l *FlagLogLevel) String() string {
 // Set value
 func (l *FlagLogLevel) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogLevel(defaultLogLevel)
+		*l = FlagLogLevel(DefaultLogLevel)
 		return nil
 	}
 
@@ -94,7 +104,7 @@ func (l *FlagLogOutput) String() string {
 // Set value
 func (l *FlagLogOutput) Set(value string) error {
 	if len(strings.TrimSpace(value)) < 1 {
-		*l = FlagLogOutput(defaultLogOutput)
+		*l = FlagLogOutput(DefaultLogOutput)
 		return nil
 	}
 
@@ -295,6 +305,7 @@ func init() {
 			hostRemoveOptionsTemplate,
 			hostUpdateOptionsTemplate,
 			hostActiveOptionsTemplate,
+			hostAliveOptionsTemplate,
 		},
 	}
 
@@ -305,17 +316,17 @@ func init() {
 			OptionTemplate{
 				Name:      "LogFormat",
 				Help:      fmt.Sprintf("log format %s", availableLogFormats),
-				ValueType: &struct{ Type FlagLogFormat }{FlagLogFormat(defaultLogFormat)},
+				ValueType: &struct{ Type FlagLogFormat }{FlagLogFormat("")},
 			},
 			OptionTemplate{
 				Name:      "LogLevel",
 				Help:      fmt.Sprintf("log level %s", availableLogLevel),
-				ValueType: &struct{ Type FlagLogLevel }{FlagLogLevel(defaultLogLevel)},
+				ValueType: &struct{ Type FlagLogLevel }{FlagLogLevel("")},
 			},
 			OptionTemplate{
 				Name:      "LogOutput",
 				Help:      "log output [stdout stderr <filename>]",
-				ValueType: &struct{ Type FlagLogOutput }{FlagLogOutput(defaultLogOutput)},
+				ValueType: &struct{ Type FlagLogOutput }{FlagLogOutput("")},
 			},
 			atOptionTemplate,
 		},
@@ -347,6 +358,7 @@ func init() {
 		"host.remove":       requestHostRemove,
 		"host.update":       requestHostUpdate,
 		"host.active":       requestHostActive,
+		"host.alive":        requesthostAlive,
 		"user.connect":      requestLink,
 		"whoami":            requestWhoAmI,
 	}
@@ -367,6 +379,7 @@ func init() {
 		"host.remove":       responseHostRemove,
 		"host.update":       responseHostUpdate,
 		"host.active":       responseHostActive,
+		"host.alive":        responsehostAlive,
 		"whoami":            responseWhoAmI,
 		"publicKey":         responseUpdatePublicKey,
 	}

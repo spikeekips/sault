@@ -138,7 +138,7 @@ func (r *tomlRegistry) GetHostByHostName(hostName string) (hostRegistryData, err
 		}
 	}
 	if matchedHostData == nil {
-		return hostRegistryData{}, fmt.Errorf("HostData not found")
+		return hostRegistryData{}, fmt.Errorf("host, `%s` not found", hostName)
 	}
 
 	return *matchedHostData, nil

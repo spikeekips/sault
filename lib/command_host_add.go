@@ -48,6 +48,11 @@ var hostAddOptionsTemplate = OptionsTemplate{
 			Help:      "available accounts of host. ex) spike,bae",
 			ValueType: &struct{ Type flagAccounts }{flagAccounts{}},
 		},
+		OptionTemplate{
+			Name:         "Force",
+			Help:         "pass to inject client public key to host",
+			DefaultValue: false,
+		},
 	},
 	ParseFunc: parseHostAddOptions,
 }
@@ -122,6 +127,7 @@ func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (exitSta
 		Accounts:       []string(*ov["Accounts"].(*flagAccounts)),
 		Address:        ov["Address"].(string),
 		Port:           ov["Port"].(uint64),
+		Force:          *ov["Force"].(*bool),
 	}
 
 	var rm responseMsg
@@ -213,7 +219,7 @@ Tries:
 			continue
 		case commandErrorInjectClientKey:
 			log.Debugf("got `commandErrorInjectClientKey`")
-			log.Error(ce)
+			log.Error(ce.Message)
 			exitStatus = 1
 			return
 		default:
@@ -250,6 +256,7 @@ Tries:
 func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	var data hostAddRequestData
 	json.Unmarshal(msg.Data, &data)
+	log.Debugf("got request data: %v", msg.Data)
 
 	_, err = pc.proxy.Registry.GetHostByHostName(data.Host)
 	if err == nil {
@@ -257,39 +264,42 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		return
 	}
 
-	log.Debugf("check the connectivity: %v", data)
-	signer := pc.proxy.Config.Server.globalClientKeySigner
-
-	var authMethod []saultSsh.AuthMethod
-	switch data.AuthMethod {
-	case "publicKey":
-		authMethod = []saultSsh.AuthMethod{
-			saultSsh.PublicKeys(signer),
+	if data.Force {
+		log.Debugf("skip to check connectivity: %v", data)
+	} else {
+		log.Debugf("check the connectivity: %v", data)
+		var authMethod []saultSsh.AuthMethod
+		switch data.AuthMethod {
+		case "publicKey":
+			authMethod = []saultSsh.AuthMethod{
+				saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner),
+			}
+		case "password":
+			authMethod = []saultSsh.AuthMethod{
+				saultSsh.Password(data.Password),
+			}
+		default:
+			err = errors.New("invalid request; missing `AuthMethod`")
+			channel.Write(toResponse(nil, err))
+			return
 		}
-	case "password":
-		authMethod = []saultSsh.AuthMethod{
-			saultSsh.Password(data.Password),
+
+		sc := newsshClient(data.DefaultAccount, data.getFullAddress())
+		sc.addAuthMethod(authMethod...)
+		sc.setTimeout(time.Second * 2)
+
+		err = sc.connect()
+		if err != nil {
+			log.Errorf("failed to connect host: %v", err)
+			channel.Write(toResponse(nil, newCommandError(commandErrorAuthFailed, err)))
+			return
 		}
-	default:
-		err = errors.New("invalid request; missing `AuthMethod`")
-		channel.Write(toResponse(nil, err))
-		return
-	}
 
-	sc := newsshClient(data.DefaultAccount, data.getFullAddress())
-	sc.addAuthMethod(authMethod...)
-	sc.setTimeout(time.Second * 2)
-
-	err = sc.connect()
-	if err != nil {
-		channel.Write(toResponse(nil, newCommandError(commandErrorAuthFailed, err)))
-		return
-	}
-
-	err = injectClientKeyToHost(sc, signer.PublicKey())
-	if err != nil {
-		channel.Write(toResponse(nil, newCommandError(commandErrorInjectClientKey, err)))
-		return
+		err = injectClientKeyToHost(sc, pc.proxy.Config.Server.globalClientKeySigner.PublicKey())
+		if err != nil {
+			channel.Write(toResponse(nil, newCommandError(commandErrorInjectClientKey, err)))
+			return
+		}
 	}
 
 	log.Debugf("trying to add new host: %v", data)

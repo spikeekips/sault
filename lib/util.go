@@ -87,6 +87,10 @@ func ParseLogLevel(v string) (logrus.Level, error) {
 
 // ParseLogOutput parses log output string
 func ParseLogOutput(output string, level string) (io.Writer, error) {
+	if output == "" {
+		return os.Stdout, nil
+	}
+
 	if level == "quiet" {
 		return ioutil.Discard, nil
 	}
@@ -310,13 +314,16 @@ func CheckUserName(s string) bool {
 	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
 }
 
+var reHostName = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
+var maxLengthHostName = 64
+
 // CheckHostName checkes whether host name is valid or not
 func CheckHostName(s string) bool {
-	if len(s) > 64 { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
+	if len(s) > maxLengthHostName { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
 		return false
 	}
 
-	return regexp.MustCompile(`^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`).MatchString(s)
+	return regexp.MustCompile(reHostName).MatchString(s)
 }
 
 func colorFunc(attr color.Attribute) func(string) template.HTML {
@@ -337,6 +344,9 @@ var commonTempalteFMap = template.FuncMap{
 	},
 	"join": func(a []string) string {
 		return fmt.Sprintf("[ %s ]", strings.Join(a, " "))
+	},
+	"align_format": func(format, s string) string {
+		return fmt.Sprintf(format, s)
 	},
 }
 

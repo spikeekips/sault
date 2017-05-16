@@ -140,9 +140,9 @@ func (c *Config) setDefault() {
 	c.Server.ServerName = defaultServerName
 	c.Server.AllowUserCanUpdate = true
 
-	c.Log.Level = defaultLogLevel
-	c.Log.Output = defaultLogOutput
-	c.Log.Format = defaultLogFormat
+	c.Log.Level = DefaultLogLevel
+	c.Log.Output = DefaultLogOutput
+	c.Log.Format = DefaultLogFormat
 }
 
 func (c *Config) fillEmpty() {
@@ -160,13 +160,13 @@ func (c *Config) fillEmpty() {
 	}
 
 	if c.Log.Level == "" {
-		c.Log.Level = defaultLogLevel
+		c.Log.Level = DefaultLogLevel
 	}
 	if c.Log.Output == "" {
-		c.Log.Output = defaultLogOutput
+		c.Log.Output = DefaultLogOutput
 	}
 	if c.Log.Format == "" {
-		c.Log.Format = defaultLogFormat
+		c.Log.Format = DefaultLogFormat
 	}
 
 	if c.Registry.Type == "toml" && c.Registry.Source.File.Path == "" {
