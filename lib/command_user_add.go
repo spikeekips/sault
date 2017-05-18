@@ -55,8 +55,9 @@ func requestUserAdd(options OptionsValues, globalOptions OptionsValues) (err err
 	userName := ov["UserName"].(string)
 	publicKeyString := ov["PublicKey"].(string)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.add",
@@ -67,12 +68,15 @@ func requestUserAdd(options OptionsValues, globalOptions OptionsValues) (err err
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Println(printAddedUser(data))
-
 	return
 }
 
@@ -80,10 +84,9 @@ func responseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	var data userAddRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to add new user: %v", data)
-	userData, err := pc.proxy.Registry.AddUser(data.User, data.PublicKey)
+	var userData UserRegistryData
+	userData, err = pc.proxy.Registry.AddUser(data.User, data.PublicKey)
 	if err != nil {
-		log.Errorf("failed to add user: %v", err)
 		return
 	}
 
@@ -92,7 +95,17 @@ func responseUserAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		return
 	}
 
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }
 
@@ -106,7 +119,6 @@ new user added`,
 		},
 	)
 	if err != nil {
-		log.Errorf("failed to templating: %v", err)
 		return ""
 	}
 

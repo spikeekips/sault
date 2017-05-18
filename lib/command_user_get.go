@@ -13,7 +13,7 @@ import (
 var userGetOptionsTemplate = OptionsTemplate{
 	Name:  "get",
 	Help:  "get user",
-	Usage: "[flags] <userName>",
+	Usage: "[flags] [<userName>]",
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:      "PublicKey",
@@ -66,6 +66,7 @@ func parseUserGetOptions(op *Options, args []string) error {
 		return fmt.Errorf("wrong usage")
 	}
 
+	op.Extra["UserName"] = ""
 	if len(commandArgs) == 1 {
 		userName := commandArgs[0]
 		if !CheckUserName(userName) {
@@ -90,8 +91,9 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 	userName := ov["UserName"].(string)
 	publicKeyString := ov["publicKeyString"].(string)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.get",
@@ -102,7 +104,10 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -115,10 +120,8 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	var data userGetRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to get user data: %v", data)
 	if data.User == "" && data.PublicKey == "" {
 		err = fmt.Errorf("empty request: %v", data)
-		log.Error(err)
 		return
 	}
 
@@ -146,11 +149,16 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		userData = userDataOfPublicKey
 	}
 
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
 	if err != nil {
-		log.Errorf("failed to get user: %v", err)
 		return
 	}
 
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
+	channel.Write(response)
 	return
 }

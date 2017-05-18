@@ -52,7 +52,6 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 
 	var insideSault bool
 	var userData UserRegistryData
-
 	{
 		var err error
 		userData, err = pc.proxy.Registry.GetActiveUserByPublicKey(key)
@@ -61,6 +60,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 			return nil, errors.New("authentication failed*")
 		}
 	}
+	log.Debugf("found user: %v", userData)
 
 	var hostData hostRegistryData
 	if hostName == pc.proxy.Config.Server.ServerName {
@@ -72,6 +72,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 			}
 		*/
 
+		log.Debugf("found host: %v", hostData)
 		insideSault = true
 	} else {
 		var err error
@@ -80,6 +81,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 			requestLog.Errorf("failed to authenticate: %v", err)
 			return nil, errors.New("authentication failed")
 		}
+		log.Debugf("found host: %v", hostData)
 
 		if !userData.IsAdmin {
 			if !pc.proxy.Registry.IsLinked(hostData.Host, userData.User, manualAccountName) {
@@ -177,9 +179,8 @@ L:
 		if err := saultSsh.Unmarshal(request.Payload[4:], &msg); err == nil {
 			pc.clientType = saultClient
 		} else {
-			log.Errorf("got invalid CommandMsg: %v", err)
-
-			var em execMsg // when sent command using native ssh client
+			// when sent command using native ssh client
+			var em execMsg
 			if err := saultSsh.Unmarshal(request.Payload, &em); err != nil {
 				log.Errorf("got invalid execMsg: %v", err)
 				request.Reply(false, nil)
@@ -188,7 +189,7 @@ L:
 			}
 
 			pc.clientType = nativeSSHClient
-			log.Errorf("but got execMsg: %v", em)
+			log.Debugf("got execMsg with nativeSSHClient: %v", em)
 			splitedCommand := strings.SplitN(em.Command, " ", 2)
 			msg = commandMsg{
 				Command: splitedCommand[0],
@@ -198,11 +199,8 @@ L:
 		request.Reply(true, nil)
 
 		log.Debugf("got CommandMsg: %v", msg)
-		exitStatus, err := handleCommandMsg(pc, proxyChannel, msg)
-		if err != nil {
-			log.Errorf("exitStatus: %v, err: %v", exitStatus, err)
-			proxyChannel.Write(toResponse(nil, err))
-		}
+		exitStatus := handleCommandMsg(pc, proxyChannel, msg)
+		log.Debugf("exitStatus: %v", exitStatus)
 
 		proxyChannel.SendRequest(
 			"exit-status",

@@ -42,7 +42,9 @@ func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (err 
 	gov := globalOptions["Options"].(OptionsValues)
 
 	hostName := ov["HostName"].(string)
-	err = RunCommand(
+
+	var response *responseMsg
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"host.remove",
@@ -50,7 +52,10 @@ func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (err 
 		nil,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -63,10 +68,8 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data hostRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to remove host: %v", data)
 	err = pc.proxy.Registry.RemoveHost(data.Host)
 	if err != nil {
-		log.Errorf("failed to remove host: %v", err)
 		return
 	}
 
@@ -75,6 +78,16 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		return
 	}
 
-	channel.Write(toResponse(nil, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		nil,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

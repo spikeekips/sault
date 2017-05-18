@@ -80,8 +80,9 @@ func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.update",
@@ -93,12 +94,15 @@ func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Println(printUser(data))
-
 	return
 }
 
@@ -106,7 +110,6 @@ func responseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data userUpdateRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to update user: %v", data)
 	if !pc.userData.IsAdmin && !pc.proxy.Config.Server.AllowUserCanUpdate {
 		err = fmt.Errorf("not allowed to update publicKey")
 		return
@@ -134,6 +137,16 @@ func responseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		return
 	}
 
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

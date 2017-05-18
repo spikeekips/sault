@@ -26,8 +26,9 @@ func parseWhoAmIOptions(op *Options, args []string) error {
 func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"whoami",
@@ -35,12 +36,15 @@ func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (err erro
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Println(printUser(data) + "\n")
-
 	return
 }
 
@@ -49,13 +53,21 @@ func responseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg commandMs
 
 	data := newUserResponseData(pc.proxy.Registry, pc.userData)
 	if pc.clientType == saultClient {
-		channel.Write(toResponse(data, nil))
+		var response []byte
+		response, err = newResponseMsg(
+			data,
+			commandErrorNone,
+			nil,
+		).ToJSON()
+		if err != nil {
+			return
+		}
+
+		channel.Write(response)
 		return
 	}
 
-	result := printUser(data)
-	fmt.Fprintf(channel, result+"\n")
-
+	fmt.Fprintln(channel, printUser(data))
 	return
 }
 
@@ -76,5 +88,6 @@ PublicKey: {{ .user.PublicKey | escape }}
 		log.Errorf("failed to templating: %v", err)
 		return ""
 	}
+
 	return strings.TrimSpace(result)
 }

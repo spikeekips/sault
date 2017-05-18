@@ -127,7 +127,9 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 	}
 
 	var hostData hostRegistryData
-	err = RunCommand(
+
+	var response *responseMsg
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.update",
@@ -142,8 +144,13 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 		},
 		&hostData,
 	)
+
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -186,6 +193,7 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		sc := newsshClient(defaultAccount, fmt.Sprintf("%s:%d", address, port))
 		sc.addAuthMethod(saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner))
 		sc.setTimeout(time.Second * 3)
+		sc.close()
 		if err = sc.connect(); err != nil {
 			err = fmt.Errorf("failed to check the connectivity: %v", err)
 			return
@@ -224,6 +232,16 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		return
 	}
 
-	channel.Write(toResponse(hostData, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		hostData,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

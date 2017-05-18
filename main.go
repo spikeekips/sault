@@ -78,6 +78,11 @@ func main() {
 		var exitStatus int
 		err := run(commandOptions, globalOptions)
 		if err != nil {
+			if remoteError, ok := err.(*sault.ResponseMsgError); ok {
+				sault.Log.Errorf("got remote error: %v", remoteError.Error())
+			} else {
+				sault.Log.Errorf("got local error: %v", err)
+			}
 			sault.CommandOut.Error(err)
 			exitStatus = 1
 		}

@@ -48,8 +48,9 @@ func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (err e
 	userName := ov["UserName"].(string)
 	setAdmin := ov["SetAdmin"].(bool)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.admin",
@@ -59,9 +60,16 @@ func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (err e
 		},
 		&data,
 	)
+	if err != nil {
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
+		return
+	}
 
 	CommandOut.Println(printUser(data))
-
 	return
 }
 
@@ -84,6 +92,16 @@ func responseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg comman
 	var userData UserRegistryData
 	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

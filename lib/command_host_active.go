@@ -58,8 +58,9 @@ func requestHostActive(
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
+	var response *responseMsg
 	var hostData hostRegistryData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.active",
@@ -70,7 +71,11 @@ func requestHostActive(
 		&hostData,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -90,10 +95,8 @@ func responseHostActive(
 	var data hostActiveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to active: %v", data)
 	err = pc.proxy.Registry.SetHostActive(data.Host, data.Active)
 	if err != nil {
-		log.Errorf("failed to set active: %v", err)
 		return
 	}
 
@@ -105,6 +108,16 @@ func responseHostActive(
 	var hostData hostRegistryData
 	hostData, _ = pc.proxy.Registry.GetHostByHostName(data.Host)
 
-	channel.Write(toResponse(hostData, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		hostData,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

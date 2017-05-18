@@ -42,8 +42,9 @@ func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (err e
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data []hostAliveResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"host.alive",
@@ -51,7 +52,11 @@ func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (err e
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -62,23 +67,32 @@ func requesthostAlive(options OptionsValues, globalOptions OptionsValues) (err e
 		}
 	}
 
+	var maxUriLength int
+	for _, result := range data {
+		if maxUriLength < len(result.Uri) {
+			maxUriLength = len(result.Uri)
+		}
+	}
+
 	if len(data) < 1 {
 		CommandOut.Println("no hosts found")
 	} else {
 		var t string
 		t, err = ExecuteCommonTemplate(`
-{{ $format := .nameFormat }}{{ $length := len .data }}{{ if ne $length 0 }}Checked the hosts can be accessible or not.{{ range $result := .data }}
-{{ if $result.Alive }}{{ $result.Host | align_format $format | green }}{{ else }}{{ $result.Host | align_format $format | red }}{{ end }} : {{ if $result.Alive }}-{{ else }}{{ $result.Error }}{{ end }}{{ end }}
+{{ $hostNameFormat := .hostNameFormat }}
+{{ $uriFormat := .uriFormat }}
+{{ $length := len .data }}{{ if ne $length 0 }}Checked the hosts can be accessible or not.{{ range $result := .data }}
+{{ if $result.Alive }}{{ $result.Host | align_format $hostNameFormat | green }}{{ else }}{{ $result.Host | align_format $hostNameFormat | red }}{{ end }}: {{ $result.Uri | align_format $uriFormat }} - {{ if $result.Alive }}{{ else }}{{ $result.Error }}{{ end }}{{ end }}
 {{ .line }}{{ end }}
 The unavailable host is {{ "red" | red }}.
 `,
 			map[string]interface{}{
-				"data":       data,
-				"nameFormat": fmt.Sprintf("%%%ds", maxHostNameLength),
+				"data":           data,
+				"hostNameFormat": fmt.Sprintf("%%%ds", maxHostNameLength),
+				"uriFormat":      fmt.Sprintf("%%-%ds", maxUriLength),
 			},
 		)
 		if err != nil {
-			log.Error(err)
 			return
 		}
 		CommandOut.Println(strings.TrimSpace(t))
@@ -118,15 +132,17 @@ func responsehostAlive(pc *proxyConnection, channel saultSsh.Channel, msg comman
 			sc := newsshClient(hostData.DefaultAccount, hostData.GetFullAddress())
 			sc.addAuthMethod(saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner))
 			sc.setTimeout(time.Second * 3)
+			defer sc.close()
 
-			r := hostAliveResponseData{Host: hostData.Host}
+			r := hostAliveResponseData{
+				Host: hostData.Host,
+				Uri:  fmt.Sprintf("%s@%s", hostData.DefaultAccount, hostData.GetFullAddress()),
+			}
 			if err = sc.connect(); err != nil {
 				r.Alive = false
 				r.Error = err.Error()
-				log.Errorf("dead, `%s`: %v", hostData.Host, err)
 			} else {
 				r.Alive = true
-				log.Debugf("alive, `%s`", hostData.Host)
 			}
 
 			results = append(results, r)
@@ -134,6 +150,16 @@ func responsehostAlive(pc *proxyConnection, channel saultSsh.Channel, msg comman
 	}
 	wg.Wait()
 
-	channel.Write(toResponse(results, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		results,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

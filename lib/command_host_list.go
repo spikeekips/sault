@@ -26,8 +26,9 @@ func requestHostList(options OptionsValues, globalOptions OptionsValues) (err er
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
+	var response *responseMsg
 	var hostList map[string]hostRegistryData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.list",
@@ -35,7 +36,11 @@ func requestHostList(options OptionsValues, globalOptions OptionsValues) (err er
 		&hostList,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -67,7 +72,6 @@ no hosts
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		return
 	}
 	CommandOut.Println(strings.TrimSpace(result))
@@ -76,8 +80,16 @@ no hosts
 }
 
 func responseHostList(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
-	log.Debugf("trying to get hosts")
+	var response []byte
+	response, err = newResponseMsg(
+		pc.proxy.Registry.GetHosts(activeFilterAll),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
 
-	channel.Write(toResponse(pc.proxy.Registry.GetHosts(activeFilterAll), nil))
+	channel.Write(response)
 	return
 }

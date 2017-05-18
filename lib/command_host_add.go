@@ -7,13 +7,30 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/spikeekips/sault/ssh"
 )
+
+func init() {
+	// terminal.ReadPassword was hanged after interruped with 'control-c'
+	oldState, _ := terminal.GetState(0)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			syscall.Syscall6(syscall.SYS_IOCTL, uintptr(0), syscall.TIOCSETA, uintptr(unsafe.Pointer(oldState)), 0, 0, 0)
+			os.Exit(1)
+		}
+	}()
+}
 
 var sshDirectory = "~/.ssh"
 var authorizedKeyFile = "~/.ssh/authorized_keys"
@@ -101,7 +118,7 @@ var maxAuthTries int = 3
 var authMethosTries []string
 
 func init() {
-	authMethosTries := []string{
+	authMethosTries = []string{
 		"publicKey",
 	}
 	for i := 0; i < maxAuthTries; i++ {
@@ -125,11 +142,10 @@ func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (err err
 
 	var previousAuthMethod string
 	var hostData hostRegistryData
-	var ce *commandError
+	var response *responseMsg
 
 Tries:
 	for _, method := range authMethosTries {
-		ce = nil
 		var password string
 
 		data.AuthMethod = method
@@ -173,70 +189,58 @@ Tries:
 			//
 		}
 
-		err = RunCommand(
+		response, err = RunCommand(
 			gov["SaultServerName"].(string),
 			address,
 			"host.add",
 			data,
 			&hostData,
 		)
-		if err == nil {
+		if err != nil {
+			return
+		}
+		if response.Error == nil {
 			log.Debugf("authMethod: %s is passed", method)
 			break Tries
 		}
 
 		previousAuthMethod = method
 
-		log.Debugf("authMethod: %s is failed: %v", method, err)
+		log.Debugf("authMethod: %s is failed: %v", method, response.Error)
 
-		var rce *RunCommandError
-		{
-			var ok bool
-			if rce, ok = err.(*RunCommandError); !ok {
-				err = fmt.Errorf("invalid error type, err must be commandError")
-				return
-			}
-		}
-
-		if rce.RemoteError == nil {
-			err = rce
-			break Tries
-		}
-
-		ce, err = parseCommandError(rce.RemoteError.Error())
-		if err != nil {
-			err = rce.RemoteError
-			return
-		}
-
-		switch ce.Type {
+		switch response.Error.ErrorType {
 		case commandErrorAuthFailed:
-			log.Debugf("got `commandErrorAuthFailed`")
+			log.Debugf("got `commandErrorAuthFailed`: %v", response.Error)
+			CommandOut.Errorf("failed to be authenticated")
 			continue
 		case commandErrorInjectClientKey:
-			log.Debugf("got `commandErrorInjectClientKey`")
-			log.Error(ce.Message)
+			log.Debugf("got `commandErrorInjectClientKey`: %v", response.Error)
+			CommandOut.Errorf("failed to inject client key")
 			return
 		default:
-			//
+			CommandOut.Error(response.Error)
+			return
 		}
+	}
+	if response.Error != nil {
+		CommandOut.Errorf("failed to add host: %v", response.Error)
+		return
 	}
 
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
 	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
-
 	return
 }
 
 func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	var data hostAddRequestData
 	json.Unmarshal(msg.Data, &data)
-	log.Debugf("got request data: %v", msg.Data)
 
 	_, err = pc.proxy.Registry.GetHostByHostName(data.Host)
 	if err == nil {
+		err = fmt.Errorf("HostName, `%s` already added", data.Host)
 		return
 	}
 
@@ -262,17 +266,18 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		sc := newsshClient(data.DefaultAccount, data.getFullAddress())
 		sc.addAuthMethod(authMethod...)
 		sc.setTimeout(time.Second * 2)
+		defer sc.close()
 
 		err = sc.connect()
 		if err != nil {
 			log.Errorf("failed to connect host: %v", err)
-			err = newCommandError(commandErrorAuthFailed, err)
+			err = &ResponseMsgError{commandErrorAuthFailed, err.Error()}
 			return
 		}
 
 		err = injectClientKeyToHost(sc, pc.proxy.Config.Server.globalClientKeySigner.PublicKey())
 		if err != nil {
-			err = newCommandError(commandErrorInjectClientKey, err)
+			err = &ResponseMsgError{commandErrorInjectClientKey, err.Error()}
 			return
 		}
 	}
@@ -295,7 +300,17 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		return
 	}
 
-	channel.Write(toResponse(hostData, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		hostData,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }
 

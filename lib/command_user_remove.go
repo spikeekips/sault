@@ -35,7 +35,8 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 
 	userName := ov["UserName"].(string)
 
-	err = RunCommand(
+	var response *responseMsg
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.remove",
@@ -45,12 +46,15 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 		nil,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Printf("user, `%s` was removed", userName)
-
 	return
 }
 
@@ -58,11 +62,8 @@ func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data userRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to remove user: %v", data)
 	err = pc.proxy.Registry.RemoveUser(data.User)
 	if err != nil {
-		log.Errorf("failed to remove user: %v", err)
-
 		return
 	}
 
@@ -71,6 +72,16 @@ func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		return
 	}
 
-	channel.Write(toResponse(nil, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		nil,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

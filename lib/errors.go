@@ -12,7 +12,7 @@ type commandError struct {
 }
 
 const (
-	commandErrorCommon commandErrorType = iota + 1
+	commandErrorNone commandErrorType = iota + 1
 	commandErrorAuthFailed
 	commandErrorInjectClientKey
 )
@@ -20,36 +20,6 @@ const (
 func (e *commandError) Error() string {
 	jsoned, _ := json.Marshal(e)
 	return string(jsoned)
-}
-
-func newCommandError(t commandErrorType, err error) *commandError {
-	return &commandError{
-		Type:    t,
-		Message: err.Error(),
-	}
-}
-
-func parseCommandError(s string) (*commandError, error) {
-	var ce commandError
-	err := json.Unmarshal([]byte(s), &ce)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ce, nil
-}
-
-type RunCommandError struct {
-	E           error
-	RemoteError error
-}
-
-func (e *RunCommandError) Error() string {
-	if e.E != nil {
-		return fmt.Sprintf("failed to send command to sault server: %v", e.E)
-	}
-
-	return e.RemoteError.Error()
 }
 
 type InvalidHostName struct {

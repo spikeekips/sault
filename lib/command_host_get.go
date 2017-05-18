@@ -43,8 +43,9 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
+	var response *responseMsg
 	var hostData hostRegistryData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		address,
 		"host.get",
@@ -54,7 +55,11 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 		&hostData,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -70,14 +75,23 @@ func responseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	var data hostGetRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to get host: %v", data)
 	hostData, err := pc.proxy.Registry.GetHostByHostName(data.Host)
 	if err != nil {
-		log.Errorf("failed to get host: %v", err)
 		return
 	}
 
-	channel.Write(toResponse(hostData, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		hostData,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
+
 	return
 }
 
@@ -101,7 +115,6 @@ Connect:   {{ .Connect | magenta }}
 		},
 	)
 	if err != nil {
-		log.Errorf("failed to templating: %v", err)
 		return ""
 	}
 

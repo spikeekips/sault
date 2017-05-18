@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -149,53 +148,42 @@ func parseGlobalOptions(op *Options, args []string) error {
 	return nil
 }
 
-func toResponse(result interface{}, resultError error) []byte {
-	if resultError != nil {
-		return saultSsh.Marshal(
-			responseMsg{Error: resultError.Error()},
-		)
-	}
-
-	jsoned, err := json.Marshal(result)
-	if err != nil {
-		return saultSsh.Marshal(
-			responseMsg{Error: err.Error()},
-		)
-	}
-
-	return saultSsh.Marshal(
-		responseMsg{Result: jsoned},
-	)
-}
-
 func handleCommandMsg(
 	pc *proxyConnection,
 	channel saultSsh.Channel,
 	msg commandMsg,
-) (exitStatus uint32, err error) {
-	exitStatus = 0
-
+) (exitStatus uint32) {
+	var err error
 	log.Debugf("command: `%s`", strings.TrimSpace(msg.Command))
 
 	if !pc.userData.IsAdmin {
 		if allowed, ok := commandForNotAdmin[msg.Command]; !ok || !allowed {
 			err = fmt.Errorf("command, `%s` not allowed for not admin user", msg.Command)
-			exitStatus = 1
+			log.Error(err)
 
+			response, _ := newResponseMsgWithError(err).ToJSON()
+			channel.Write(response)
 			return
 		}
 	}
 
 	if handler, ok := responseCommands[msg.Command]; ok {
 		exitStatus, err = handler(pc, channel, msg)
+		log.Debugf("command=%s exitStatus=%v err=%v", msg.Command, exitStatus, err)
 		if err != nil {
 			log.Error(err)
+			response, _ := newResponseMsgWithError(err).ToJSON()
+
+			channel.Write(response)
 		}
 		return
 	}
 
 	err = fmt.Errorf("unknown msg: %v", msg.Command)
-	//exitStatus = 1
+	log.Error(err)
+
+	response, _ := newResponseMsgWithError(err).ToJSON()
+	channel.Write(response)
 
 	return
 }
@@ -209,7 +197,7 @@ func defaultSshAgent() (saultSsh.AuthMethod, error) {
 	return saultSsh.PublicKeysCallback(sshAgent.NewClient(sa).Signers), nil
 }
 
-func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client, error) {
+func connectSaultServer(serverName, address string) (*saultSsh.Client, error) {
 	sshAgentAuth, err := defaultSshAgent()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to ssh agent: `%v`", err)
@@ -233,18 +221,20 @@ func makeConnectionForSaultServer(serverName, address string) (*saultSsh.Client,
 	return connection, nil
 }
 
-func RunCommand(serverName, address, command string, data interface{}, out interface{}) (err error) {
+func RunCommand(serverName, address, command string, data interface{}, out interface{}) (
+	response *responseMsg,
+	err error,
+) {
 	var connection *saultSsh.Client
-	connection, err = makeConnectionForSaultServer(serverName, address)
+	connection, err = connectSaultServer(serverName, address)
 	if err != nil {
-		err = &RunCommandError{E: err}
 		return
 	}
+	defer connection.Close()
 
 	var msg *commandMsg
 	msg, err = newCommandMsg(command, data)
 	if err != nil {
-		err = &RunCommandError{E: err}
 		return
 	}
 
@@ -252,7 +242,6 @@ func RunCommand(serverName, address, command string, data interface{}, out inter
 
 	session, err := connection.NewSession()
 	if err != nil {
-		err = &RunCommandError{E: fmt.Errorf("failed to create session: %s", err)}
 		return
 	}
 	defer session.Close()
@@ -262,40 +251,13 @@ func RunCommand(serverName, address, command string, data interface{}, out inter
 	output, err = session.Output(string(saultSsh.Marshal(msg)))
 	if err != nil {
 		if exitError, ok := err.(*saultSsh.ExitError); ok {
-			err = &RunCommandError{E: fmt.Errorf("got exitError: %v", exitError)}
+			err = fmt.Errorf("ExitError: %v", exitError)
 			return
 		}
-		err = &RunCommandError{E: fmt.Errorf("command %v was failed: %v", err)}
 		return
 	}
 
-	if err != nil {
-		err = &RunCommandError{E: err}
-		return
-	}
-
-	var rm responseMsg
-	if err = saultSsh.Unmarshal(output, &rm); err != nil {
-		err = &RunCommandError{E: err}
-		return
-	}
-
-	if rm.Error != "" {
-		err = &RunCommandError{RemoteError: errors.New(rm.Error)}
-		return
-	}
-
-	if out == nil {
-		return
-	}
-
-	if err = json.Unmarshal(rm.Result, out); err != nil {
-		err = &RunCommandError{E: err}
-		return
-	}
-
-	jsoned, _ := json.MarshalIndent(out, "", "  ")
-	log.Debugf("received data %v", string(jsoned))
+	response, err = responseMsgFromJson(output, out)
 
 	return
 }

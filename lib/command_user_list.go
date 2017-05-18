@@ -25,8 +25,9 @@ func parseUserLlstOptions(op *Options, args []string) error {
 func requestUserList(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data []userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.list",
@@ -34,7 +35,11 @@ func requestUserList(options OptionsValues, globalOptions OptionsValues) (err er
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -55,8 +60,8 @@ found {{ len .users }} user(s){{ else }}no users{{ end }}
 			"users": printedUsers,
 		},
 	)
-	CommandOut.Println(strings.TrimSpace(result))
 
+	CommandOut.Println(strings.TrimSpace(result))
 	return
 }
 
@@ -66,6 +71,16 @@ func responseUserList(pc *proxyConnection, channel saultSsh.Channel, msg command
 		data = append(data, newUserResponseData(pc.proxy.Registry, u))
 	}
 
-	channel.Write(toResponse(data, nil))
+	var response []byte
+	response, err = newResponseMsg(
+		data,
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

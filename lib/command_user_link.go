@@ -62,8 +62,9 @@ func requestLink(options OptionsValues, globalOptions OptionsValues) (err error)
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.link",
@@ -76,20 +77,21 @@ func requestLink(options OptionsValues, globalOptions OptionsValues) (err error)
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Println(printUser(data))
-
 	return
 }
 
 func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
 	var data linkRequestData
 	json.Unmarshal(msg.Data, &data)
-
-	log.Debugf("trying to (un)link user and host: %v", data)
 
 	if data.TargetAccount == "" {
 		if data.Unlink {
@@ -113,7 +115,6 @@ func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg)
 		}
 	}
 	if err != nil {
-		log.Errorf("failed to link: %v", err)
 		return
 	}
 
@@ -124,7 +125,17 @@ func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg)
 
 	var userData UserRegistryData
 	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
 
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

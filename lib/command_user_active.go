@@ -54,8 +54,9 @@ func requestUserActive(options OptionsValues, globalOptions OptionsValues) (err 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data userResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"user.active",
@@ -63,12 +64,14 @@ func requestUserActive(options OptionsValues, globalOptions OptionsValues) (err 
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
 	CommandOut.Println(printUser(data))
-
 	return
 }
 
@@ -76,10 +79,8 @@ func responseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data userActiveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to active: %v", data)
 	err = pc.proxy.Registry.SetUserActive(data.User, data.Active)
 	if err != nil {
-		log.Errorf("failed to set active: %v", err)
 		return
 	}
 
@@ -91,6 +92,16 @@ func responseUserActive(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var userData UserRegistryData
 	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
 
-	channel.Write(toResponse(newUserResponseData(pc.proxy.Registry, userData), nil))
+	var response []byte
+	response, err = newResponseMsg(
+		newUserResponseData(pc.proxy.Registry, userData),
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
+
+	channel.Write(response)
 	return
 }

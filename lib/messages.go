@@ -40,9 +40,81 @@ func (c commandMsg) String() string {
 	return fmt.Sprintf("{Command: %s Data: %s...}", c.Command, c.Data[:l])
 }
 
+type ResponseMsgError struct {
+	ErrorType commandErrorType
+	Message   string
+}
+
+func (r *ResponseMsgError) IsError(errType commandErrorType) bool {
+	return r.ErrorType == errType
+}
+
+func (r *ResponseMsgError) Error() string {
+	return r.Message
+}
+
 type responseMsg struct {
-	Result []byte
-	Error  string
+	Result interface{}
+	Error  *ResponseMsgError
+}
+
+func newResponseMsg(result interface{}, errType commandErrorType, e error) *responseMsg {
+	var errString string
+	if e != nil {
+		errString = e.Error()
+	}
+
+	var err *ResponseMsgError
+	if errType == commandErrorNone {
+		err = nil
+	} else {
+		err = &ResponseMsgError{ErrorType: errType, Message: errString}
+	}
+
+	return &responseMsg{
+		Result: result,
+		Error:  err,
+	}
+}
+
+func newResponseMsgWithError(e error) *responseMsg {
+	if err, ok := e.(*ResponseMsgError); ok {
+		return &responseMsg{Error: err}
+	}
+
+	return &responseMsg{
+		Error: &ResponseMsgError{ErrorType: commandErrorNone, Message: e.Error()},
+	}
+}
+
+func (r *responseMsg) ToJSON() ([]byte, error) {
+	jsoned, err := json.Marshal(r)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return jsoned, nil
+}
+
+func responseMsgFromJson(b []byte, result interface{}) (*responseMsg, error) {
+	var rm responseMsg
+	err := json.Unmarshal(b, &rm)
+	if err != nil {
+		return nil, err
+	}
+
+	if result == nil {
+		return &rm, nil
+	}
+
+	if jsoned, err := json.Marshal(rm.Result); err != nil {
+		return nil, err
+	} else {
+		json.Unmarshal(jsoned, result)
+		rm.Result = result
+	}
+
+	return &rm, nil
 }
 
 type userAddRequestData struct {
@@ -150,6 +222,7 @@ type clientKeysResponseData struct {
 
 type hostAliveResponseData struct {
 	Host  string
+	Uri   string
 	Alive bool
 	Error string
 }

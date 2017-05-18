@@ -7,12 +7,9 @@ import (
 )
 
 func responseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
-	log.Debugf("trying to update publicKey")
-
 	publicKey := strings.TrimSpace(string(msg.Data))
 	_, err = ParsePublicKeyFromString(publicKey)
 	if err != nil {
-		log.Error(err)
 		channel.Write([]byte(err.Error()))
 		return
 	}
@@ -20,13 +17,11 @@ func responseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg 
 	var userData UserRegistryData
 	userData, err = pc.proxy.Registry.UpdateUserPublicKey(pc.userData.User, publicKey)
 	if err != nil {
-		log.Error(err)
 		channel.Write([]byte(err.Error()))
 		return
 	}
 	err = pc.proxy.Registry.Sync()
 	if err != nil {
-		log.Error(err)
 		channel.Write([]byte(err.Error()))
 		return
 	}
@@ -41,7 +36,6 @@ successfully updated your publicKey
 		},
 	)
 	if err != nil {
-		log.Error(err)
 		channel.Write([]byte(err.Error()))
 		return
 	}

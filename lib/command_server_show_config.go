@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -26,8 +25,9 @@ func parseShowConfigOptions(op *Options, args []string) error {
 func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var response *responseMsg
 	var data serverConfigResponseData
-	err = RunCommand(
+	response, err = RunCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		"server.config",
@@ -35,7 +35,11 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (err 
 		&data,
 	)
 	if err != nil {
-		log.Error(err)
+		return
+	}
+
+	if response.Error != nil {
+		err = response.Error
 		return
 	}
 
@@ -48,15 +52,22 @@ func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (err 
 			"config": data.Config,
 		},
 	)
-	fmt.Println(strings.TrimSpace(result))
 
+	CommandOut.Println(strings.TrimSpace(result))
 	return
 }
 
 func responseShowConfig(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
-	log.Debugf("trying to get hosts")
+	var response []byte
+	response, err = newResponseMsg(
+		serverConfigResponseData{Config: pc.proxy.Config.String()},
+		commandErrorNone,
+		nil,
+	).ToJSON()
+	if err != nil {
+		return
+	}
 
-	data := serverConfigResponseData{Config: pc.proxy.Config.String()}
-	channel.Write(toResponse(data, nil))
+	channel.Write(response)
 	return
 }
