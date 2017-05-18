@@ -14,11 +14,6 @@ var hostGetOptionsTemplate = OptionsTemplate{
 	Usage: "[flags] <hostName> [<hostName>...]",
 	Options: []OptionTemplate{
 		OptionTemplate{
-			Name:         "A",
-			Help:         "get all hosts",
-			DefaultValue: false,
-		},
-		OptionTemplate{
 			Name:         "Filter",
 			Help:         "filter hosts by state, [ active deactive ]",
 			DefaultValue: "",
@@ -64,12 +59,6 @@ func parseHostGetOptions(op *Options, args []string) error {
 		}
 	}
 
-	{
-		if op.Extra["ActiveFilter"] == nil && *op.Vars["A"].(*bool) {
-			op.Extra["ActiveFilter"] = activeFilterAll
-		}
-	}
-
 	return nil
 }
 
@@ -91,14 +80,14 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 	}
 
 	var response *responseMsg
-	var data []hostRegistryData
+	var hosts []hostRegistryData
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
 		clientPublicKey,
 		"host.get",
 		req,
-		&data,
+		&hosts,
 	)
 	if err != nil {
 		return
@@ -112,36 +101,7 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
-	hostsPrinted := []string{}
-	for _, hostData := range data {
-		hostsPrinted = append(
-			hostsPrinted,
-			printHost(saultServerHostName, saultServerPort, hostData),
-		)
-	}
-
-	var result string
-	result, err = ExecuteCommonTemplate(`
-{{ $length := len .data }}
-{{ if ne $length 0 }}{{ .line}}
-{{ .hostsPrinted | escape }}
-{{ .line}}
-found {{ $length }} hosts
-{{ else }}
-no hosts
-{{ end }}
-`,
-		map[string]interface{}{
-			"data":         data,
-			"hostsPrinted": strings.Join(hostsPrinted, "\n\n"),
-		},
-	)
-
-	if err != nil {
-		return
-	}
-	CommandOut.Println(strings.TrimSpace(result))
-
+	CommandOut.Println(printHosts(hosts, saultServerHostName, saultServerPort))
 	return
 }
 
@@ -150,8 +110,8 @@ func responseHostGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	json.Unmarshal(msg.Data, &data)
 
 	var list []hostRegistryData
-	if data.Filter == activeFilterAll || len(data.Hosts) < 1 {
-		for _, hostData := range pc.proxy.Registry.GetHosts(data.Filter) {
+	if len(data.Hosts) < 1 {
+		for _, hostData := range pc.proxy.Registry.GetHosts(activeFilterAll) {
 			list = append(list, hostData)
 		}
 	} else {
@@ -218,6 +178,38 @@ Connect:   {{ .Connect | magenta }}
 			),
 		},
 	)
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(result)
+}
+
+func printHosts(hosts []hostRegistryData, saultServerHostName string, saultServerPort uint64) string {
+	hostsPrinted := []string{}
+	for _, hostData := range hosts {
+		hostsPrinted = append(
+			hostsPrinted,
+			printHost(saultServerHostName, saultServerPort, hostData),
+		)
+	}
+
+	result, err := ExecuteCommonTemplate(`
+{{ $length := len .hosts }}
+{{ if ne $length 0 }}{{ .line}}
+{{ .hostsPrinted | escape }}
+{{ .line}}
+found {{ $length }} hosts
+{{ else }}
+no hosts
+{{ end }}
+`,
+		map[string]interface{}{
+			"hosts":        hosts,
+			"hostsPrinted": strings.Join(hostsPrinted, "\n\n"),
+		},
+	)
+
 	if err != nil {
 		return ""
 	}

@@ -2,6 +2,7 @@ package sault
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/spikeekips/sault/ssh"
@@ -10,7 +11,7 @@ import (
 var userRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove user",
-	Usage:     "[flags] <userName>",
+	Usage:     "[flags] <userName> [<userName>...]",
 	ParseFunc: parseUserRemoveOptions,
 }
 
@@ -20,11 +21,22 @@ func parseUserRemoveOptions(op *Options, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
+	userNames := op.FlagSet.Args()
+	if len(userNames) < 1 {
 		return fmt.Errorf("<userName> is missing")
 	}
 
-	op.Extra["UserName"] = args[0]
+	{
+		var names []string
+		for _, userName := range userNames {
+			if !CheckUserName(userName) {
+				return fmt.Errorf("invalid userName, '%s'", userName)
+			}
+			names = append(names, userName)
+		}
+
+		op.Extra["Users"] = names
+	}
 
 	return nil
 }
@@ -33,13 +45,12 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	userName := ov["UserName"].(string)
-
 	var clientPublicKey saultSsh.PublicKey
 	if gov["ClientPublicKey"] != nil {
 		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
 	}
 
+	var users []string
 	var response *responseMsg
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
@@ -47,9 +58,9 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 		clientPublicKey,
 		"user.remove",
 		userRemoveRequestData{
-			User: userName,
+			Users: ov["Users"].([]string),
 		},
-		nil,
+		&users,
 	)
 	if err != nil {
 		return
@@ -60,7 +71,12 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 		return
 	}
 
-	CommandOut.Printf("user, `%s` was removed", userName)
+	if len(users) < 1 {
+		err = errors.New("no users removed")
+		return
+	}
+
+	CommandOut.Printf("users, %s was removed", users)
 	return
 }
 
@@ -68,9 +84,13 @@ func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data userRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	err = pc.proxy.Registry.RemoveUser(data.User)
-	if err != nil {
-		return
+	var users []string
+	for _, userName := range data.Users {
+		err = pc.proxy.Registry.RemoveUser(userName)
+		if err != nil {
+			continue
+		}
+		users = append(users, userName)
 	}
 
 	err = pc.proxy.Registry.Sync()
@@ -80,7 +100,7 @@ func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 
 	var response []byte
 	response, err = newResponseMsg(
-		nil,
+		users,
 		commandErrorNone,
 		nil,
 	).ToJSON()

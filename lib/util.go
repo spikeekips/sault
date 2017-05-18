@@ -487,3 +487,16 @@ func getSshAgent() (sshAgent.Agent, error) {
 
 	return sshAgent.NewClient(sa), nil
 }
+
+func parseNameActive(s string) (string, bool) {
+	name := s
+	var active bool
+	if regexp.MustCompile(`\-$`).FindString(name) == "" {
+		active = true
+	} else {
+		name = name[0 : len(name)-1]
+		active = false
+	}
+
+	return name, active
+}

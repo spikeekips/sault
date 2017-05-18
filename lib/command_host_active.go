@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -20,7 +19,7 @@ To active "server0",
 To deactivate "server0", just add "{{ "-" | yellow }}" in the end of host name,
 {{ "$ sault host active server0-" | magenta }}
 	`,
-	Usage:     "[flags] <hostName>[-]",
+	Usage:     "[flags] <hostName>[-] [<hostName>[-]...]",
 	ParseFunc: parseHostActiveOptions,
 }
 
@@ -30,22 +29,21 @@ func parseHostActiveOptions(op *Options, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
-		return fmt.Errorf("<hostName> is missing")
+	hostNames := op.FlagSet.Args()
+	if len(hostNames) < 1 {
+		return fmt.Errorf("hostName is missing")
 	}
 
-	hostName := args[0]
-
-	var active bool
-	if regexp.MustCompile(`\-$`).FindString(hostName) == "" {
-		active = true
-	} else {
-		hostName = hostName[0 : len(hostName)-1]
-		active = false
+	names := map[string]bool{}
+	for _, h := range hostNames {
+		name, active := parseNameActive(h)
+		if !CheckHostName(name) {
+			return fmt.Errorf("invalid hostName, '%s'", name)
+		}
+		names[name] = active
 	}
 
-	op.Extra["HostName"] = hostName
-	op.Extra["Active"] = active
+	op.Extra["Hosts"] = names
 
 	return nil
 }
@@ -64,17 +62,16 @@ func requestHostActive(
 	}
 
 	var response *responseMsg
-	var hostData hostRegistryData
+	var hosts []hostRegistryData
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
 		clientPublicKey,
 		"host.active",
 		hostActiveRequestData{
-			Host:   ov["HostName"].(string),
-			Active: ov["Active"].(bool),
+			Hosts: ov["Hosts"].(map[string]bool),
 		},
-		&hostData,
+		&hosts,
 	)
 	if err != nil {
 		return
@@ -88,8 +85,7 @@ func requestHostActive(
 	_, saultServerPort, _ := SplitHostPort(address, uint64(22))
 	saultServerHostName := gov["SaultServerHostName"].(string)
 
-	CommandOut.Println(printHost(saultServerHostName, saultServerPort, hostData))
-
+	CommandOut.Println(printHosts(hosts, saultServerHostName, saultServerPort))
 	return
 }
 
@@ -101,9 +97,15 @@ func responseHostActive(
 	var data hostActiveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	err = pc.proxy.Registry.SetHostActive(data.Host, data.Active)
-	if err != nil {
-		return
+	var hosts []hostRegistryData
+	for hostName, active := range data.Hosts {
+		err = pc.proxy.Registry.SetHostActive(hostName, active)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		hostData, _ := pc.proxy.Registry.GetHostByHostName(hostName)
+		hosts = append(hosts, hostData)
 	}
 
 	err = pc.proxy.Registry.Sync()
@@ -111,12 +113,9 @@ func responseHostActive(
 		return
 	}
 
-	var hostData hostRegistryData
-	hostData, _ = pc.proxy.Registry.GetHostByHostName(data.Host)
-
 	var response []byte
 	response, err = newResponseMsg(
-		hostData,
+		hosts,
 		commandErrorNone,
 		nil,
 	).ToJSON()

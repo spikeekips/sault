@@ -3,17 +3,16 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 
 	"github.com/spikeekips/sault/ssh"
 )
 
 var linkOptionsTemplate = OptionsTemplate{
 	Name: "link",
-	Help: "(un)link user and host",
+	Help: "(un)link user and hosts",
 	Description: `
 	`,
-	Usage:     "[flags] <userName> [<account>+]<hostName>[-]",
+	Usage:     "[flags] <userName> [<account>+]<hostName>[-] [[<account>+]<hostName>[-]...]",
 	ParseFunc: parseLinkOptions,
 }
 
@@ -24,36 +23,32 @@ func parseLinkOptions(op *Options, args []string) error {
 	}
 
 	commandArgs := op.FlagSet.Args()
-	if len(commandArgs) != 2 {
+	if len(commandArgs) < 2 {
 		return fmt.Errorf("wrong usage")
 	}
 
-	userName, accountAndHostName := commandArgs[0], commandArgs[1]
-
-	var unlink bool
-	if regexp.MustCompile(`\-$`).FindString(accountAndHostName) == "" {
-		unlink = false
-	} else {
-		accountAndHostName = accountAndHostName[0 : len(accountAndHostName)-1]
-		unlink = true
-	}
-	op.Extra["Unlink"] = unlink
-
+	userName := commandArgs[0]
 	{
 		if !CheckUserName(userName) {
-			return fmt.Errorf("invalid userName, `%s`", userName)
+			return fmt.Errorf("invalid userName, `%s` found", userName)
 		}
 
 		op.Extra["UserName"] = userName
 	}
-	{
-		account, requestLink, err := ParseAccountName(accountAndHostName)
+
+	hostNames := commandArgs[1:]
+	names := map[string]bool{}
+	for _, hostName := range hostNames {
+		name, link := parseNameActive(hostName)
+
+		account, hostName, err := ParseAccountName(name)
 		if err != nil {
-			return fmt.Errorf("invalid [<account>@]<hostName>: %v", err)
+			return fmt.Errorf("invalid [<account>+]<hostName>, '%s'", name)
 		}
-		op.Extra["TargetAccount"] = account
-		op.Extra["HostName"] = requestLink
+		names[fmt.Sprintf("%s@%s", account, hostName)] = link
 	}
+
+	op.Extra["Links"] = names
 
 	return nil
 }
@@ -68,19 +63,17 @@ func requestLink(options OptionsValues, globalOptions OptionsValues) (err error)
 	}
 
 	var response *responseMsg
-	var data userResponseData
+	var users userResponseData
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		clientPublicKey,
 		"user.link",
 		linkRequestData{
-			Host:          ov["HostName"].(string),
-			User:          ov["UserName"].(string),
-			TargetAccount: ov["TargetAccount"].(string),
-			Unlink:        ov["Unlink"].(bool),
+			User:  ov["UserName"].(string),
+			Links: ov["Links"].(map[string]bool),
 		},
-		&data,
+		&users,
 	)
 	if err != nil {
 		return
@@ -91,7 +84,7 @@ func requestLink(options OptionsValues, globalOptions OptionsValues) (err error)
 		return
 	}
 
-	CommandOut.Println(printUser(data))
+	CommandOut.Println(printUser(users))
 	return
 }
 
@@ -99,29 +92,29 @@ func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg)
 	var data linkRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	if data.TargetAccount == "" {
-		if data.Unlink {
-			err = pc.proxy.Registry.UnlinkAll(data.Host, data.User)
+	for k, link := range data.Links {
+		account, hostName, _ := ParseHostAccount(k)
+		if account == "" {
+			if !link {
+				err = pc.proxy.Registry.UnlinkAll(hostName, data.User)
+			} else {
+				err = pc.proxy.Registry.LinkAll(hostName, data.User)
+			}
 		} else {
-			err = pc.proxy.Registry.LinkAll(data.Host, data.User)
+			if !link {
+				err = pc.proxy.Registry.Unlink(
+					hostName,
+					data.User,
+					[]string{account},
+				)
+			} else {
+				err = pc.proxy.Registry.Link(
+					hostName,
+					data.User,
+					[]string{account},
+				)
+			}
 		}
-	} else {
-		if data.Unlink {
-			err = pc.proxy.Registry.Unlink(
-				data.Host,
-				data.User,
-				[]string{data.TargetAccount},
-			)
-		} else {
-			err = pc.proxy.Registry.Link(
-				data.Host,
-				data.User,
-				[]string{data.TargetAccount},
-			)
-		}
-	}
-	if err != nil {
-		return
 	}
 
 	err = pc.proxy.Registry.Sync()

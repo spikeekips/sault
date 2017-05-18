@@ -3,7 +3,6 @@ package sault
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -11,7 +10,7 @@ import (
 var userAdminOptionsTemplate = OptionsTemplate{
 	Name:      "admin",
 	Help:      "make user to be admin or not",
-	Usage:     "[flags] <userName>[-]",
+	Usage:     "[flags] <userName>[-] [<userName>[-]...]",
 	ParseFunc: parseUserAdminOptions,
 }
 
@@ -21,22 +20,21 @@ func parseUserAdminOptions(op *Options, args []string) error {
 		return err
 	}
 
-	if len(args) != 1 {
+	userNames := op.FlagSet.Args()
+	if len(userNames) < 1 {
 		return fmt.Errorf("<userName> is missing")
 	}
 
-	userName := args[0]
-
-	var setAdmin bool
-	if regexp.MustCompile(`\-$`).FindString(userName) == "" {
-		setAdmin = true
-	} else {
-		userName = userName[0 : len(userName)-1]
-		setAdmin = false
+	names := map[string]bool{}
+	for _, userName := range userNames {
+		name, active := parseNameActive(userName)
+		if !CheckUserName(name) {
+			return fmt.Errorf("invalid userName, '%s' found", name)
+		}
+		names[name] = active
 	}
 
-	op.Extra["UserName"] = userName
-	op.Extra["SetAdmin"] = setAdmin
+	op.Extra["Users"] = names
 
 	return nil
 }
@@ -45,26 +43,22 @@ func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (err e
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	userName := ov["UserName"].(string)
-	setAdmin := ov["SetAdmin"].(bool)
-
 	var clientPublicKey saultSsh.PublicKey
 	if gov["ClientPublicKey"] != nil {
 		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
 	}
 
 	var response *responseMsg
-	var data userResponseData
+	var users []userResponseData
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		clientPublicKey,
 		"user.admin",
 		userAdminRequestData{
-			User:     userName,
-			SetAdmin: setAdmin,
+			Users: ov["Users"].(map[string]bool),
 		},
-		&data,
+		&users,
 	)
 	if err != nil {
 		return
@@ -75,7 +69,7 @@ func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (err e
 		return
 	}
 
-	CommandOut.Println(printUser(data))
+	CommandOut.Println(printUsers(users))
 	return
 }
 
@@ -83,11 +77,14 @@ func responseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg comman
 	var data userAdminRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	log.Debugf("trying to admin: %v", data)
-	err = pc.proxy.Registry.SetAdmin(data.User, data.SetAdmin)
-	if err != nil {
-		log.Errorf("failed to admin: %v", err)
-		return
+	var users []userResponseData
+	for userName, setAdmin := range data.Users {
+		err = pc.proxy.Registry.SetAdmin(userName, setAdmin)
+		if err != nil {
+			continue
+		}
+		userData, _ := pc.proxy.Registry.GetUserByUserName(userName)
+		users = append(users, newUserResponseData(pc.proxy.Registry, userData))
 	}
 
 	err = pc.proxy.Registry.Sync()
@@ -95,12 +92,9 @@ func responseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg comman
 		return
 	}
 
-	var userData UserRegistryData
-	userData, err = pc.proxy.Registry.GetUserByUserName(data.User)
-
 	var response []byte
 	response, err = newResponseMsg(
-		newUserResponseData(pc.proxy.Registry, userData),
+		users,
 		commandErrorNone,
 		nil,
 	).ToJSON()

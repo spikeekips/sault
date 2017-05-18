@@ -16,11 +16,6 @@ var userGetOptionsTemplate = OptionsTemplate{
 	Usage: "[flags] [<userName>...]",
 	Options: []OptionTemplate{
 		OptionTemplate{
-			Name:         "A",
-			Help:         "get all hosts",
-			DefaultValue: false,
-		},
-		OptionTemplate{
 			Name:         "Filter",
 			Help:         "filter hosts by state, [ active deactive ]",
 			DefaultValue: "",
@@ -106,12 +101,6 @@ func parseUserGetOptions(op *Options, args []string) error {
 		}
 	}
 
-	{
-		if op.Extra["ActiveFilter"] == nil && *op.Vars["A"].(*bool) {
-			op.Extra["ActiveFilter"] = activeFilterAll
-		}
-	}
-
 	return nil
 }
 
@@ -135,14 +124,14 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 	}
 
 	var response *responseMsg
-	var data []userResponseData
+	var users []userResponseData
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		clientPublicKey,
 		"user.get",
 		req,
-		&data,
+		&users,
 	)
 	if err != nil {
 		return
@@ -152,25 +141,7 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 		return
 	}
 
-	var printedUsers []string
-	for _, u := range data {
-		printedUsers = append(printedUsers, printUser(u))
-	}
-
-	var result string
-	result, err = ExecuteCommonTemplate(
-		`
-{{ $length := len .users }}{{ if ne $length 0 }}{{ .line }}{{ range $user := .users }}
-{{ $user | escape }}
-{{ end }}{{ .line }}
-found {{ len .users }} user(s){{ else }}no users{{ end }}
-`,
-		map[string]interface{}{
-			"users": printedUsers,
-		},
-	)
-
-	CommandOut.Println(strings.TrimSpace(result))
+	CommandOut.Println(printUsers(users))
 	return
 }
 
@@ -179,8 +150,8 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	json.Unmarshal(msg.Data, &data)
 
 	var list []UserRegistryData
-	if data.Filter == activeFilterAll || len(data.Users) < 1 {
-		for _, userData := range pc.proxy.Registry.GetUsers(data.Filter) {
+	if len(data.Users) < 1 {
+		for _, userData := range pc.proxy.Registry.GetUsers(activeFilterAll) {
 			list = append(list, userData)
 		}
 	} else {
@@ -212,6 +183,8 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	default:
 		filtered0 = list
 	}
+
+	fmt.Println(list)
 
 	var filtered1 []UserRegistryData
 	if data.PublicKey == "" {
@@ -254,4 +227,49 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 
 	channel.Write(response)
 	return
+}
+
+func printUser(data userResponseData) string {
+	result, err := ExecuteCommonTemplate(`
+{{ "User:"|yellow }}      {{ .user.User | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
+PublicKey: {{ .user.PublicKey | escape }}
+{{ $length := len .linked }}Linked hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
+{{ range $key, $accounts := .linked }} - {{ $key | escape }}: {{ $accounts | join}}
+{{ end }}{{ end }}
+`,
+		map[string]interface{}{
+			"user":   data.UserData,
+			"linked": data.Linked,
+		},
+	)
+	if err != nil {
+		log.Errorf("failed to templating: %v", err)
+		return ""
+	}
+
+	return strings.TrimSpace(result)
+}
+
+func printUsers(users []userResponseData) string {
+	var printedUsers []string
+	for _, userData := range users {
+		printedUsers = append(printedUsers, printUser(userData))
+	}
+
+	result, err := ExecuteCommonTemplate(
+		`
+{{ $length := len .users }}{{ if ne $length 0 }}{{ .line }}{{ range $user := .users }}
+{{ $user | escape }}
+{{ end }}{{ .line }}
+found {{ len .users }} user(s){{ else }}no users{{ end }}
+`,
+		map[string]interface{}{
+			"users": printedUsers,
+		},
+	)
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(result)
 }

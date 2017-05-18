@@ -2,7 +2,6 @@ package sault
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spikeekips/sault/ssh"
 )
@@ -75,25 +74,4 @@ func responseWhoAmI(pc *proxyConnection, channel saultSsh.Channel, msg commandMs
 
 	fmt.Fprintln(channel, printUser(data))
 	return
-}
-
-func printUser(data userResponseData) string {
-	result, err := ExecuteCommonTemplate(`
-{{ "User:"|yellow }}      {{ .user.User | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
-PublicKey: {{ .user.PublicKey | escape }}
-{{ $length := len .linked }}Linked hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
-{{ range $key, $accounts := .linked }} - {{ $key | escape }}: {{ $accounts | join}}
-{{ end }}{{ end }}
-`,
-		map[string]interface{}{
-			"user":   data.UserData,
-			"linked": data.Linked,
-		},
-	)
-	if err != nil {
-		log.Errorf("failed to templating: %v", err)
-		return ""
-	}
-
-	return strings.TrimSpace(result)
 }

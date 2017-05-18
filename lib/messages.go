@@ -123,17 +123,15 @@ type userAddRequestData struct {
 }
 
 type userRemoveRequestData struct {
-	User string
+	Users []string
 }
 
 type userAdminRequestData struct {
-	User     string
-	SetAdmin bool
+	Users map[string]bool
 }
 
 type userActiveRequestData struct {
-	User   string
-	Active bool
+	Users map[string]bool
 }
 
 type userUpdateRequestData struct {
@@ -175,7 +173,7 @@ func (p hostAddRequestData) getFullAddress() string {
 }
 
 type hostRemoveRequestData struct {
-	Host string
+	Hosts []string
 }
 
 type hostUpdateRequestData struct {
@@ -190,8 +188,7 @@ type hostUpdateRequestData struct {
 }
 
 type hostActiveRequestData struct {
-	Host   string
-	Active bool
+	Hosts map[string]bool
 }
 
 type hostAliveRequestData struct {
@@ -199,10 +196,8 @@ type hostAliveRequestData struct {
 }
 
 type linkRequestData struct {
-	Host          string
-	User          string
-	TargetAccount string
-	Unlink        bool
+	User  string
+	Links map[string]bool
 }
 
 type userResponseData struct {

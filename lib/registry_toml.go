@@ -724,7 +724,11 @@ func (r *tomlRegistry) Unlink(hostName, userName string, targetAccounts []string
 		filtered = append(filtered, a)
 	}
 
-	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
+	if len(filtered) < 1 {
+		delete(r.DataSource.Linked[hostName], userName)
+	} else {
+		r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
+	}
 
 	return nil
 }

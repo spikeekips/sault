@@ -2,6 +2,7 @@ package sault
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/spikeekips/sault/ssh"
@@ -10,7 +11,7 @@ import (
 var hostRemoveOptionsTemplate = OptionsTemplate{
 	Name:      "remove",
 	Help:      "remove host",
-	Usage:     "[flags] <hostName>",
+	Usage:     "[flags] <hostName> [<hostName>...]",
 	ParseFunc: parseHostRemoveOptions,
 }
 
@@ -20,18 +21,21 @@ func parseHostRemoveOptions(op *Options, args []string) error {
 		return err
 	}
 
-	commandArgs := op.FlagSet.Args()
-	if len(commandArgs) != 1 {
-		return fmt.Errorf("wrong usage")
+	hostNames := op.FlagSet.Args()
+	if len(hostNames) < 1 {
+		return fmt.Errorf("hostName is missing")
 	}
 
 	{
-		hostName := commandArgs[0]
-		if !CheckHostName(hostName) {
-			return fmt.Errorf("invalid hostName, `%s`", hostName)
+		var names []string
+		for _, hostName := range hostNames {
+			if !CheckHostName(hostName) {
+				return fmt.Errorf("invalid hostName, '%s'", hostName)
+			}
+			names = append(names, hostName)
 		}
 
-		op.Extra["HostName"] = hostName
+		op.Extra["Hosts"] = names
 	}
 
 	return nil
@@ -41,21 +45,20 @@ func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (err 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	hostName := ov["HostName"].(string)
-
 	var clientPublicKey saultSsh.PublicKey
 	if gov["ClientPublicKey"] != nil {
 		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
 	}
 
 	var response *responseMsg
+	var hosts []string
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
 		clientPublicKey,
 		"host.remove",
-		hostRemoveRequestData{Host: hostName},
-		nil,
+		hostRemoveRequestData{Hosts: ov["Hosts"].([]string)},
+		&hosts,
 	)
 	if err != nil {
 		return
@@ -65,8 +68,12 @@ func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (err 
 		return
 	}
 
-	CommandOut.Printf("host, `%s` was removed", hostName)
+	if len(hosts) < 1 {
+		err = errors.New("no hosts removed")
+		return
+	}
 
+	CommandOut.Printf("hosts, %s was removed", hosts)
 	return
 }
 
@@ -74,9 +81,14 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	var data hostRemoveRequestData
 	json.Unmarshal(msg.Data, &data)
 
-	err = pc.proxy.Registry.RemoveHost(data.Host)
-	if err != nil {
-		return
+	var hosts []string
+	for _, hostName := range data.Hosts {
+		err = pc.proxy.Registry.RemoveHost(hostName)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		hosts = append(hosts, hostName)
 	}
 
 	err = pc.proxy.Registry.Sync()
@@ -86,7 +98,7 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 
 	var response []byte
 	response, err = newResponseMsg(
-		nil,
+		hosts,
 		commandErrorNone,
 		nil,
 	).ToJSON()
