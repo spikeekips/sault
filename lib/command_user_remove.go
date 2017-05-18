@@ -35,10 +35,16 @@ func requestUserRemove(options OptionsValues, globalOptions OptionsValues) (err 
 
 	userName := ov["UserName"].(string)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"user.remove",
 		userRemoveRequestData{
 			User: userName,

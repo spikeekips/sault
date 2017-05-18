@@ -14,32 +14,6 @@ import (
 	"github.com/naoina/toml"
 )
 
-var availableLogFormats = [2]string{
-	"json",
-	"text",
-}
-
-var availableLogLevel = [6]string{
-	"debug",
-	"info",
-	"warn",
-	"error",
-	"fatal",
-	"quiet",
-}
-
-var availableRegistryType = [1]string{
-	"toml",
-}
-
-var defaultServerName = "sault"
-var defaultServerPort uint64 = 2222
-var defaultServerBind string
-
-func init() {
-	defaultServerBind = fmt.Sprintf(":%d", defaultServerPort)
-}
-
 type configServer struct {
 	Bind                  string
 	HostKeyPath           string

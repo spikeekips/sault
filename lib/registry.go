@@ -7,15 +7,6 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-type activeFilter int
-
-const (
-	_                            = iota
-	activeFilterAll activeFilter = 1 << (10 * iota)
-	activeFilterActive
-	activeFilterDeactivated
-)
-
 // UserRegistryData is the user data of registry
 type UserRegistryData struct {
 	User        string // must be unique

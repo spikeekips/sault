@@ -26,11 +26,17 @@ func parseShowClientKeysOptions(op *Options, args []string) error {
 func requestShowClientKeys(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var data clientKeysResponseData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"server.clientKeys",
 		nil,
 		&data,

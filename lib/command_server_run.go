@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-var defaultConfigDir = "./"
 var serverRunOptionsTemplate = OptionsTemplate{
 	Name:  "run",
 	Help:  "run sault server",
@@ -22,10 +21,6 @@ var serverRunOptionsTemplate = OptionsTemplate{
 		},
 	},
 	ParseFunc: parseServerOptions,
-}
-
-func init() {
-	defaultConfigDir, _ = filepath.Abs(filepath.Clean(defaultConfigDir))
 }
 
 type flagConfigDirs []string

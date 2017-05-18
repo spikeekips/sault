@@ -25,11 +25,17 @@ func parseShowConfigOptions(op *Options, args []string) error {
 func requestShowConfig(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var data serverConfigResponseData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"server.config",
 		nil,
 		&data,

@@ -32,9 +32,6 @@ func init() {
 	}()
 }
 
-var sshDirectory = "~/.ssh"
-var authorizedKeyFile = "~/.ssh/authorized_keys"
-
 type flagAccounts []string
 
 func (f *flagAccounts) String() string {
@@ -114,18 +111,6 @@ func parseHostAddOptions(op *Options, args []string) error {
 	return nil
 }
 
-var maxAuthTries int = 3
-var authMethosTries []string
-
-func init() {
-	authMethosTries = []string{
-		"publicKey",
-	}
-	for i := 0; i < maxAuthTries; i++ {
-		authMethosTries = append(authMethosTries, "password")
-	}
-}
-
 func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (err error) {
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
@@ -146,52 +131,39 @@ func requestHostAdd(options OptionsValues, globalOptions OptionsValues) (err err
 
 Tries:
 	for _, method := range authMethosTries {
-		var password string
-
 		data.AuthMethod = method
 		switch method {
 		case "password":
 			if previousAuthMethod != method {
 				prompt, _ := ExecuteCommonTemplate(`{{ "NOTICE: sault does not store your input password" | red }}`, nil)
-				fmt.Println(strings.TrimSpace(prompt))
+				fmt.Fprintln(os.Stdout, strings.TrimSpace(prompt))
 			}
 
-			var tries int
-			for {
-				if tries > (maxAuthTries - 1) {
-					break
-				}
-
-				fmt.Print("Password: ")
-				var bytePassword []byte
-				bytePassword, err = terminal.ReadPassword(0)
-				fmt.Println("")
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				bp := strings.TrimSpace(string(bytePassword))
-				if len(bp) < 1 {
-					tries++
-					continue
-				}
-
-				password = bp
-				break
+			var password string
+			password, err = ReadPassword(maxAuthTries)
+			if err != nil {
+				log.Error(err)
 			}
 
 			if len(password) < 1 {
 				log.Errorf("cancel password authentication")
 				return
 			}
+
 			data.Password = password
 		default:
 			//
 		}
 
-		response, err = RunCommand(
+		var clientPublicKey saultSsh.PublicKey
+		if gov["ClientPublicKey"] != nil {
+			clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+		}
+
+		response, err = runCommand(
 			gov["SaultServerName"].(string),
 			address,
+			clientPublicKey,
 			"host.add",
 			data,
 			&hostData,

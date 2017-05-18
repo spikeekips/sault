@@ -55,11 +55,17 @@ func requestUserAdd(options OptionsValues, globalOptions OptionsValues) (err err
 	userName := ov["UserName"].(string)
 	publicKeyString := ov["PublicKey"].(string)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var data userResponseData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"user.add",
 		userAddRequestData{
 			User:      userName,

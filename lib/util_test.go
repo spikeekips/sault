@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -298,6 +299,68 @@ func TestSplitHostPort(t *testing.T) {
 		_, _, err := SplitHostPort(host, port)
 		if err == nil {
 			t.Error("must be failed")
+		}
+	}
+}
+
+func TestLoadPublicKeyFromPrivateKeyFile(t *testing.T) {
+	publicKeyString := strings.TrimSpace(`
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJZKlxv+t1JdY+iLi/x/Q3tBHccr7Ueiy+I38AouwOUn81UiViAU6IquNFlOMYMB/IoS5tVYEbHxoYpsZTUi/CuRNOLDfKG0avAXDSdQ9mp2ln1Ovv3pHQLeUuWni5ecslVC36vxpL49eLxr6uXaMnhDyyl9PbMnoudMeiyyyZVNIKK+QEonPLkxgYPk9l1baAtEAph/zDsOwHfwo0DYgt8cPwyO6nzI9BoifVYWavCQoRsGtotf4AktTfL2AArJQc9jLLlzYsPwXK8g2QTLCHm7FED+Wm3T42Tsmn31eYGw==
+	`)
+	publicKey, _ := ParsePublicKeyFromString(publicKeyString)
+	authorizedKey := GetAuthorizedKey(publicKey)
+
+	{
+		key, _ := ioutil.TempFile("/tmp/", "sault-test")
+		defer key.Close()
+
+		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString), 0600)
+
+		pf, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		if err != nil {
+			t.Error(err)
+		}
+
+		if GetAuthorizedKey(pf) != authorizedKey {
+			t.Errorf("LoadPublicKeyFromPrivateKeyFile(f) == '%s', but '%s'", publicKeyString, GetAuthorizedKey(pf))
+		}
+	}
+	{
+		// if public file not present
+		key, _ := ioutil.TempFile("/tmp/", "sault-test")
+		defer key.Close()
+
+		_, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		if err == nil {
+			t.Error("error must be occured")
+		}
+	}
+	{
+		// private key file with extension
+		key, _ := ioutil.TempFile("/tmp/", "sault-test")
+		key.Close()
+		ioutil.WriteFile(key.Name()+".key", []byte{}, 0600)
+		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString), 0600)
+
+		pf, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		if err != nil {
+			t.Error(err)
+		}
+
+		if GetAuthorizedKey(pf) != authorizedKey {
+			t.Errorf("LoadPublicKeyFromPrivateKeyFile(f) == '%s', but '%s'", publicKeyString, GetAuthorizedKey(pf))
+		}
+	}
+	{
+		// with invalid public key
+		key, _ := ioutil.TempFile("/tmp/", "sault-test")
+		key.Close()
+		ioutil.WriteFile(key.Name()+".key", []byte{}, 0600)
+		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString+"findme"), 0600)
+
+		_, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		if err == nil {
+			t.Error("error must be occured")
 		}
 	}
 }

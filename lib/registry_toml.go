@@ -109,7 +109,7 @@ func (r *tomlRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 		}
 	}
 	if matchedUserData == nil {
-		return UserRegistryData{}, fmt.Errorf("user with the publickey, not found")
+		return UserRegistryData{}, fmt.Errorf("user with the publickey, not found: %v", authorizedKey)
 	}
 
 	return *matchedUserData, nil

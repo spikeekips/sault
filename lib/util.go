@@ -24,11 +24,23 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
 	"github.com/nu7hatch/gouuid"
 	"github.com/spikeekips/sault/ssh"
+	"github.com/spikeekips/sault/ssh/agent"
 )
+
+var currentTermSize TermSize
+
+func init() {
+	termSize, err := GetTermSize()
+	if err == nil {
+		currentTermSize = *termSize
+	}
+}
 
 // GetPrivateKeySigner loads private key signer from file
 func GetPrivateKeySigner(keyFilePath string) (saultSsh.Signer, error) {
@@ -350,6 +362,38 @@ var commonTempalteFMap = template.FuncMap{
 	},
 }
 
+// ExecuteCommonTemplate templates with commonTempalteFMap
+func ExecuteCommonTemplate(t string, values map[string]interface{}) (string, error) {
+	tmpl, err := template.New("t").Funcs(commonTempalteFMap).Parse(t)
+	if err != nil {
+		return "", err
+	}
+
+	if values == nil {
+		values = map[string]interface{}{}
+	}
+	values["line"] = strings.Repeat("-", int(currentTermSize.Col))
+
+	bw := bytes.NewBuffer([]byte{})
+	tmpl.Execute(bw, values)
+
+	return bw.String(), nil
+}
+
+func isSameByteSlice(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i, c := range a {
+		if c != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // SplitHostPort is similar to net.SplitHostPort, but it can parse without
 // ":port"
 func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err error) {
@@ -372,29 +416,74 @@ func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err 
 	return
 }
 
-var currentTermSize TermSize
-
-// ExecuteCommonTemplate templates with commonTempalteFMap
-func ExecuteCommonTemplate(t string, values map[string]interface{}) (string, error) {
-	tmpl, err := template.New("t").Funcs(commonTempalteFMap).Parse(t)
-	if err != nil {
-		return "", err
+func ReadPassword(maxTries int) (password string, err error) {
+	if maxTries < 1 {
+		maxTries = 1
 	}
 
-	if values == nil {
-		values = map[string]interface{}{}
+	var tries int
+	for {
+		if tries > (maxTries - 1) {
+			break
+		}
+
+		fmt.Fprint(os.Stdout, "Password: ")
+
+		var b []byte
+		b, err = terminal.ReadPassword(0)
+		fmt.Fprintln(os.Stdout, "")
+		if err != nil {
+			return
+		}
+
+		p := strings.TrimSpace(string(b))
+		if len(p) < 1 {
+			tries++
+			continue
+		}
+
+		password = p
+		break
 	}
-	values["line"] = strings.Repeat("-", int(currentTermSize.Col))
 
-	bw := bytes.NewBuffer([]byte{})
-	tmpl.Execute(bw, values)
-
-	return bw.String(), nil
+	return
 }
 
-func init() {
-	termSize, err := GetTermSize()
-	if err == nil {
-		currentTermSize = *termSize
+func LoadPublicKeyFromPrivateKeyFile(f string) (saultSsh.PublicKey, error) {
+	e := filepath.Ext(f)
+
+	var base = f
+	if e != "" {
+		base = f[:len(e)]
 	}
+
+	pubFile := fmt.Sprintf("%s.pub", base)
+	b, err := ioutil.ReadFile(pubFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+
+		return nil, err
+	}
+	publicKey, err := ParsePublicKeyFromString(string(b))
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
+}
+
+func getSshAgent() (sshAgent.Agent, error) {
+	sock := os.Getenv("SSH_AUTH_SOCK")
+	if sock == "" {
+		return nil, &SSHAgentNotRunning{}
+	}
+
+	sa, err := net.Dial("unix", sock)
+	if err != nil {
+		return nil, &SSHAgentNotRunning{E: err}
+	}
+
+	return sshAgent.NewClient(sa), nil
 }

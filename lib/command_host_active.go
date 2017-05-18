@@ -58,11 +58,17 @@ func requestHostActive(
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var hostData hostRegistryData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
+		clientPublicKey,
 		"host.active",
 		hostActiveRequestData{
 			Host:   ov["HostName"].(string),

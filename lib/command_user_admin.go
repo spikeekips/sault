@@ -48,11 +48,17 @@ func requestUserAdmin(options OptionsValues, globalOptions OptionsValues) (err e
 	userName := ov["UserName"].(string)
 	setAdmin := ov["SetAdmin"].(bool)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var data userResponseData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"user.admin",
 		userAdminRequestData{
 			User:     userName,

@@ -80,11 +80,17 @@ func requestUserUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
 	var data userResponseData
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"user.update",
 		userUpdateRequestData{
 			User:         ov["UserName"].(string),
@@ -111,7 +117,7 @@ func responseUserUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 	json.Unmarshal(msg.Data, &data)
 
 	if !pc.userData.IsAdmin && !pc.proxy.Config.Server.AllowUserCanUpdate {
-		err = fmt.Errorf("not allowed to update publicKey")
+		err = fmt.Errorf("updating publicKey; permission denied")
 		return
 	}
 

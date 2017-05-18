@@ -10,13 +10,6 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
-type clientType uint8
-
-const (
-	saultClient clientType = iota + 1
-	nativeSSHClient
-)
-
 type proxyConnection struct {
 	net.Conn
 	proxy *Proxy
@@ -30,9 +23,6 @@ type proxyConnection struct {
 
 	insideSault bool
 	clientType  clientType
-}
-
-func (pc *proxyConnection) String() {
 }
 
 func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key saultSsh.PublicKey) (*saultSsh.Permissions, error) {

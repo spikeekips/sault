@@ -126,12 +126,17 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 		newPort = v.(uint64)
 	}
 
-	var hostData hostRegistryData
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
 
+	var hostData hostRegistryData
 	var response *responseMsg
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
+		clientPublicKey,
 		"host.update",
 		hostUpdateRequestData{
 			Host:              hostName,
@@ -162,7 +167,11 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 	return
 }
 
-func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg) (exitStatus uint32, err error) {
+func responseHostUpdate(
+	pc *proxyConnection,
+	channel saultSsh.Channel,
+	msg commandMsg,
+) (exitStatus uint32, err error) {
 	var data hostUpdateRequestData
 	json.Unmarshal(msg.Data, &data)
 
@@ -191,7 +200,9 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		}
 
 		sc := newsshClient(defaultAccount, fmt.Sprintf("%s:%d", address, port))
-		sc.addAuthMethod(saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner))
+		sc.addAuthMethod(
+			saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner),
+		)
 		sc.setTimeout(time.Second * 3)
 		sc.close()
 		if err = sc.connect(); err != nil {
@@ -202,27 +213,32 @@ func responseHostUpdate(pc *proxyConnection, channel saultSsh.Channel, msg comma
 
 	log.Debugf("trying to update host: %v", data)
 	if data.NewHostName != "" {
-		if hostData, err = pc.proxy.Registry.UpdateHostName(data.Host, data.NewHostName); err != nil {
+		if hostData, err = pc.proxy.Registry.UpdateHostName(
+			data.Host, data.NewHostName); err != nil {
 			return
 		}
 	}
 	if data.NewDefaultAccount != "" {
-		if hostData, err = pc.proxy.Registry.UpdateHostDefaultAccount(data.Host, data.NewDefaultAccount); err != nil {
+		if hostData, err = pc.proxy.Registry.UpdateHostDefaultAccount(
+			data.Host, data.NewDefaultAccount); err != nil {
 			return
 		}
 	}
 	if len(data.NewAccounts) > 0 {
-		if hostData, err = pc.proxy.Registry.UpdateHostAccounts(data.Host, data.NewAccounts); err != nil {
+		if hostData, err = pc.proxy.Registry.UpdateHostAccounts(
+			data.Host, data.NewAccounts); err != nil {
 			return
 		}
 	}
 	if data.NewAddress != "" {
-		if hostData, err = pc.proxy.Registry.UpdateHostAddress(data.Host, data.NewAddress); err != nil {
+		if hostData, err = pc.proxy.Registry.UpdateHostAddress(
+			data.Host, data.NewAddress); err != nil {
 			return
 		}
 	}
 	if data.NewPort != 0 {
-		if hostData, err = pc.proxy.Registry.UpdateHostPort(data.Host, data.NewPort); err != nil {
+		if hostData, err = pc.proxy.Registry.UpdateHostPort(
+			data.Host, data.NewPort); err != nil {
 			return
 		}
 	}

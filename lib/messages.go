@@ -143,12 +143,14 @@ type userUpdateRequestData struct {
 }
 
 type userGetRequestData struct {
-	User      string
+	Users     []string
 	PublicKey string
+	Filter    activeFilter
 }
 
 type hostGetRequestData struct {
-	Host string
+	Hosts  []string
+	Filter activeFilter
 }
 
 type hostAddRequestData struct {

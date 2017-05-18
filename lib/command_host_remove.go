@@ -43,10 +43,16 @@ func requestHostRemove(options OptionsValues, globalOptions OptionsValues) (err 
 
 	hostName := ov["HostName"].(string)
 
+	var clientPublicKey saultSsh.PublicKey
+	if gov["ClientPublicKey"] != nil {
+		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	}
+
 	var response *responseMsg
-	response, err = RunCommand(
+	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
+		clientPublicKey,
 		"host.remove",
 		hostRemoveRequestData{Host: hostName},
 		nil,
