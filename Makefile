@@ -1,6 +1,5 @@
-VERSION = v0.1alpha11
+VERSION = v0.1alpha2
 
-PACKAGE = github.com/spikeekips/sault
 COMMIT_HASH = `git rev-parse HEAD 2>/dev/null`
 GIT_BRANCH = `git branch | grep '^*' | sed -e 's/^* //g'`
 BUILD_DATE = `date +%FT%T%z`
