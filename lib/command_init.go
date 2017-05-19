@@ -19,11 +19,9 @@ At first, create new directory for sault configuration, and change directory to 
 {{ "$ cd ~/.sault" | magenta }}
 {{ "$ sault init spikeekips ~/.ssh/id_rsa.pub" | magenta }}
 
-The {{ "<publicKeyFile>" | yellow }} must be added to the your {{ "ssh-agent" | yellow }}.
+By default current directory will be used.
 
-> By default current directory will be used.
-
-This will create the sault configuration files in current directory, the configuration file({{ "sault.conf" | yellow }}), registry file({{ "registry.toml" | yellow }}) and ssh related key files. You can also set the different directory with '{{ "-configDir <directory>" | yellow }}':
+This will create the sault configuration files in current directory, the configuration file, {{ "sault.conf" | yellow }}, registry file, {{ "registry.toml" | yellow }} and ssh related key files. You can also set the different directory with '{{ "-configDir <directory>" | yellow }}':
 {{ "$ sault init -configDir ~/.another-sault spikeekips ~/.ssh/another-id_rsa.pub" | magenta }}
 `,
 	Usage: "[flags] <admin user name> <publicKeyFile>",

@@ -1,7 +1,9 @@
 package sault
 
 import (
+	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/ssh"
@@ -119,6 +121,12 @@ func init() {
 }
 
 func parseBaseCommandOptions(op *Options, args []string) error {
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			PrintHelp(op, flag.ErrHelp)
+			os.Exit(1)
+		}
+	}
 	return nil
 }
 

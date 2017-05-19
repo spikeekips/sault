@@ -19,6 +19,36 @@ import (
 var globalOptionsTemplate = OptionsTemplate{
 	Name:  os.Args[0],
 	Usage: "[flags] command",
+	Description: `
+==================================================
+{{ " sault" | cyan }}: The authentication proxy for SSH servers
+==================================================
+
+"sault" acts like the reverse proxy, so the native openssh client and server work transparently.
+
+To deploy the sault in your system, follow these steps.
+1. In the server side, download and install sault.
+  Get the latest pre-built binary at https://github.com/spikeekips/sault/releases , and extract it in $PATH.
+2. Create sault default directory, like {{ "~/.sault" | yellow }}:
+  {{ "$ mkdir ~./sault" | magenta }}
+3. Initialize sault environment:
+  {{ "$ cd ~./sault" | magenta }}
+  {{ "$ sault init admin ~/.ssh/admin.pub" | magenta }}
+4. Run sault server:
+  {{ "$ cd ~./sault" | magenta }}
+  {{ "$ sault server run" | magenta }}
+5. Add users and ssh hosts like this:
+  {{ "$ sault user add spikeekips ~/.ssh/id_rsa.pub" | magenta }}
+  The "spikeekips" is the name for sault, it is not ssh user account name.
+  {{ "$ sault host add president-server ubuntu@192.168.99.110:22" | magenta }}
+  You added the, "president-server", it will be used host name to connect to "ubuntu@192.168.99.110:22".
+  {{ "$ sault user link spikeekips president-server" | magenta }}
+  This will allow to access "spikeekips" to "president-server" with the "ubuntu" user account.
+6. Connect with your ssh client to ssh server
+  {{ "$ ssh spikeekips ubuntu@president-server" | magenta }}
+
+For more information, check out the helps with {{ "$ sault <command> -h" | magenta }}, or visit https://github.com/spikeekips/sault .
+	`,
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:      "LogFormat",
@@ -153,82 +183,9 @@ func (f *flagPrivateKey) String() string {
 
 func (f *flagPrivateKey) Set(v string) error {
 	keyFile := filepath.Clean(v)
-
-	var clientPublicKey saultSsh.PublicKey
-
-	publicKey, err := loadPublicKeyFromPrivateKeyFile(keyFile)
-	authorizedKey := GetAuthorizedKey(publicKey)
-	if err == nil {
-		agent, err := getSshAgent()
-		if err != nil {
-			return err
-		}
-
-		list, err := agent.Signers()
-		if err != nil {
-			return err
-		}
-
-		for _, l := range list {
-			if GetAuthorizedKey(l.PublicKey()) == authorizedKey {
-				clientPublicKey = publicKey
-				break
-			}
-		}
-	}
-
-	if clientPublicKey == nil {
-		b, err := ioutil.ReadFile(keyFile)
-		if err != nil {
-			return err
-		}
-
-		signer, err := GetPrivateKeySignerFromString(string(b))
-		if err != nil {
-			clientPublicKey = signer.PublicKey()
-		} else {
-			CommandOut.Printf("Enter passphrase for key '%s'", keyFile)
-			var sg ssh.Signer
-			var maxTries = 3
-			var tries int
-			for {
-				if tries > (maxTries - 1) {
-					break
-				}
-
-				var password string
-				password, err = ReadPassword(maxAuthTries)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				fmt.Fprint(os.Stdout, "")
-
-				if len(password) < 1 {
-					err = errors.New("cancel password authentication")
-					log.Error(err)
-					return err
-				}
-
-				sg, err = sshkeys.ParseEncryptedPrivateKey(b, []byte(password))
-				if err == nil {
-					break
-				}
-				tries++
-
-				CommandOut.Errorf("failed to parse private key, will try again: %v", err)
-			}
-
-			if sg == nil {
-				return errors.New("failed to parse the encrypted private key")
-			}
-
-			clientPublicKey, err = ParsePublicKeyFromString(string(ssh.MarshalAuthorizedKey(sg.PublicKey())))
-			if err != nil {
-				return errors.New("failed to parse the encrypted private key: %v")
-			}
-			log.Debugf("successfully load client private key, '%s'", keyFile)
-		}
+	clientPublicKey, err := loadPublicKeyFromPrivateKeyFile(keyFile)
+	if err != nil {
+		return err
 	}
 
 	*f = flagPrivateKey{Path: keyFile, PublicKey: clientPublicKey}
@@ -264,8 +221,6 @@ func parseGlobalOptions(op *Options, args []string) error {
 }
 
 func loadPublicKey(privateKeyFile string) (publicKey saultSsh.PublicKey, err error) {
-	privateKeyFile = filepath.Clean(privateKeyFile)
-
 	var tmpPublicKey saultSsh.PublicKey
 	tmpPublicKey, err = loadPublicKeyFromPrivateKeyFile(privateKeyFile)
 	if err == nil {

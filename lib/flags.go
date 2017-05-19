@@ -4,55 +4,57 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"reflect"
 	"strings"
+
+	"github.com/fatih/color"
 )
+
+var helpTemplate = `
+{{ if eq .error "" }}{{ if ne .description "" }}
+{{ "*sault*   " | center | blue }}
+
+{{ .description | escape}}
+{{ end }}{{ end }}
+{{ if ne .error "" }}{{ "error" | red }}: {{ .error | escape }}
+{{end}}{{ "usage" | magenta }}: {{.command | escape }} {{.usage | escape }}
+
+{{.globalFlags | escape }}{{.commands | escape}}
+`
+
+var helpGlobalTempalte = `flags:
+%s
+`
+
+var helpCommandTemplate = `
+There are serveral commands:
+{{.commands | escape}}
+`
+
+var helpOption = OptionTemplate{
+	Name:         "H",
+	Help:         "help",
+	DefaultValue: false,
+}
 
 // OptionsValues is the values of flag options
 type OptionsValues map[string]interface{}
-type errInvalidCommand struct {
-	s string
-}
 
-func (e *errInvalidCommand) Error() string {
-	return e.s
-}
-
-type errMissingCommand struct {
-	s string
-}
-
-func (e *errMissingCommand) Error() string {
-	return "command is missing"
-}
-
-func printHelp(options *Options, err error) {
-	tmpl, _ := template.New("t").Funcs(commonTempalteFMap).Parse(`
-Usage: {{.command }} {{.usage | escape }}
-{{ if ne .description "" }}
-{{ .line }}
-{{ .description | escape}}
-{{ .line }} {{ end }}{{.globalFlags | escape }}{{.commands | escape}}
-`)
-
-	commandsTmpl, _ := template.New("t").Funcs(commonTempalteFMap).Parse(`
-There are serveral commands:
-{{.commands | escape}}
-`)
-
+// PrintHelp will print help message
+func PrintHelp(options *Options, inputError error) {
 	var errorString string
-	if err == flag.ErrHelp {
-		errorString = ""
-		err = nil
+	if inputError == flag.ErrHelp {
+		inputError = nil
 	} else {
-		switch err.(type) {
-		case *errMissingCommand, *errInvalidCommand:
-			errorString = fmt.Sprintf("%v", err)
-			err = nil
+		switch inputError.(type) {
+		case *missingCommandError:
+			inputError = nil
+		case *UnknownCommandError:
+			errorString = inputError.Error()
+			inputError = nil
 		default:
-			errorString = fmt.Sprintf("%v", err)
+			errorString = inputError.Error()
 		}
 	}
 
@@ -61,11 +63,9 @@ There are serveral commands:
 	usage := val.FieldByName("Usage").Interface().(string)
 	flagSet := val.FieldByName("FlagSet").Interface().(*flag.FlagSet)
 
-	var bw *bytes.Buffer
-
+	var err error
 	var commandsHelps string
-	if err == nil && options.hasCommands() {
-		bw = bytes.NewBuffer([]byte{})
+	if inputError == nil && options.hasCommands() {
 		var ch []string
 
 		var maxLen int
@@ -75,24 +75,26 @@ There are serveral commands:
 			}
 		}
 
-		format := fmt.Sprintf("   %%%ds    %%s", maxLen)
+		format := fmt.Sprintf("   %%%ds  ", maxLen)
 		for _, c := range options.Commands {
 			var l string
 			if c.IsGroup {
 				l = fmt.Sprintf("\n%s", c.Help)
 			} else {
-				l = fmt.Sprintf(format, c.Name, c.Help)
+				l = fmt.Sprintf(
+					"%s  %s",
+					colorFunc(color.FgYellow)(fmt.Sprintf(format, c.Name)),
+					c.Help,
+				)
 			}
 			ch = append(ch, l)
 		}
-		commandsTmpl.Execute(
-			bw,
+		commandsHelps, err = ExecuteCommonTemplate(
+			helpCommandTemplate,
 			map[string]interface{}{
 				"commands": strings.Join(ch, "\n"),
 			},
 		)
-
-		commandsHelps = bw.String()
 	}
 
 	var globalFlags string
@@ -100,22 +102,22 @@ There are serveral commands:
 	if strings.TrimSpace(globalFlagsDefaults) == "" {
 		globalFlags = ""
 	} else {
-		globalFlags = fmt.Sprintf(`
-global flags:
-%s
-`,
+		globalFlags = fmt.Sprintf(
+			helpGlobalTempalte,
 			strings.TrimRight(globalFlagsDefaults, " \n"),
 		)
 	}
 	description, err := ExecuteCommonTemplate(options.Description, nil)
 	if err != nil {
 		log.Error(err)
+		CommandOut.Errorf("something wrong")
+		return
 	}
 
-	bw = bytes.NewBuffer([]byte{})
-	tmpl.Execute(
-		bw,
+	helpString, err := ExecuteCommonTemplate(
+		helpTemplate,
 		map[string]interface{}{
+			"error":       errorString,
 			"command":     command,
 			"usage":       usage,
 			"description": description,
@@ -124,13 +126,13 @@ global flags:
 			"line":        strings.Repeat("-", int(currentTermSize.Col)),
 		},
 	)
-
-	if errorString != "" {
-		CommandOut.Errorf("%s", errorString)
+	if err != nil {
+		log.Error(err)
+		return
 	}
 
 	CommandOut.Println(
-		strings.TrimRight(strings.TrimLeft(bw.String(), " \n"), "\n") + "\n\n",
+		strings.TrimRight(strings.TrimLeft(helpString, " \n"), "\n") + "\n\n",
 	)
 }
 
@@ -209,6 +211,7 @@ func NewOptions(ost OptionsTemplate) (*Options, error) {
 	for _, option := range ost.Options {
 		options = append(options, option)
 	}
+	options = append(options, helpOption)
 
 	fs := flag.NewFlagSet(ost.Name, flag.ContinueOnError)
 	fs.SetOutput(ioutil.Discard)
@@ -251,30 +254,27 @@ func (op *Options) hasCommands() bool {
 }
 
 // Parse tries to parse the input arguments
-func (op *Options) Parse(args []string) error {
+func (op *Options) parse(args []string) (*Options, error) {
 	if err := op.FlagSet.Parse(args); err != nil {
-		printHelp(op, err)
-		return err
+		return op, err
 	}
 
 	if op.ParseFunc != nil {
 		op.Extra = map[string]interface{}{}
 
 		if err := op.ParseFunc(op, args); err != nil {
-			printHelp(op, err)
-			return err
+			return op, err
 		}
 	}
 
 	if !op.hasCommands() {
-		return nil
+		return op, nil
 	}
 
 	commandArgs := op.FlagSet.Args()
 	if len(commandArgs) < 1 {
-		err := &errMissingCommand{}
-		printHelp(op, err)
-		return err
+		err := &missingCommandError{}
+		return op, err
 	}
 
 	var command string
@@ -288,16 +288,35 @@ func (op *Options) Parse(args []string) error {
 	}
 
 	if command == "" {
-		err := &errInvalidCommand{fmt.Sprintf("invalid command, `%s`", commandArgs[0])}
-		printHelp(op, err)
-
-		return err
+		err := &UnknownCommandError{Command: commandArgs[0]}
+		return op, err
 	}
 
 	op.Command = command
 	op.CommandOptions = commandOptions
 
-	return commandOptions.Parse(commandArgs[1:])
+	return commandOptions.parse(commandArgs[1:])
+}
+
+func (op *Options) Parse(args []string) error {
+	var helpRequested bool
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			helpRequested = true
+		}
+	}
+
+	options, err := op.parse(args)
+	if helpRequested {
+		PrintHelp(options, flag.ErrHelp)
+		return err
+	}
+
+	if err != nil {
+		PrintHelp(options, err)
+	}
+
+	return err
 }
 
 // Values marshals the parsed arguments and it's values

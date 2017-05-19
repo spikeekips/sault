@@ -11,13 +11,17 @@ var hostActiveOptionsTemplate = OptionsTemplate{
 	Name: "active",
 	Help: "set host active or not",
 	Description: `
-The deactivated host will be not allowed to be authenticated. The difference with "host remove" is, the "host remove" will remove host data, but the data of the deactivated host will be kept, so the *deactivating* host will be safer way to manage hosts.
+With {{ "host active" | yellow }} command, you can activate the host or vice versa.
 
-To active "server0",
-{{ "$ sault host active server0" | magenta }}
+The deactivated host will be not allowed to access. {{ "host remove" | yellow }} will deactivate and also remove host data, but the the deactivated host will keep it's data, so the *deactivating* host will be safer way to manage hosts.
 
-To deactivate "server0", just add "{{ "-" | yellow }}" in the end of host name,
-{{ "$ sault host active server0-" | magenta }}
+Appending "{{ "-" | yellow }}" to the end of hostName, makes the host to be deactivated.
+
+Activating "server0":
+ {{ "$ sault host active server0" | magenta }}
+
+Deactivating "server0":
+ {{ "$ sault host active server0-" | magenta }}
 	`,
 	Usage:     "[flags] <hostName>[-] [<hostName>[-]...]",
 	ParseFunc: parseHostActiveOptions,

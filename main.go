@@ -35,13 +35,16 @@ func init() {
 		},
 	)
 
-	options, err := sault.NewOptions(optionsTemplate)
-	if err != nil {
-		os.Exit(1)
-	}
+	{
+		var err error
+		options, err = sault.NewOptions(optionsTemplate)
+		if err != nil {
+			os.Exit(1)
+		}
 
-	if err := options.Parse(os.Args[1:]); err != nil {
-		os.Exit(1)
+		if err := options.Parse(os.Args[1:]); err != nil {
+			os.Exit(1)
+		}
 	}
 
 	globalOptions = options.Values(true)
@@ -100,9 +103,6 @@ CommitHash: %s
 			commitHash,
 			gitBranch,
 		)
-	default:
-		sault.CommandOut.Error(fmt.Errorf("unknown command: `%s`", command))
-		os.Exit(1)
 	}
 
 	os.Exit(0)

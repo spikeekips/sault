@@ -345,13 +345,48 @@ func colorFunc(attr color.Attribute) func(string) template.HTML {
 	}
 }
 
+func terminalFormat(code, reset int) func(string) string {
+	var terminalEscape = "\x1b"
+
+	return func(s string) string {
+		return fmt.Sprintf("%s%s%s",
+			fmt.Sprintf("%s[%dm", terminalEscape, code),
+			s,
+			fmt.Sprintf("%s[%dm", terminalEscape, reset),
+		)
+	}
+}
+
 var commonTempalteFMap = template.FuncMap{
+	"center": func(s string) string {
+		return fmt.Sprintf(
+			"%s %s",
+			strings.Repeat(" ", (int(currentTermSize.Col)-len(s))/2),
+			s,
+		)
+	},
+	"right": func(s string) string {
+		return fmt.Sprintf(
+			"%s %s",
+			strings.Repeat(" ", (int(currentTermSize.Col)-len(s))),
+			s,
+		)
+	},
+	"bold": terminalFormat(1, 0),
+	//"italic":    terminalFormat(3),
+	"underline": terminalFormat(4, 24),
+	//"strike":    terminalFormat(9),
+	"invert": terminalFormat(7, 27),
+	"dim":    terminalFormat(2, 22),
+	//"hide":   terminalFormat(8, 28),
+
 	"red":     colorFunc(color.FgRed),
 	"green":   colorFunc(color.FgGreen),
 	"yellow":  colorFunc(color.FgYellow),
 	"blue":    colorFunc(color.FgBlue),
 	"magenta": colorFunc(color.FgMagenta),
 	"cyan":    colorFunc(color.FgCyan),
+
 	"escape": func(s string) template.HTML {
 		return template.HTML(s)
 	},
@@ -360,6 +395,9 @@ var commonTempalteFMap = template.FuncMap{
 	},
 	"align_format": func(format, s string) string {
 		return fmt.Sprintf(format, s)
+	},
+	"line": func(m string) string {
+		return strings.Repeat(m, int(currentTermSize.Col)/len(m))
 	},
 }
 
@@ -373,7 +411,8 @@ func ExecuteCommonTemplate(t string, values map[string]interface{}) (string, err
 	if values == nil {
 		values = map[string]interface{}{}
 	}
-	values["line"] = strings.Repeat("-", int(currentTermSize.Col))
+	//values["line"] = strings.Repeat("-", int(currentTermSize.Col))
+	//values["line"] = strings.Repeat(" * ", int(currentTermSize.Col)/3)
 
 	bw := bytes.NewBuffer([]byte{})
 	tmpl.Execute(bw, values)

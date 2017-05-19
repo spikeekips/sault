@@ -5,6 +5,23 @@ import (
 	"fmt"
 )
 
+// UnknownCommandError is error for unknown command
+type UnknownCommandError struct {
+	Command string
+}
+
+func (e *UnknownCommandError) Error() string {
+	return fmt.Sprintf("unknown command, '%s'", e.Command)
+}
+
+type missingCommandError struct {
+	s string
+}
+
+func (e *missingCommandError) Error() string {
+	return "command is missing"
+}
+
 type commandErrorType uint
 type commandError struct {
 	Type    commandErrorType
