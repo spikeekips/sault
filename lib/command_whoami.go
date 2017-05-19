@@ -25,9 +25,9 @@ func parseWhoAmIOptions(op *Options, args []string) error {
 func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (err error) {
 	gov := globalOptions["Options"].(OptionsValues)
 
-	var clientPublicKey saultSsh.PublicKey
-	if gov["ClientPublicKey"] != nil {
-		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	var signer saultSsh.Signer
+	if gov["Signer"] != nil {
+		signer = gov["Signer"].(saultSsh.Signer)
 	}
 
 	var response *responseMsg
@@ -35,7 +35,7 @@ func requestWhoAmI(options OptionsValues, globalOptions OptionsValues) (err erro
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
-		clientPublicKey,
+		signer,
 		"whoami",
 		nil,
 		&data,

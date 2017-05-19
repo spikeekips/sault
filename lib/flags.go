@@ -146,15 +146,16 @@ func getDefaults(flagSet *flag.FlagSet) string {
 
 // Options is the flag option set
 type Options struct {
-	Name        string
-	Help        string
-	Description string
-	Usage       string
-	IsGroup     bool
-	FlagSet     *flag.FlagSet
-	Options     []OptionTemplate
-	Commands    []*Options
-	ParseFunc   func(*Options, []string) error
+	Name          string
+	Help          string
+	Description   string
+	Usage         string
+	IsGroup       bool
+	FlagSet       *flag.FlagSet
+	Options       []OptionTemplate
+	Commands      []*Options
+	ParseFuncInit func(*Options, []string) error
+	ParseFunc     func(*Options, []string) error
 
 	Vars map[string]interface{}
 
@@ -233,6 +234,7 @@ func NewOptions(ost OptionsTemplate) (*Options, error) {
 	co.Usage = ost.Usage
 	co.IsGroup = ost.IsGroup
 	co.ParseFunc = ost.ParseFunc
+	co.ParseFuncInit = ost.ParseFuncInit
 	co.Vars = vars
 
 	var commands []*Options
@@ -255,13 +257,19 @@ func (op *Options) hasCommands() bool {
 
 // Parse tries to parse the input arguments
 func (op *Options) parse(args []string) (*Options, error) {
+	op.Extra = map[string]interface{}{}
+
+	if op.ParseFuncInit != nil {
+		if err := op.ParseFuncInit(op, args); err != nil {
+			return op, err
+		}
+	}
+
 	if err := op.FlagSet.Parse(args); err != nil {
 		return op, err
 	}
 
 	if op.ParseFunc != nil {
-		op.Extra = map[string]interface{}{}
-
 		if err := op.ParseFunc(op, args); err != nil {
 			return op, err
 		}
@@ -371,7 +379,8 @@ type OptionsTemplate struct {
 	Description string
 	IsGroup     bool
 
-	Options   []OptionTemplate
-	Commands  []OptionsTemplate
-	ParseFunc func(*Options, []string) error
+	Options       []OptionTemplate
+	Commands      []OptionsTemplate
+	ParseFuncInit func(*Options, []string) error
+	ParseFunc     func(*Options, []string) error
 }

@@ -108,9 +108,9 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 	ov := options["Commands"].(OptionsValues)["Options"].(OptionsValues)
 	gov := globalOptions["Options"].(OptionsValues)
 
-	var clientPublicKey saultSsh.PublicKey
-	if gov["ClientPublicKey"] != nil {
-		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	var signer saultSsh.Signer
+	if gov["Signer"] != nil {
+		signer = gov["Signer"].(saultSsh.Signer)
 	}
 
 	req := userGetRequestData{
@@ -127,7 +127,7 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		gov["SaultServerAddress"].(string),
-		clientPublicKey,
+		signer,
 		"user.get",
 		req,
 		&users,

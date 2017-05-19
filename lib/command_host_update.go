@@ -126,9 +126,9 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 		newPort = v.(uint64)
 	}
 
-	var clientPublicKey saultSsh.PublicKey
-	if gov["ClientPublicKey"] != nil {
-		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	var signer saultSsh.Signer
+	if gov["Signer"] != nil {
+		signer = gov["Signer"].(saultSsh.Signer)
 	}
 
 	var hostData hostRegistryData
@@ -136,7 +136,7 @@ func requestHostUpdate(options OptionsValues, globalOptions OptionsValues) (err 
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
-		clientPublicKey,
+		signer,
 		"host.update",
 		hostUpdateRequestData{
 			Host:              hostName,

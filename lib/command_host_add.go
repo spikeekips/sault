@@ -8,29 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
-	"unsafe"
-
-	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/spikeekips/sault/ssh"
 )
-
-func init() {
-	// terminal.ReadPassword was hanged after interruped with 'control-c'
-	oldState, _ := terminal.GetState(0)
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			syscall.Syscall6(syscall.SYS_IOCTL, uintptr(0), syscall.TIOCSETA, uintptr(unsafe.Pointer(oldState)), 0, 0, 0)
-			os.Exit(1)
-		}
-	}()
-}
 
 type flagAccounts []string
 
@@ -155,15 +137,15 @@ Tries:
 			//
 		}
 
-		var clientPublicKey saultSsh.PublicKey
-		if gov["ClientPublicKey"] != nil {
-			clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+		var signer saultSsh.Signer
+		if gov["Signer"] != nil {
+			signer = gov["Signer"].(saultSsh.Signer)
 		}
 
 		response, err = runCommand(
 			gov["SaultServerName"].(string),
 			address,
-			clientPublicKey,
+			signer,
 			"host.add",
 			data,
 			&hostData,

@@ -127,6 +127,9 @@ func parseBaseCommandOptions(op *Options, args []string) error {
 			os.Exit(1)
 		}
 	}
+
+	checkSSHAgent()
+
 	return nil
 }
 
@@ -170,50 +173,34 @@ func handleCommandMsg(
 	return
 }
 
-func sshAgentAuthMethod(clientPublicKey saultSsh.PublicKey) (saultSsh.AuthMethod, error) {
-	agent, err := getSshAgent()
+func sshAgentAuthMethod(signer saultSsh.Signer) ([]saultSsh.AuthMethod, error) {
+	var signerCallback func() ([]saultSsh.Signer, error)
+	if signer != nil {
+		signerCallback = func() ([]saultSsh.Signer, error) {
+			return []saultSsh.Signer{signer}, nil
+		}
+	} else {
+		agent, err := getSshAgent()
+		if err != nil {
+			return nil, err
+		}
+		signerCallback = agent.Signers
+	}
+
+	return []saultSsh.AuthMethod{
+		saultSsh.PublicKeysCallback(signerCallback),
+	}, nil
+}
+
+func connectSaultServer(serverName, address string, signer saultSsh.Signer) (*saultSsh.Client, error) {
+	authMethods, err := sshAgentAuthMethod(signer)
 	if err != nil {
 		return nil, err
 	}
 
-	var signerCallback func() ([]saultSsh.Signer, error)
-	if clientPublicKey == nil {
-		signerCallback = agent.Signers
-	} else {
-		authorizedKey := GetAuthorizedKey(clientPublicKey)
-
-		signerCallback = func() ([]saultSsh.Signer, error) {
-			list, err := agent.Signers()
-			if err != nil {
-				return nil, err
-			}
-
-			// filter
-			var filtered []saultSsh.Signer
-			for _, l := range list {
-				if GetAuthorizedKey(l.PublicKey()) != authorizedKey {
-					continue
-				}
-
-				log.Debugf("found the matched identity file, '%s'", l.PublicKey())
-				filtered = append(filtered, l)
-			}
-			return filtered, nil
-		}
-	}
-
-	return saultSsh.PublicKeysCallback(signerCallback), nil
-}
-
-func connectSaultServer(serverName, address string, clientPublicKey saultSsh.PublicKey) (*saultSsh.Client, error) {
-	sshAgentAuth, err := sshAgentAuthMethod(clientPublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to ssh agent: `%v`", err)
-	}
-
 	clientConfig := &saultSsh.ClientConfig{
 		User:            serverName,
-		Auth:            []saultSsh.AuthMethod{sshAgentAuth},
+		Auth:            authMethods,
 		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
 	}
 
@@ -232,13 +219,13 @@ func connectSaultServer(serverName, address string, clientPublicKey saultSsh.Pub
 func runCommand(
 	serverName,
 	address string,
-	clientPublicKey saultSsh.PublicKey,
+	signer saultSsh.Signer,
 	command string,
 	data interface{},
 	out interface{},
 ) (response *responseMsg, err error) {
 	var connection *saultSsh.Client
-	connection, err = connectSaultServer(serverName, address, clientPublicKey)
+	connection, err = connectSaultServer(serverName, address, signer)
 	if err != nil {
 		return
 	}

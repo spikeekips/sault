@@ -67,9 +67,9 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 	gov := globalOptions["Options"].(OptionsValues)
 	address := gov["SaultServerAddress"].(string)
 
-	var clientPublicKey saultSsh.PublicKey
-	if gov["ClientPublicKey"] != nil {
-		clientPublicKey = gov["ClientPublicKey"].(saultSsh.PublicKey)
+	var signer saultSsh.Signer
+	if gov["Signer"] != nil {
+		signer = gov["Signer"].(saultSsh.Signer)
 	}
 
 	req := hostGetRequestData{
@@ -84,7 +84,7 @@ func requestHostGet(options OptionsValues, globalOptions OptionsValues) (err err
 	response, err = runCommand(
 		gov["SaultServerName"].(string),
 		address,
-		clientPublicKey,
+		signer,
 		"host.get",
 		req,
 		&hosts,

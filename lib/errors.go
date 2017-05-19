@@ -53,8 +53,26 @@ type SSHAgentNotRunning struct {
 
 func (e *SSHAgentNotRunning) Error() string {
 	if e.E == nil {
-		return "'ssh-agent' is not running"
+		return `'ssh-agent' is not running`
 	}
 
 	return fmt.Sprintf("'ssh-agent' has some problem: %v", e.Error)
+}
+
+func (e *SSHAgentNotRunning) PrintWarning() {
+	if e.E != nil {
+		return
+	}
+
+	errString, _ := ExecuteCommonTemplate(`
+{{ .err | escape }}
+{{ "Without 'ssh-agent', you must enter the passphrase in every time you run sault. For details, see 'Using SSH Agent to Automate Login'(https://code.snipcademy.com/tutorials/linux-command-line/ssh-secure-shell-access/ssh-agent-add)." | yellow }}
+
+`,
+		map[string]interface{}{
+			"err": e.Error(),
+		},
+	)
+
+	CommandOut.Warnf(errString)
 }

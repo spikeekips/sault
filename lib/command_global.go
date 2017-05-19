@@ -8,11 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/ScaleFT/sshkeys"
 	"github.com/spikeekips/sault/ssh"
-	"github.com/spikeekips/sault/ssh/agent"
 )
 
 // GlobalOptionsTemplate has global flags
@@ -78,7 +75,8 @@ For more information, check out the helps with {{ "$ sault <command> -h" | magen
 			ValueType: &struct{ Type flagPrivateKey }{flagPrivateKey{}},
 		},
 	},
-	ParseFunc: parseGlobalOptions,
+	ParseFunc:     parseGlobalOptions,
+	ParseFuncInit: parseGlobalOptionsInit,
 }
 
 // FlagLogFormat set the log format
@@ -173,8 +171,8 @@ func (f *flagSaultServer) Set(v string) error {
 }
 
 type flagPrivateKey struct {
-	Path      string
-	PublicKey saultSsh.PublicKey
+	Path   string
+	Signer saultSsh.Signer
 }
 
 func (f *flagPrivateKey) String() string {
@@ -182,14 +180,41 @@ func (f *flagPrivateKey) String() string {
 }
 
 func (f *flagPrivateKey) Set(v string) error {
+	checkSSHAgent()
+
 	keyFile := filepath.Clean(v)
-	clientPublicKey, err := loadPublicKeyFromPrivateKeyFile(keyFile)
-	if err != nil {
-		return err
+
+	var signer saultSsh.Signer
+	{
+		var err error
+		var tmpPublicKey saultSsh.PublicKey
+		tmpPublicKey, err = loadPublicKeyFromPrivateKeyFile(keyFile)
+		if err == nil {
+			signer, err = findSignerInSSHAgent(tmpPublicKey)
+			if err != nil {
+				log.Error(err)
+			}
+		}
 	}
 
-	*f = flagPrivateKey{Path: keyFile, PublicKey: clientPublicKey}
+	if signer == nil {
+		var err error
+		signer, err = loadPrivateKeySigner(keyFile)
+		if err != nil {
+			log.Error(err)
+		}
+	}
 
+	if signer == nil {
+		return fmt.Errorf("failed to load private key from '%s'", keyFile)
+	}
+
+	*f = flagPrivateKey{Path: keyFile, Signer: signer}
+
+	return nil
+}
+
+func parseGlobalOptionsInit(op *Options, args []string) error {
 	return nil
 }
 
@@ -214,41 +239,13 @@ func parseGlobalOptions(op *Options, args []string) error {
 
 	{
 		key := values["Key"].(*flagPrivateKey)
-		op.Extra["ClientPublicKey"] = key.PublicKey
+		op.Extra["Signer"] = key.Signer
 	}
 
 	return nil
 }
 
-func loadPublicKey(privateKeyFile string) (publicKey saultSsh.PublicKey, err error) {
-	var tmpPublicKey saultSsh.PublicKey
-	tmpPublicKey, err = loadPublicKeyFromPrivateKeyFile(privateKeyFile)
-	if err == nil {
-		// digg in ssh-agent
-		authorizedKey := GetAuthorizedKey(tmpPublicKey)
-		var agent sshAgent.Agent
-		agent, err = getSshAgent()
-		if err != nil {
-			return
-		}
-
-		var list []saultSsh.Signer
-		list, err = agent.Signers()
-		if err != nil {
-			return
-		}
-
-		for _, l := range list {
-			if GetAuthorizedKey(l.PublicKey()) == authorizedKey {
-				publicKey = tmpPublicKey
-				break
-			}
-		}
-		if publicKey != nil {
-			return
-		}
-	}
-
+func loadPrivateKeySigner(privateKeyFile string) (signer saultSsh.Signer, err error) {
 	b, err := ioutil.ReadFile(privateKeyFile)
 	if err != nil {
 		return
@@ -256,15 +253,15 @@ func loadPublicKey(privateKeyFile string) (publicKey saultSsh.PublicKey, err err
 
 	// if private key does not have passphrase,
 	{
-		var signer saultSsh.Signer
 		signer, err = GetPrivateKeySignerFromString(string(b))
-		if err != nil {
-			publicKey = signer.PublicKey()
+		if err == nil {
 			return
 		}
+
+		err = nil
 	}
 
-	// read password, try to decrypt private key
+	// read passphrase, try to decrypt private key
 	CommandOut.Printf("Enter passphrase for key '%s'", privateKeyFile)
 	var maxTries = 3
 	var tries int
@@ -273,36 +270,39 @@ func loadPublicKey(privateKeyFile string) (publicKey saultSsh.PublicKey, err err
 			break
 		}
 
-		var password string
-		password, err = ReadPassword(maxAuthTries)
+		var passphrase string
+		passphrase, err = ReadPassword(maxAuthTries)
 		if err != nil {
 			log.Error(err)
 			return
 		}
 		fmt.Fprint(os.Stdout, "")
 
-		if len(password) < 1 {
-			err = errors.New("cancel password authentication")
+		if len(passphrase) < 1 {
+			err = errors.New("cancel passphrase authentication")
 			log.Error(err)
 			return
 		}
 
-		var signer ssh.Signer
-		signer, err = sshkeys.ParseEncryptedPrivateKey(b, []byte(password))
+		var key interface{}
+		key, err = sshkeys.ParseEncryptedRawPrivateKey(b, []byte(passphrase))
 		if err == nil {
-			// convert ssh.PublicKey to saultSsh.PublicKey
-			publicKey, err = ParsePublicKeyFromString(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
-			if err != nil {
-				err = errors.New("failed to parse the encrypted private key: %v")
-				return
+			signer, err = saultSsh.NewSignerFromKey(key)
+			if err == nil {
+				break
+			} else {
+				log.Error(err)
 			}
-			break
 		}
 		tries++
-
 		CommandOut.Errorf("failed to parse private key, will try again: %v", err)
 	}
 
+	if signer == nil {
+		return
+	}
+
+	err = nil
 	log.Debugf("successfully load client private key, '%s'", privateKeyFile)
 
 	return

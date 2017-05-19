@@ -111,6 +111,19 @@ func (c *commandOut) Error(err error) {
 	c.Errorf("%s", err)
 }
 
+func (c *commandOut) Warnf(format string, v ...interface{}) {
+	if !strings.HasSuffix(format, "\n") {
+		format = format + "\n"
+	}
+
+	fmt.Fprintf(
+		os.Stdout,
+		"%s: %s",
+		colorFunc(color.FgYellow)("warning"),
+		strings.TrimLeft(fmt.Sprintf(format, v...), " \n"),
+	)
+}
+
 type activeFilter int
 
 const (
@@ -119,6 +132,8 @@ const (
 	activeFilterActive
 	activeFilterDeactivated
 )
+
+const envSSHAuthSock = "SSH_AUTH_SOCK0"
 
 func init() {
 	authMethosTries = []string{
@@ -144,5 +159,4 @@ func init() {
 	}
 
 	CommandOut = NewCommandOut()
-
 }

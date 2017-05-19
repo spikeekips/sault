@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -35,12 +36,32 @@ import (
 )
 
 var currentTermSize TermSize
+var terminalStateFD = 0
 
 func init() {
 	termSize, err := GetTermSize()
 	if err == nil {
 		currentTermSize = *termSize
 	}
+
+	// terminal.ReadPassword was hanged after interruped with 'control-c'
+	oldState, _ := terminal.GetState(terminalStateFD)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			syscall.Syscall6(
+				syscall.SYS_IOCTL,
+				uintptr(terminalStateFD),
+				syscall.TIOCSETA,
+				uintptr(unsafe.Pointer(oldState)),
+				0,
+				0,
+				0,
+			)
+			os.Exit(1)
+		}
+	}()
 }
 
 // GetPrivateKeySigner loads private key signer from file
@@ -470,7 +491,7 @@ func ReadPassword(maxTries int) (password string, err error) {
 		fmt.Fprint(os.Stdout, "Password: ")
 
 		var b []byte
-		b, err = terminal.ReadPassword(0)
+		b, err = terminal.ReadPassword(terminalStateFD)
 		fmt.Fprintln(os.Stdout, "")
 		if err != nil {
 			return
@@ -514,8 +535,36 @@ func loadPublicKeyFromPrivateKeyFile(f string) (saultSsh.PublicKey, error) {
 	return publicKey, nil
 }
 
+func findSignerInSSHAgent(publicKey saultSsh.PublicKey) (
+	signer saultSsh.Signer, err error,
+) {
+	authorizedKey := GetAuthorizedKey(publicKey)
+
+	var agent sshAgent.Agent
+	agent, err = getSshAgent()
+	if err != nil {
+		return
+	}
+
+	var signers []saultSsh.Signer
+	signers, err = agent.Signers()
+	if err != nil {
+		return
+	}
+
+	for _, s := range signers {
+		if GetAuthorizedKey(s.PublicKey()) == authorizedKey {
+			signer = s
+			return
+		}
+	}
+
+	err = errors.New("failed to find publicKey in ssh-agent")
+	return
+}
+
 func getSshAgent() (sshAgent.Agent, error) {
-	sock := os.Getenv("SSH_AUTH_SOCK")
+	sock := os.Getenv(envSSHAuthSock)
 	if sock == "" {
 		return nil, &SSHAgentNotRunning{}
 	}
@@ -543,4 +592,20 @@ func parseNameActive(s string) (string, bool) {
 
 func sshPublicKeyToSault(p ssh.PublicKey) saultSsh.PublicKey {
 	return nil
+}
+
+var warnSSHAgentNotRunning bool
+
+func checkSSHAgent() {
+	if warnSSHAgentNotRunning {
+		return
+	}
+
+	_, err := getSshAgent()
+	if err != nil {
+		if agentErr, ok := err.(*SSHAgentNotRunning); ok {
+			agentErr.PrintWarning()
+		}
+	}
+	warnSSHAgentNotRunning = true
 }
