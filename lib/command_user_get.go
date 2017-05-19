@@ -119,7 +119,6 @@ func requestUserGet(options OptionsValues, globalOptions OptionsValues) (err err
 	}
 
 	if v, ok := ov["ActiveFilter"]; ok && v != nil {
-		fmt.Printf(">> %v %T\n", v, v)
 		req.Filter = v.(activeFilter)
 	}
 
@@ -183,8 +182,6 @@ func responseUserGet(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 	default:
 		filtered0 = list
 	}
-
-	fmt.Println(list)
 
 	var filtered1 []UserRegistryData
 	if data.PublicKey == "" {

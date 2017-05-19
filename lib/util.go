@@ -24,6 +24,7 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/Sirupsen/logrus"
@@ -449,7 +450,7 @@ func ReadPassword(maxTries int) (password string, err error) {
 	return
 }
 
-func LoadPublicKeyFromPrivateKeyFile(f string) (saultSsh.PublicKey, error) {
+func loadPublicKeyFromPrivateKeyFile(f string) (saultSsh.PublicKey, error) {
 	e := filepath.Ext(f)
 
 	var base = f
@@ -499,4 +500,8 @@ func parseNameActive(s string) (string, bool) {
 	}
 
 	return name, active
+}
+
+func sshPublicKeyToSault(p ssh.PublicKey) saultSsh.PublicKey {
+	return nil
 }

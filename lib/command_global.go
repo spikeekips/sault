@@ -8,7 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/crypto/ssh"
+
+	"github.com/ScaleFT/sshkeys"
 	"github.com/spikeekips/sault/ssh"
+	"github.com/spikeekips/sault/ssh/agent"
 )
 
 // GlobalOptionsTemplate has global flags
@@ -152,7 +156,7 @@ func (f *flagPrivateKey) Set(v string) error {
 
 	var clientPublicKey saultSsh.PublicKey
 
-	publicKey, err := LoadPublicKeyFromPrivateKeyFile(keyFile)
+	publicKey, err := loadPublicKeyFromPrivateKeyFile(keyFile)
 	authorizedKey := GetAuthorizedKey(publicKey)
 	if err == nil {
 		agent, err := getSshAgent()
@@ -165,7 +169,6 @@ func (f *flagPrivateKey) Set(v string) error {
 			return err
 		}
 
-		// filter
 		for _, l := range list {
 			if GetAuthorizedKey(l.PublicKey()) == authorizedKey {
 				clientPublicKey = publicKey
@@ -182,7 +185,10 @@ func (f *flagPrivateKey) Set(v string) error {
 
 		signer, err := GetPrivateKeySignerFromString(string(b))
 		if err != nil {
+			clientPublicKey = signer.PublicKey()
+		} else {
 			CommandOut.Printf("Enter passphrase for key '%s'", keyFile)
+			var sg ssh.Signer
 			var maxTries = 3
 			var tries int
 			for {
@@ -204,7 +210,7 @@ func (f *flagPrivateKey) Set(v string) error {
 					return err
 				}
 
-				signer, err = ParseEncryptedPrivateKey(b, []byte(password))
+				sg, err = sshkeys.ParseEncryptedPrivateKey(b, []byte(password))
 				if err == nil {
 					break
 				}
@@ -213,11 +219,14 @@ func (f *flagPrivateKey) Set(v string) error {
 				CommandOut.Errorf("failed to parse private key, will try again: %v", err)
 			}
 
-			if signer == nil {
+			if sg == nil {
 				return errors.New("failed to parse the encrypted private key")
 			}
 
-			clientPublicKey = signer.PublicKey()
+			clientPublicKey, err = ParsePublicKeyFromString(string(ssh.MarshalAuthorizedKey(sg.PublicKey())))
+			if err != nil {
+				return errors.New("failed to parse the encrypted private key: %v")
+			}
 			log.Debugf("successfully load client private key, '%s'", keyFile)
 		}
 	}
@@ -252,4 +261,94 @@ func parseGlobalOptions(op *Options, args []string) error {
 	}
 
 	return nil
+}
+
+func loadPublicKey(privateKeyFile string) (publicKey saultSsh.PublicKey, err error) {
+	privateKeyFile = filepath.Clean(privateKeyFile)
+
+	var tmpPublicKey saultSsh.PublicKey
+	tmpPublicKey, err = loadPublicKeyFromPrivateKeyFile(privateKeyFile)
+	if err == nil {
+		// digg in ssh-agent
+		authorizedKey := GetAuthorizedKey(tmpPublicKey)
+		var agent sshAgent.Agent
+		agent, err = getSshAgent()
+		if err != nil {
+			return
+		}
+
+		var list []saultSsh.Signer
+		list, err = agent.Signers()
+		if err != nil {
+			return
+		}
+
+		for _, l := range list {
+			if GetAuthorizedKey(l.PublicKey()) == authorizedKey {
+				publicKey = tmpPublicKey
+				break
+			}
+		}
+		if publicKey != nil {
+			return
+		}
+	}
+
+	b, err := ioutil.ReadFile(privateKeyFile)
+	if err != nil {
+		return
+	}
+
+	// if private key does not have passphrase,
+	{
+		var signer saultSsh.Signer
+		signer, err = GetPrivateKeySignerFromString(string(b))
+		if err != nil {
+			publicKey = signer.PublicKey()
+			return
+		}
+	}
+
+	// read password, try to decrypt private key
+	CommandOut.Printf("Enter passphrase for key '%s'", privateKeyFile)
+	var maxTries = 3
+	var tries int
+	for {
+		if tries > (maxTries - 1) {
+			break
+		}
+
+		var password string
+		password, err = ReadPassword(maxAuthTries)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		fmt.Fprint(os.Stdout, "")
+
+		if len(password) < 1 {
+			err = errors.New("cancel password authentication")
+			log.Error(err)
+			return
+		}
+
+		var signer ssh.Signer
+		signer, err = sshkeys.ParseEncryptedPrivateKey(b, []byte(password))
+		if err == nil {
+			// convert ssh.PublicKey to saultSsh.PublicKey
+			publicKey, err = ParsePublicKeyFromString(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+			if err != nil {
+				err = errors.New("failed to parse the encrypted private key: %v")
+				return
+			}
+			break
+		}
+		tries++
+
+		CommandOut.Errorf("failed to parse private key, will try again: %v", err)
+	}
+
+	log.Debugf("successfully load client private key, '%s'", privateKeyFile)
+
+	return
 }

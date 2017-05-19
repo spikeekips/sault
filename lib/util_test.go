@@ -316,7 +316,7 @@ ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJ
 
 		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString), 0600)
 
-		pf, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		pf, err := loadPublicKeyFromPrivateKeyFile(key.Name())
 		if err != nil {
 			t.Error(err)
 		}
@@ -330,7 +330,7 @@ ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJ
 		key, _ := ioutil.TempFile("/tmp/", "sault-test")
 		defer key.Close()
 
-		_, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		_, err := loadPublicKeyFromPrivateKeyFile(key.Name())
 		if err == nil {
 			t.Error("error must be occured")
 		}
@@ -342,7 +342,7 @@ ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJ
 		ioutil.WriteFile(key.Name()+".key", []byte{}, 0600)
 		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString), 0600)
 
-		pf, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		pf, err := loadPublicKeyFromPrivateKeyFile(key.Name())
 		if err != nil {
 			t.Error(err)
 		}
@@ -358,7 +358,7 @@ ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAxbgqxA6IQO8ieZEGQAyZuOCe+ds7LSbjjCnUBzFAyVLJ
 		ioutil.WriteFile(key.Name()+".key", []byte{}, 0600)
 		ioutil.WriteFile(key.Name()+".pub", []byte(publicKeyString+"findme"), 0600)
 
-		_, err := LoadPublicKeyFromPrivateKeyFile(key.Name())
+		_, err := loadPublicKeyFromPrivateKeyFile(key.Name())
 		if err == nil {
 			t.Error("error must be occured")
 		}
