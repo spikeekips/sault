@@ -9,10 +9,11 @@ import (
 )
 
 var userRemoveOptionsTemplate = OptionsTemplate{
-	Name:      "remove",
-	Help:      "remove user",
-	Usage:     "[flags] <userName> [<userName>...]",
-	ParseFunc: parseUserRemoveOptions,
+	Name:        "remove",
+	Help:        "remove user",
+	Usage:       "[flags] <userName> [<userName>...]",
+	ParseFunc:   parseUserRemoveOptions,
+	Description: descriptionUserRemove,
 }
 
 func parseUserRemoveOptions(op *Options, args []string) error {

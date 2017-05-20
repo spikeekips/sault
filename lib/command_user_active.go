@@ -8,19 +8,11 @@ import (
 )
 
 var userActiveOptionsTemplate = OptionsTemplate{
-	Name: "active",
-	Help: "set user active or not",
-	Description: `
-The deactivated user will be not allowed to be authenticated. The difference with "user remove" is, the "user remove" will remove user data, but the data of the deactivated user will be kept, so the *deactivating* user will be safer way to manage users.
-
-To active "spikeekips",
-{{ "$ sault user active spikeekips" | magenta }}
-
-To deactivate "spikeekips", just add "{{ "-" | yellow }}" in the end of user name,
-{{ "$ sault user active spikeekips-" | magenta }}
-	`,
-	Usage:     "[flags] <userName>[-] [<userName>[-]...]",
-	ParseFunc: parseUserActiveOptions,
+	Name:        "active",
+	Help:        "set user active or not",
+	Usage:       "[flags] <userName>[-] [<userName>[-]...]",
+	ParseFunc:   parseUserActiveOptions,
+	Description: descriptionUserActive,
 }
 
 func parseUserActiveOptions(op *Options, args []string) error {

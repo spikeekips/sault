@@ -8,23 +8,11 @@ import (
 )
 
 var hostActiveOptionsTemplate = OptionsTemplate{
-	Name: "active",
-	Help: "set host active or not",
-	Description: `
-With {{ "host active" | yellow }} command, you can activate the host or vice versa.
-
-The deactivated host will be not allowed to access. {{ "host remove" | yellow }} will deactivate and also remove host data, but the the deactivated host will keep it's data, so the *deactivating* host will be safer way to manage hosts.
-
-Appending "{{ "-" | yellow }}" to the end of hostName, makes the host to be deactivated.
-
-Activating "server0":
- {{ "$ sault host active server0" | magenta }}
-
-Deactivating "server0":
- {{ "$ sault host active server0-" | magenta }}
-	`,
-	Usage:     "[flags] <hostName>[-] [<hostName>[-]...]",
-	ParseFunc: parseHostActiveOptions,
+	Name:        "active",
+	Help:        "set host active or not",
+	Usage:       "[flags] <hostName>[-] [<hostName>[-]...]",
+	ParseFunc:   parseHostActiveOptions,
+	Description: descriptionHostActive,
 }
 
 func parseHostActiveOptions(op *Options, args []string) error {

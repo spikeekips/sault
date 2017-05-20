@@ -9,10 +9,11 @@ import (
 )
 
 var hostRemoveOptionsTemplate = OptionsTemplate{
-	Name:      "remove",
-	Help:      "remove host",
-	Usage:     "[flags] <hostName> [<hostName>...]",
-	ParseFunc: parseHostRemoveOptions,
+	Name:        "remove",
+	Help:        "remove host",
+	Usage:       "[flags] <hostName> [<hostName>...]",
+	ParseFunc:   parseHostRemoveOptions,
+	Description: descriptionHostRemove,
 }
 
 func parseHostRemoveOptions(op *Options, args []string) error {

@@ -73,6 +73,10 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 		}
 		log.Debugf("found host: %v", hostData)
 
+		if manualAccountName == "" {
+			manualAccountName = hostData.DefaultAccount
+		}
+
 		if !userData.IsAdmin {
 			if !pc.proxy.Registry.IsLinked(hostData.Host, userData.User, manualAccountName) {
 				requestLog.Errorf("host, `%v` and user, `%v` is not connected", hostData, userData)
@@ -112,7 +116,7 @@ func (pc *proxyConnection) handleNewConnection() error {
 			}()
 		}
 	} else {
-		innerClient := newsshClient(pc.hostData.DefaultAccount, pc.hostData.GetFullAddress())
+		innerClient := newsshClient(pc.manualAccountName, pc.hostData.GetFullAddress())
 		innerClient.addAuthMethod(
 			saultSsh.PublicKeys(pc.proxy.Config.Server.globalClientKeySigner),
 		)

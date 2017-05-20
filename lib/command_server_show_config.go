@@ -7,10 +7,11 @@ import (
 )
 
 var showConfigOptionsTemplate = OptionsTemplate{
-	Name:      "config",
-	Help:      "show server configuration",
-	Usage:     "[flags]",
-	ParseFunc: parseShowConfigOptions,
+	Name:        "config",
+	Help:        "show server configuration",
+	Usage:       "[flags]",
+	ParseFunc:   parseShowConfigOptions,
+	Description: descriptionServerConfig,
 }
 
 func parseShowConfigOptions(op *Options, args []string) error {

@@ -7,10 +7,11 @@ import (
 )
 
 var whoAmIOptionsTemplate = OptionsTemplate{
-	Name:      "whoami",
-	Help:      "show mine",
-	Usage:     "[flags]",
-	ParseFunc: parseWhoAmIOptions,
+	Name:        "whoami",
+	Help:        "show mine",
+	Usage:       "[flags]",
+	ParseFunc:   parseWhoAmIOptions,
+	Description: descriptionWhoAmI,
 }
 
 func parseWhoAmIOptions(op *Options, args []string) error {

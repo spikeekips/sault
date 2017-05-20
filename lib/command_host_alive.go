@@ -11,13 +11,11 @@ import (
 )
 
 var hostAliveOptionsTemplate = OptionsTemplate{
-	Name: "alive",
-	Help: "check the connectivity to host",
-	Description: `
-If you omit the <hostName>, try to check the all the available hosts.
-	`,
-	Usage:     "[flags] [<hostName>...]",
-	ParseFunc: parsehostAliveOptions,
+	Name:        "alive",
+	Help:        "check the connectivity to host",
+	Usage:       "[flags] [<hostName>...]",
+	ParseFunc:   parsehostAliveOptions,
+	Description: descriptionHostAlive,
 }
 
 func parsehostAliveOptions(op *Options, args []string) error {

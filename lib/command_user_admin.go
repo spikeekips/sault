@@ -8,10 +8,11 @@ import (
 )
 
 var userAdminOptionsTemplate = OptionsTemplate{
-	Name:      "admin",
-	Help:      "make user to be admin or not",
-	Usage:     "[flags] <userName>[-] [<userName>[-]...]",
-	ParseFunc: parseUserAdminOptions,
+	Name:        "admin",
+	Help:        "make user to be admin or not",
+	Usage:       "[flags] <userName>[-] [<userName>[-]...]",
+	ParseFunc:   parseUserAdminOptions,
+	Description: descriptionUserAdmin,
 }
 
 func parseUserAdminOptions(op *Options, args []string) error {

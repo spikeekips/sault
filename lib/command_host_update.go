@@ -11,9 +11,14 @@ import (
 )
 
 var hostUpdateOptionsTemplate = OptionsTemplate{
-	Name:  "update",
-	Help:  "update host",
-	Usage: "[flags] <hostName> [hostName <newHostName>] [defaultAccount <defaultAccount>] [accounts \"<account1>,[<account>]\"] [address <address>] [port <port>]",
+	Name: "update",
+	Help: "update host",
+	Usage: `[flags] <hostName>
+		[hostName <newHostName>]
+		[defaultAccount <defaultAccount>]
+		[accounts "<account1>,[<account>]"]
+		[address <address>]
+		[port <port>]`,
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:         "Force",
@@ -21,7 +26,8 @@ var hostUpdateOptionsTemplate = OptionsTemplate{
 			DefaultValue: false,
 		},
 	},
-	ParseFunc: parseHostUpdateOptions,
+	ParseFunc:   parseHostUpdateOptions,
+	Description: descriptionHostUpdate,
 }
 
 func parseHostUpdateOptions(op *Options, args []string) error {

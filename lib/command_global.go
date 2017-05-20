@@ -16,36 +16,6 @@ import (
 var globalOptionsTemplate = OptionsTemplate{
 	Name:  os.Args[0],
 	Usage: "[flags] command",
-	Description: `
-==================================================
-{{ " sault" | cyan }}: The authentication proxy for SSH servers
-==================================================
-
-"sault" acts like the reverse proxy, so the native openssh client and server work transparently.
-
-To deploy the sault in your system, follow these steps.
-1. In the server side, download and install sault.
-  Get the latest pre-built binary at https://github.com/spikeekips/sault/releases , and extract it in $PATH.
-2. Create sault default directory, like {{ "~/.sault" | yellow }}:
-  {{ "$ mkdir ~./sault" | magenta }}
-3. Initialize sault environment:
-  {{ "$ cd ~./sault" | magenta }}
-  {{ "$ sault init admin ~/.ssh/admin.pub" | magenta }}
-4. Run sault server:
-  {{ "$ cd ~./sault" | magenta }}
-  {{ "$ sault server run" | magenta }}
-5. Add users and ssh hosts like this:
-  {{ "$ sault user add spikeekips ~/.ssh/id_rsa.pub" | magenta }}
-  The "spikeekips" is the name for sault, it is not ssh user account name.
-  {{ "$ sault host add president-server ubuntu@192.168.99.110:22" | magenta }}
-  You added the, "president-server", it will be used host name to connect to "ubuntu@192.168.99.110:22".
-  {{ "$ sault user link spikeekips president-server" | magenta }}
-  This will allow to access "spikeekips" to "president-server" with the "ubuntu" user account.
-6. Connect with your ssh client to ssh server
-  {{ "$ ssh spikeekips ubuntu@president-server" | magenta }}
-
-For more information, check out the helps with {{ "$ sault <command> -h" | magenta }}, or visit https://github.com/spikeekips/sault .
-	`,
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:      "LogFormat",
@@ -70,13 +40,14 @@ For more information, check out the helps with {{ "$ sault <command> -h" | magen
 			},
 		},
 		OptionTemplate{
-			Name:      "Key",
-			Help:      "private key to connect sault server.",
+			Name:      "Identity",
+			Help:      "private identity to connect sault server.",
 			ValueType: &struct{ Type flagPrivateKey }{flagPrivateKey{}},
 		},
 	},
 	ParseFunc:     parseGlobalOptions,
 	ParseFuncInit: parseGlobalOptionsInit,
+	Description:   descriptionGlobal,
 }
 
 // FlagLogFormat set the log format
@@ -206,7 +177,7 @@ func (f *flagPrivateKey) Set(v string) error {
 	}
 
 	if signer == nil {
-		return fmt.Errorf("failed to load private key from '%s'", keyFile)
+		return fmt.Errorf("failed to load private identity from '%s'", keyFile)
 	}
 
 	*f = flagPrivateKey{Path: keyFile, Signer: signer}
@@ -238,7 +209,7 @@ func parseGlobalOptions(op *Options, args []string) error {
 	}
 
 	{
-		key := values["Key"].(*flagPrivateKey)
+		key := values["Identity"].(*flagPrivateKey)
 		op.Extra["Signer"] = key.Signer
 	}
 

@@ -9,21 +9,8 @@ import (
 )
 
 var initOptionsTemplate = OptionsTemplate{
-	Name: "init",
-	Help: "init sault",
-	Description: `
-Initialize sault environment.
-
-At first, create new directory for sault configuration, and change directory to it, and then simply just run:
-{{ "$ mkdir -p ~/.sault" | magenta }}
-{{ "$ cd ~/.sault" | magenta }}
-{{ "$ sault init spikeekips ~/.ssh/id_rsa.pub" | magenta }}
-
-By default current directory will be used.
-
-This will create the sault configuration files in current directory, the configuration file, {{ "sault.conf" | yellow }}, registry file, {{ "registry.toml" | yellow }} and ssh related key files. You can also set the different directory with '{{ "-configDir <directory>" | yellow }}':
-{{ "$ sault init -configDir ~/.another-sault spikeekips ~/.ssh/another-id_rsa.pub" | magenta }}
-`,
+	Name:  "init",
+	Help:  "init sault",
 	Usage: "[flags] <admin user name> <publicKeyFile>",
 	Options: []OptionTemplate{
 		OptionTemplate{
@@ -32,7 +19,8 @@ This will create the sault configuration files in current directory, the configu
 			DefaultValue: "",
 		},
 	},
-	ParseFunc: parseInitOptions,
+	ParseFunc:   parseInitOptions,
+	Description: descriptionInit,
 }
 
 var gettingStartedTemplate = `

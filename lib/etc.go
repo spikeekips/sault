@@ -133,7 +133,7 @@ const (
 	activeFilterDeactivated
 )
 
-const envSSHAuthSock = "SSH_AUTH_SOCK0"
+const envSSHAuthSock = "SSH_AUTH_SOCK"
 
 func init() {
 	authMethosTries = []string{

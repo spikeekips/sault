@@ -20,7 +20,8 @@ var serverRunOptionsTemplate = OptionsTemplate{
 			ValueType: &struct{ Type flagConfigDirs }{flagConfigDirs{}},
 		},
 	},
-	ParseFunc: parseServerOptions,
+	ParseFunc:   parseServerOptions,
+	Description: descriptionServerRun,
 }
 
 type flagConfigDirs []string

@@ -36,7 +36,7 @@ func (f *flagAccounts) Set(v string) error {
 var hostAddOptionsTemplate = OptionsTemplate{
 	Name:  "add",
 	Help:  "add new host",
-	Usage: "[flags] <hostName> <default account>@<address:port>",
+	Usage: "[flags] <hostName> <defaultAccount>@<address:port>",
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:      "Accounts",
@@ -45,11 +45,12 @@ var hostAddOptionsTemplate = OptionsTemplate{
 		},
 		OptionTemplate{
 			Name:         "Force",
-			Help:         "pass to inject client public key to host",
+			Help:         "pass to inject sault public key to host",
 			DefaultValue: false,
 		},
 	},
-	ParseFunc: parseHostAddOptions,
+	ParseFunc:   parseHostAddOptions,
+	Description: descriptionHostAdd,
 }
 
 func parseHostAddOptions(op *Options, args []string) error {

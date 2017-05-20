@@ -8,12 +8,11 @@ import (
 )
 
 var linkOptionsTemplate = OptionsTemplate{
-	Name: "link",
-	Help: "(un)link user and hosts",
-	Description: `
-	`,
-	Usage:     "[flags] <userName> [<account>+]<hostName>[-] [[<account>+]<hostName>[-]...]",
-	ParseFunc: parseLinkOptions,
+	Name:        "link",
+	Help:        "(un)link user and hosts",
+	Usage:       "[flags] <userName> [<account>+]<hostName>[-] [[<account>+]<hostName>[-]...]",
+	ParseFunc:   parseLinkOptions,
+	Description: descriptionUserLink,
 }
 
 func parseLinkOptions(op *Options, args []string) error {

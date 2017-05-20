@@ -11,15 +11,16 @@ import (
 var hostGetOptionsTemplate = OptionsTemplate{
 	Name:  "get",
 	Help:  "get host",
-	Usage: "[flags] <hostName> [<hostName>...]",
+	Usage: "[flags] [<hostName>...]",
 	Options: []OptionTemplate{
 		OptionTemplate{
 			Name:         "Filter",
-			Help:         "filter hosts by state, [ active deactive ]",
+			Help:         "filter hosts by state, [ active deactivated ]",
 			DefaultValue: "",
 		},
 	},
-	ParseFunc: parseHostGetOptions,
+	ParseFunc:   parseHostGetOptions,
+	Description: descriptionHostGet,
 }
 
 func parseHostGetOptions(op *Options, args []string) error {
@@ -48,7 +49,7 @@ func parseHostGetOptions(op *Options, args []string) error {
 			switch f {
 			case "active":
 				filter = activeFilterActive
-			case "deactive":
+			case "deactivated":
 				filter = activeFilterDeactivated
 			default:
 				return fmt.Errorf("invalid filter, `%s` found", f)

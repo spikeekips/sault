@@ -8,10 +8,11 @@ import (
 )
 
 var showClientKeysOptionsTemplate = OptionsTemplate{
-	Name:      "clientKeys",
-	Help:      "show publicKey for host client",
-	Usage:     "[flags]",
-	ParseFunc: parseShowClientKeysOptions,
+	Name:        "clientKeys",
+	Help:        "show publicKey for host client",
+	Usage:       "[flags]",
+	ParseFunc:   parseShowClientKeysOptions,
+	Description: descriptionServerKeys,
 }
 
 func parseShowClientKeysOptions(op *Options, args []string) error {

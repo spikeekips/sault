@@ -10,10 +10,11 @@ import (
 )
 
 var userAddOptionsTemplate = OptionsTemplate{
-	Name:      "add",
-	Help:      "add user",
-	Usage:     "[flags] <userName> <publicKeyFile>",
-	ParseFunc: parseUserAddOptions,
+	Name:        "add",
+	Help:        "add user",
+	Usage:       "[flags] <userName> <publicKeyFile>",
+	ParseFunc:   parseUserAddOptions,
+	Description: descriptionUserAdd,
 }
 
 func parseUserAddOptions(op *Options, args []string) error {
