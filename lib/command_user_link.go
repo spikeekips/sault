@@ -29,7 +29,7 @@ func parseLinkOptions(op *Options, args []string) error {
 	userName := commandArgs[0]
 	{
 		if !CheckUserName(userName) {
-			return fmt.Errorf("invalid userName, `%s` found", userName)
+			return fmt.Errorf("invalid userName, '%s' found", userName)
 		}
 
 		op.Extra["UserName"] = userName

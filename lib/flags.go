@@ -168,7 +168,7 @@ type Options struct {
 func setFlagFromOption(fs *flag.FlagSet, option OptionTemplate) interface{} {
 	name := MakeFirstLowerCase(option.Name)
 	if fs.Lookup(name) != nil {
-		log.Errorf("`%s` flag already defined", name)
+		log.Errorf("'%s' flag already defined", name)
 		return nil
 	}
 
@@ -197,7 +197,7 @@ func setFlagFromOption(fs *flag.FlagSet, option OptionTemplate) interface{} {
 		fs.Float64Var(&val, name, option.DefaultValue.(float64), option.Help)
 		return &val
 	default:
-		log.Errorf("found invalid flag, `%v`", option)
+		log.Errorf("found invalid flag, '%v'", option)
 	}
 
 	return nil

@@ -195,9 +195,9 @@ func (s *sshClient) MakeDir(dest string, perm os.FileMode, recursive bool) error
 				parent = strings.Join(paths[:i+1], "/")
 			}
 			if err := s.MakeDir(parent, perm, false); err != nil {
-				log.Debugf("sshClient.Mkdir: failed to create directory, `%s`: %v", parent, err)
+				log.Debugf("sshClient.Mkdir: failed to create directory, '%s': %v", parent, err)
 			} else {
-				log.Debugf("sshClient.Mkdir: successfully created directory, `%s`", parent)
+				log.Debugf("sshClient.Mkdir: successfully created directory, '%s'", parent)
 			}
 		}
 

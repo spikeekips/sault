@@ -38,10 +38,10 @@ func (f *flagConfigDirs) String() string {
 
 func (f *flagConfigDirs) Set(v string) error {
 	if fi, err := os.Stat(v); err != nil {
-		log.Errorf("configDir, `%s` does not exists, skipped", v)
+		log.Errorf("configDir, '%s' does not exists, skipped", v)
 		return nil
 	} else if !fi.IsDir() {
-		log.Errorf("configDir, `%s` not directory, skipped", v)
+		log.Errorf("configDir, '%s' not directory, skipped", v)
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func parseServerOptions(op *Options, args []string) error {
 	for _, configDir := range *configDirs {
 		files, err := filepath.Glob(BaseJoin(configDir, "*.conf"))
 		if err != nil {
-			msg := "failed to load config files from `%s`: %v"
+			msg := "failed to load config files from '%s': %v"
 			log.Errorf(msg, configDir, err)
 			continue
 		}

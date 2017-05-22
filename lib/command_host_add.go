@@ -68,7 +68,7 @@ func parseHostAddOptions(op *Options, args []string) error {
 
 	{
 		if !CheckHostName(hostName) {
-			return fmt.Errorf("invalid hostName, `%s`", hostName)
+			return fmt.Errorf("invalid hostName, '%s'", hostName)
 		}
 
 		op.Extra["HostName"] = hostName
@@ -195,7 +195,7 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 
 	_, err = pc.proxy.Registry.GetHostByHostName(data.Host)
 	if err == nil {
-		err = fmt.Errorf("HostName, `%s` already added", data.Host)
+		err = fmt.Errorf("HostName, '%s' already added", data.Host)
 		return
 	}
 
@@ -280,17 +280,17 @@ func injectClientKeyToHost(sc *sshClient, publicKey saultSsh.PublicKey) (err err
 	}
 
 	if strings.TrimSpace(string(output)) == "0" {
-		log.Debugf("ssh directory, `%s` does not exist, create new", sshDirectory)
+		log.Debugf("ssh directory, '%s' does not exist, create new", sshDirectory)
 		if err = sc.MakeDir(sshDirectory, 0700, true); err != nil {
-			log.Debugf("failed to create ssh directory, `%s`: %v", sshDirectory, err)
+			log.Debugf("failed to create ssh directory, '%s': %v", sshDirectory, err)
 			return
 		}
 		err = sc.PutFile(GetAuthorizedKey(publicKey)+"\n", authorizedKeyFile, 0600)
 		if err != nil {
-			log.Debugf("failed to create new authorized_keys file, `%s`: %v", authorizedKeyFile, err)
+			log.Debugf("failed to create new authorized_keys file, '%s': %v", authorizedKeyFile, err)
 			return
 		}
-		log.Debugf("created new authorized_keys file, `%s`", authorizedKeyFile)
+		log.Debugf("created new authorized_keys file, '%s'", authorizedKeyFile)
 
 		return nil
 	}

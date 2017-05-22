@@ -44,10 +44,10 @@ global_client_key_path = "./client.key"
 		t.Error(err)
 	}
 	if newConfig.Server.HostKeyPath != config.Server.HostKeyPath {
-		t.Errorf("newConfig.Server.HostKeyPath != config.Server.HostKeyPath: `%s` != `%s`", newConfig.Server.HostKeyPath, config.Server.HostKeyPath)
+		t.Errorf("newConfig.Server.HostKeyPath != config.Server.HostKeyPath: '%s' != '%s'", newConfig.Server.HostKeyPath, config.Server.HostKeyPath)
 	}
 	if newConfig.Server.GlobalClientKeyPath != config.Server.GlobalClientKeyPath {
-		t.Errorf("newConfig.Server.GlobalClientKeyPath != config.Server.GlobalClientKeyPath: `%s` != `%s`", newConfig.Server.GlobalClientKeyPath, config.Server.GlobalClientKeyPath)
+		t.Errorf("newConfig.Server.GlobalClientKeyPath != config.Server.GlobalClientKeyPath: '%s' != '%s'", newConfig.Server.GlobalClientKeyPath, config.Server.GlobalClientKeyPath)
 	}
 }
 
@@ -91,10 +91,10 @@ global_client_key_path = "{{.lastGlobalClientKeyPath}}"
 	}
 
 	if config.Server.HostKeyPath != lastHostKeyPath {
-		t.Errorf("config.Server.HostKeyPath != lastHostKeyPath: `%s` != `%s`", config.Server.HostKeyPath, lastHostKeyPath)
+		t.Errorf("config.Server.HostKeyPath != lastHostKeyPath: '%s' != '%s'", config.Server.HostKeyPath, lastHostKeyPath)
 	}
 	if config.Server.GlobalClientKeyPath != lastGlobalClientKeyPath {
-		t.Errorf("config.Server.GlobalClientKeyPath != lastGlobalClientKeyPath: `%s` != `%s`", config.Server.GlobalClientKeyPath, lastGlobalClientKeyPath)
+		t.Errorf("config.Server.GlobalClientKeyPath != lastGlobalClientKeyPath: '%s' != '%s'", config.Server.GlobalClientKeyPath, lastGlobalClientKeyPath)
 	}
 }
 
@@ -146,6 +146,6 @@ global_client_key_path = "./client.key"
 
 	configJSON := strings.TrimSpace(bw.String())
 	if config.ToJSON() != configJSON {
-		t.Errorf("config.ToJSON() != strings.TrimSpace(configJSON): `%s` != `%s`", config.ToJSON(), configJSON)
+		t.Errorf("config.ToJSON() != strings.TrimSpace(configJSON): '%s' != '%s'", config.ToJSON(), configJSON)
 	}
 }

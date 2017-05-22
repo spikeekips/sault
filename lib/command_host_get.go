@@ -35,7 +35,7 @@ func parseHostGetOptions(op *Options, args []string) error {
 	{
 		for _, h := range hostNames {
 			if !CheckHostName(h) {
-				return fmt.Errorf("invalid hostName, `%s` found", h)
+				return fmt.Errorf("invalid hostName, '%s' found", h)
 			}
 		}
 
@@ -52,7 +52,7 @@ func parseHostGetOptions(op *Options, args []string) error {
 			case "deactivated":
 				filter = activeFilterDeactivated
 			default:
-				return fmt.Errorf("invalid filter, `%s` found", f)
+				return fmt.Errorf("invalid filter, '%s' found", f)
 
 			}
 

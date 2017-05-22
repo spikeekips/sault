@@ -75,7 +75,7 @@ func init() {
 
 func main() {
 	command := commandOptions["CommandName"].(string)
-	sault.Log.Debugf("got command, `%s`:", command)
+	sault.Log.Debugf("got command, '%s':", command)
 
 	if run, ok := sault.RequestCommands[command]; ok {
 		var exitStatus int

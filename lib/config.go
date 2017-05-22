@@ -46,7 +46,7 @@ func (c configRegistry) GetSource() (configSourceRegistry, error) {
 	case "toml":
 		return c.Source.File, nil
 	default:
-		return nil, fmt.Errorf("invalid source type, `%s`", t)
+		return nil, fmt.Errorf("invalid source type, '%s'", t)
 	}
 }
 
@@ -211,7 +211,7 @@ func (c *Config) validateLogFormat() error {
 		}
 	}
 
-	return fmt.Errorf("invalid log format, `%s`", c.Log.Format)
+	return fmt.Errorf("invalid log format, '%s'", c.Log.Format)
 }
 
 func (c *Config) validateLogLevel() error {
@@ -221,7 +221,7 @@ func (c *Config) validateLogLevel() error {
 		}
 	}
 
-	return fmt.Errorf("invalid log level, `%s`", c.Log.Level)
+	return fmt.Errorf("invalid log level, '%s'", c.Log.Level)
 }
 
 func (c *Config) validateHostKey() error {
@@ -260,7 +260,7 @@ func (c *Config) validateRegistry() error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("invalid registry type, `%s`", c.Registry.Type)
+		return fmt.Errorf("invalid registry type, '%s'", c.Registry.Type)
 	}
 
 	if c.Registry.Type != "toml" {
@@ -268,7 +268,7 @@ func (c *Config) validateRegistry() error {
 	}
 	config := c.Registry.Source.File
 	if config.Path == "" {
-		return fmt.Errorf("registry file, `%s` is missing", config.Path)
+		return fmt.Errorf("registry file, '%s' is missing", config.Path)
 	}
 
 	if fi, err := os.Stat(config.Path); os.IsNotExist(err) {

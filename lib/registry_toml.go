@@ -99,7 +99,7 @@ func (r *tomlRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 	for _, userData := range r.Data.User {
 		userAuthorizedKey := userData.GetAuthorizedKey()
 		if userAuthorizedKey == "" {
-			log.Errorf("invalid publicKey for `%s`, %v: %v", userData.User, userData.PublicKey)
+			log.Errorf("invalid publicKey for '%s', %v: %v", userData.User, userData.PublicKey)
 			continue
 		}
 		if userAuthorizedKey == authorizedKey {
@@ -123,7 +123,7 @@ func (r *tomlRegistry) GetHostByHostName(hostName string) (hostRegistryData, err
 		}
 	}
 	if matchedHostData == nil {
-		return hostRegistryData{}, fmt.Errorf("host, `%s` not found", hostName)
+		return hostRegistryData{}, fmt.Errorf("host, '%s' not found", hostName)
 	}
 
 	return *matchedHostData, nil
@@ -135,7 +135,7 @@ func (r *tomlRegistry) GetActiveHostByHostName(hostName string) (hostData hostRe
 		return
 	}
 	if hostData.Deactivated {
-		err = fmt.Errorf("host, `%s`, deactivated", hostData.Host)
+		err = fmt.Errorf("host, '%s', deactivated", hostData.Host)
 		return
 	}
 
@@ -218,7 +218,7 @@ func (r *tomlRegistry) GetUsers(f activeFilter) (users map[string]UserRegistryDa
 func (r *tomlRegistry) GetUserByUserName(userName string) (UserRegistryData, error) {
 	userData, ok := r.Data.User[userName]
 	if !ok {
-		return UserRegistryData{}, fmt.Errorf("user, `%s`, not found", userName)
+		return UserRegistryData{}, fmt.Errorf("user, '%s', not found", userName)
 	}
 
 	return userData, nil
@@ -226,20 +226,20 @@ func (r *tomlRegistry) GetUserByUserName(userName string) (UserRegistryData, err
 
 func (r *tomlRegistry) AddUser(userName, publicKey string) (UserRegistryData, error) {
 	if !CheckUserName(userName) {
-		return UserRegistryData{}, fmt.Errorf("invalid userName, `%s`", userName)
+		return UserRegistryData{}, fmt.Errorf("invalid userName, '%s'", userName)
 	}
 
 	if _, err := r.GetUserByUserName(userName); err == nil {
-		return UserRegistryData{}, fmt.Errorf("user, `%s` already added", userName)
+		return UserRegistryData{}, fmt.Errorf("user, '%s' already added", userName)
 	}
 
 	parsedPublicKey, err := ParsePublicKeyFromString(publicKey)
 	if err != nil {
-		return UserRegistryData{}, fmt.Errorf("invalid publicKey `%s`: %v", publicKey, err)
+		return UserRegistryData{}, fmt.Errorf("invalid publicKey '%s': %v", publicKey, err)
 	}
 
 	if _, err := r.GetUserByPublicKey(parsedPublicKey); err == nil {
-		return UserRegistryData{}, fmt.Errorf("publicKey, `%s` already added", strings.TrimSpace(publicKey))
+		return UserRegistryData{}, fmt.Errorf("publicKey, '%s' already added", strings.TrimSpace(publicKey))
 	}
 
 	userData := UserRegistryData{
@@ -254,7 +254,7 @@ func (r *tomlRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 func (r *tomlRegistry) RemoveUser(userName string) error {
 	_, ok := r.Data.User[userName]
 	if !ok {
-		return fmt.Errorf("user, `%s`, not found", userName)
+		return fmt.Errorf("user, '%s', not found", userName)
 	}
 
 	delete(r.Data.User, userName)
@@ -343,7 +343,7 @@ func (r *tomlRegistry) GetHostCount(f activeFilter) (c int) {
 
 func (r *tomlRegistry) RemoveHost(hostName string) error {
 	if _, err := r.GetHostByHostName(hostName); err != nil {
-		return fmt.Errorf("host, `%s`, not found", hostName)
+		return fmt.Errorf("host, '%s', not found", hostName)
 	}
 
 	delete(r.Data.Host, hostName)
@@ -392,7 +392,7 @@ func (r *tomlRegistry) UpdateHostName(hostName, newHostName string) (hostRegistr
 	}
 
 	if _, err := r.GetHostByHostName(newHostName); err == nil {
-		return hostRegistryData{}, fmt.Errorf("host, `%s`, already exists", newHostName)
+		return hostRegistryData{}, fmt.Errorf("host, '%s', already exists", newHostName)
 	}
 
 	hostData.Host = newHostName

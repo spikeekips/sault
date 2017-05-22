@@ -79,7 +79,7 @@ func (pc *proxyConnection) publicKeyCallback(conn saultSsh.ConnMetadata, key sau
 
 		if !userData.IsAdmin {
 			if !pc.proxy.Registry.IsLinked(hostData.Host, userData.User, manualAccountName) {
-				requestLog.Errorf("host, `%v` and user, `%v` is not connected", hostData, userData)
+				requestLog.Errorf("host, '%v' and user, '%v' is not connected", hostData, userData)
 				return nil, errors.New("authentication failed")
 			}
 		}

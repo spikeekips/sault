@@ -54,7 +54,7 @@ func TestFileRegistry(t *testing.T) {
 	}
 	registry, _ := NewRegistry(sourceType, configSource, false)
 	if registry.GetType() != "toml" {
-		t.Errorf("invalid registry type, `%v`", registry.GetType())
+		t.Errorf("invalid registry type, '%v'", registry.GetType())
 	}
 }
 
@@ -97,11 +97,11 @@ func TestRegistryAddUser(t *testing.T) {
 	}
 
 	if userData.User != userName {
-		t.Errorf("userData.User != userName, `%v` != `%v`", userData.User, userName)
+		t.Errorf("userData.User != userName, '%v' != '%v'", userData.User, userName)
 	}
 
 	if userData.PublicKey != publicKeyString {
-		t.Errorf("userData.PublicKey != publicKeyString, `%v` != `%v`", userData.PublicKey, publicKeyString)
+		t.Errorf("userData.PublicKey != publicKeyString, '%v' != '%v'", userData.PublicKey, publicKeyString)
 	}
 
 	if len(registry.DataSource.(*tomlRegistry).Data.User) != 1 {
@@ -192,7 +192,7 @@ func TestUserRegistryData(t *testing.T) {
 
 	authorizedKeyString := strings.TrimSpace(string(saultSsh.MarshalAuthorizedKey(userData.GetPublicKey())))
 	if addedAuthorizedKey != authorizedKeyString {
-		t.Errorf("wrong userData.publicKey, `%v`", addedAuthorizedKey)
+		t.Errorf("wrong userData.publicKey, '%v'", addedAuthorizedKey)
 	}
 
 	{
@@ -222,7 +222,7 @@ func TestRegistryAddHost(t *testing.T) {
 		t.Error(err)
 	}
 	if hostCount := registry.GetHostCount(activeFilterAll); hostCount != 1 {
-		t.Errorf("r.GetHostCount(activeFilterAll) mismatch: `%v` != `%v`", hostCount, 1)
+		t.Errorf("r.GetHostCount(activeFilterAll) mismatch: '%v' != '%v'", hostCount, 1)
 	}
 }
 
@@ -243,16 +243,16 @@ func TestRegistryHostData(t *testing.T) {
 	)
 
 	if hostData.Host != hostName {
-		t.Errorf("hostData.Host != hostName: `%v` != `%v`", hostData.Host, hostName)
+		t.Errorf("hostData.Host != hostName: '%v' != '%v'", hostData.Host, hostName)
 	}
 	if hostData.DefaultAccount != defaultAccount {
-		t.Errorf("hostData.DefaultAccount != defaultAccount: `%v` != `%v`", hostData.DefaultAccount, defaultAccount)
+		t.Errorf("hostData.DefaultAccount != defaultAccount: '%v' != '%v'", hostData.DefaultAccount, defaultAccount)
 	}
 	if hostData.Address != address {
-		t.Errorf("hostData.Address != address: `%v` != `%v`", hostData.Address, address)
+		t.Errorf("hostData.Address != address: '%v' != '%v'", hostData.Address, address)
 	}
 	if hostData.Port != port {
-		t.Errorf("hostData.Port != port: `%v` != `%v`", hostData.Port, port)
+		t.Errorf("hostData.Port != port: '%v' != '%v'", hostData.Port, port)
 	}
 }
 
@@ -273,7 +273,7 @@ func TestRegistryHostDataWithoutPort(t *testing.T) {
 	)
 
 	if fullAddress := hostData.GetFullAddress(); fullAddress != fmt.Sprintf("%s:%d", address, 22) {
-		t.Errorf("wrong hostData.GetFullAddress(), `%v`", fullAddress)
+		t.Errorf("wrong hostData.GetFullAddress(), '%v'", fullAddress)
 	}
 
 	// set none-default port
@@ -281,7 +281,7 @@ func TestRegistryHostDataWithoutPort(t *testing.T) {
 	hostData.Port = newPort
 
 	if fullAddress := hostData.GetFullAddress(); fullAddress != fmt.Sprintf("%s:%d", address, newPort) {
-		t.Errorf("wrong hostData.GetFullAddress(), `%v`", fullAddress)
+		t.Errorf("wrong hostData.GetFullAddress(), '%v'", fullAddress)
 	}
 }
 
@@ -311,7 +311,7 @@ func TestRegistryRemoveHost(t *testing.T) {
 		[]string{},
 	)
 	if registry.GetHostCount(activeFilterAll) != latestHostCount+1 {
-		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(activeFilterAll), latestHostCount+1)
+		t.Errorf("wrong hostCount, '%d' != '%d'", registry.GetHostCount(activeFilterAll), latestHostCount+1)
 	}
 
 	err := registry.RemoveHost(hostName)
@@ -325,7 +325,7 @@ func TestRegistryRemoveHost(t *testing.T) {
 	}
 
 	if registry.GetHostCount(activeFilterAll) != latestHostCount {
-		t.Errorf("wrong hostCount, `%d` != `%d`", registry.GetHostCount(activeFilterAll), latestHostCount)
+		t.Errorf("wrong hostCount, '%d' != '%d'", registry.GetHostCount(activeFilterAll), latestHostCount)
 	}
 }
 
@@ -384,12 +384,12 @@ func TestRegistryLink(t *testing.T) {
 
 	for _, a := range targetAccounts {
 		if registry.IsLinked(hostsData[0].Host, usersData[1].User, a) {
-			t.Errorf("`%s` was linked", a)
+			t.Errorf("'%s' was linked", a)
 		}
 	}
 	for _, a := range targetAccounts {
 		if registry.IsLinked(hostsData[1].Host, usersData[0].User, a) {
-			t.Errorf("`%s` was not linked, but linked", a)
+			t.Errorf("'%s' was not linked, but linked", a)
 		}
 	}
 }
@@ -466,7 +466,7 @@ func TestRegistryLinkAll(t *testing.T) {
 
 	for _, a := range targetAccounts {
 		if !registry.IsLinked(hostData.Host, usersData[0].User, a) {
-			t.Errorf("`%s` was not linked", a)
+			t.Errorf("'%s' was not linked", a)
 		}
 	}
 
@@ -482,7 +482,7 @@ func TestRegistryLinkAll(t *testing.T) {
 	}
 	for _, a := range targetAccounts {
 		if registry.IsLinked(hostData.Host, usersData[0].User, a) {
-			t.Errorf("`%s` was linked, but unlinked", a)
+			t.Errorf("'%s' was linked, but unlinked", a)
 		}
 	}
 }
@@ -653,7 +653,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterAll)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterAll) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -663,7 +663,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterActive)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterActive) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterActive) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -673,7 +673,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterDeactivated)
 		if c != 0 {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterDeactivated) != 0; `%d` != `0`",
+				"registry.GetUserCount(activeFilterDeactivated) != 0; '%d' != `0`",
 				c,
 			)
 		}
@@ -685,7 +685,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterAll)
 		if c != len(users) {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUserCount(activeFilterAll) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -695,7 +695,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterActive)
 		if c != len(users)-1 {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterActive) != len(users) -1 ; `%d` != `%d`",
+				"registry.GetUserCount(activeFilterActive) != len(users) -1 ; '%d' != '%d'",
 				c,
 				len(users)-1,
 			)
@@ -705,7 +705,7 @@ func TestRegistryActiveUser(t *testing.T) {
 		c := registry.GetUserCount(activeFilterDeactivated)
 		if c != 1 {
 			t.Errorf(
-				"registry.GetUserCount(activeFilterDeactivated) != 1; `%d` != `1`",
+				"registry.GetUserCount(activeFilterDeactivated) != 1; '%d' != `1`",
 				c,
 			)
 		}
@@ -721,7 +721,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterAll)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(activeFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterAll) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -731,7 +731,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterActive)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(activeFilterActive) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterActive) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -741,7 +741,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterDeactivated)
 		if len(c) != 0 {
 			t.Errorf(
-				"registry.GetUsers(activeFilterDeactivated) != 0; `%d` != `0`",
+				"registry.GetUsers(activeFilterDeactivated) != 0; '%d' != `0`",
 				c,
 			)
 		}
@@ -753,7 +753,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterAll)
 		if len(c) != len(users) {
 			t.Errorf(
-				"registry.GetUsers(activeFilterAll) != len(users); `%d` != `%d`",
+				"registry.GetUsers(activeFilterAll) != len(users); '%d' != '%d'",
 				c,
 				len(users),
 			)
@@ -763,7 +763,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterActive)
 		if len(c) != len(users)-1 {
 			t.Errorf(
-				"registry.GetUsers(activeFilterActive) != len(users) -1 ; `%d` != `%d`",
+				"registry.GetUsers(activeFilterActive) != len(users) -1 ; '%d' != '%d'",
 				c,
 				len(users)-1,
 			)
@@ -773,7 +773,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		c := registry.GetUsers(activeFilterDeactivated)
 		if len(c) != 1 {
 			t.Errorf(
-				"registry.GetUsers(activeFilterDeactivated) != 1; `%d` != `1`",
+				"registry.GetUsers(activeFilterDeactivated) != 1; '%d' != `1`",
 				c,
 			)
 		}
@@ -791,7 +791,7 @@ func TestRegistryGetActiveUserByUserName(t *testing.T) {
 			t.Errorf("registry.GetActiveUserByUserName() must not be failed")
 		}
 		if u.User != users[0].User {
-			t.Errorf("registry.GetActiveUserByUserName() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+			t.Errorf("registry.GetActiveUserByUserName() == users[0].User; but '%v' != '%v'", u.User, users[0].User)
 		}
 	}
 
@@ -814,7 +814,7 @@ func TestRegistryGetActiveUserByPublicKey(t *testing.T) {
 			t.Errorf("registry.GetActiveUserByPublicKey() must not be failed")
 		}
 		if u.User != users[0].User {
-			t.Errorf("registry.GetActiveUserByPublicKey() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
+			t.Errorf("registry.GetActiveUserByPublicKey() == users[0].User; but '%v' != '%v'", u.User, users[0].User)
 		}
 	}
 

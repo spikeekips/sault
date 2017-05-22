@@ -63,7 +63,7 @@ func parseInitOptions(op *Options, args []string) error {
 	adminName, publicKeyFile := commandArgs[0], commandArgs[1]
 	{
 		if !CheckUserName(adminName) {
-			return fmt.Errorf("invalid adminName, `%s`", adminName)
+			return fmt.Errorf("invalid adminName, '%s'", adminName)
 		}
 
 		op.Extra["AdminName"] = adminName
@@ -103,7 +103,7 @@ func checkConfigDir(directory string) (created bool, err error) {
 	}
 
 	if !fi.IsDir() {
-		err = fmt.Errorf("`%s` is not directory", directory)
+		err = fmt.Errorf("'%s' is not directory", directory)
 		return
 	}
 
@@ -114,10 +114,10 @@ func createDefaultFiles(config *Config, configDir string) error {
 	{
 		path := BaseJoin(configDir, "./sault.conf")
 		if err := config.Save(path); err != nil {
-			return fmt.Errorf("failed to create default sault conf, `%s`: %v", path, err)
+			return fmt.Errorf("failed to create default sault conf, '%s': %v", path, err)
 		}
 
-		log.Debugf("sault config file, `%v`, created", path)
+		log.Debugf("sault config file, '%v', created", path)
 	}
 
 	{
@@ -134,12 +134,12 @@ func createDefaultFiles(config *Config, configDir string) error {
 		hostKeyFile := BaseJoin(configDir, "./host.key")
 		f, err := os.OpenFile(hostKeyFile, os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
-			return fmt.Errorf("failed to create host key, `%s`: %v", hostKeyFile, err)
+			return fmt.Errorf("failed to create host key, '%s': %v", hostKeyFile, err)
 		}
 		f.Write(pem)
 		f.Close()
 
-		log.Debugf("the host key for sault server, `%v`, created", hostKeyFile)
+		log.Debugf("the host key for sault server, '%v', created", hostKeyFile)
 	}
 	{
 		var clientKeyFile, clientPubFile string
@@ -157,7 +157,7 @@ func createDefaultFiles(config *Config, configDir string) error {
 			clientKeyFile = BaseJoin(configDir, "./client.key")
 			f, err := os.OpenFile(clientKeyFile, os.O_RDWR|os.O_CREATE, 0600)
 			if err != nil {
-				return fmt.Errorf("failed to create client key, `%s`: %v", clientKeyFile, err)
+				return fmt.Errorf("failed to create client key, '%s': %v", clientKeyFile, err)
 			}
 			f.Write(pem)
 			f.Close()
@@ -167,7 +167,7 @@ func createDefaultFiles(config *Config, configDir string) error {
 			clientPubFile = BaseJoin(configDir, "./client.pub")
 			f, err := os.OpenFile(clientPubFile, os.O_RDWR|os.O_CREATE, 0600)
 			if err != nil {
-				return fmt.Errorf("failed to create client public key, `%s`: %v", clientPubFile, err)
+				return fmt.Errorf("failed to create client public key, '%s': %v", clientPubFile, err)
 			}
 
 			enc, err := EncodePublicKey(&privateKey.PublicKey)
@@ -179,7 +179,7 @@ func createDefaultFiles(config *Config, configDir string) error {
 			f.Close()
 		}
 
-		log.Debugf("the client keys for target hosts, `%s`, `%s`, created", clientKeyFile, clientPubFile)
+		log.Debugf("the client keys for target hosts, '%s', '%s', created", clientKeyFile, clientPubFile)
 	}
 
 	return nil
@@ -229,16 +229,16 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (err error) {
 				return
 			}
 			if len(files) > 1 {
-				log.Errorf("ConfigDir, `%s` must be empty", configDir)
+				log.Errorf("ConfigDir, '%s' must be empty", configDir)
 				return
 			}
 		}
 	}
 
 	if created {
-		log.Debugf("sault config directory, `%s`, created", configDir)
+		log.Debugf("sault config directory, '%s', created", configDir)
 	} else {
-		log.Debugf("sault config directory, `%s`, found", configDir)
+		log.Debugf("sault config directory, '%s', found", configDir)
 	}
 
 	config := newDefaultConfig(configDir)

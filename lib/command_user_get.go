@@ -72,7 +72,7 @@ func parseUserGetOptions(op *Options, args []string) error {
 		op.Extra["UserNames"] = []string{}
 		for _, userName := range userNames {
 			if !CheckUserName(userName) {
-				return fmt.Errorf("invalid userName, `%s` found", userName)
+				return fmt.Errorf("invalid userName, '%s' found", userName)
 			}
 		}
 		op.Extra["UserNames"] = userNames
@@ -94,7 +94,7 @@ func parseUserGetOptions(op *Options, args []string) error {
 			case "deactivated":
 				filter = activeFilterDeactivated
 			default:
-				return fmt.Errorf("invalid filter, `%s` found", f)
+				return fmt.Errorf("invalid filter, '%s' found", f)
 
 			}
 

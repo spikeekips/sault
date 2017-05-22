@@ -28,7 +28,7 @@ func TestParseLogLevel(t *testing.T) {
 		levelName := "debug000"
 		_, err := ParseLogLevel(levelName)
 		if err == nil {
-			t.Errorf("invalid level, `%s` name must ocurr error", levelName)
+			t.Errorf("invalid level, '%s' name must ocurr error", levelName)
 		}
 	}
 }
@@ -73,11 +73,11 @@ func TestParseLogOutput(t *testing.T) {
 		writer, _ := ParseLogOutput(outputFile.Name(), "info")
 		outFile := writer.(*os.File)
 		if outFile.Name() != outputFile.Name() {
-			t.Errorf("weird output file was generated, `%s`", outFile.Name())
+			t.Errorf("weird output file was generated, '%s'", outFile.Name())
 		}
 		stat, _ := outFile.Stat()
 		if octalPerm := fmt.Sprintf("%04o", stat.Mode()); octalPerm != "0600" {
-			t.Errorf("output file has wrong permission, `%v`", octalPerm)
+			t.Errorf("output file has wrong permission, '%v'", octalPerm)
 		}
 	}
 }
@@ -100,10 +100,10 @@ func TestParseHostAccount(t *testing.T) {
 		}
 
 		if userName != pUserName {
-			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+			t.Errorf("userName != pUserName, '%s' != '%s'", userName, pUserName)
 		}
 		if hostName != pHostName {
-			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+			t.Errorf("hostName != pHostName, '%s' != '%s'", hostName, pHostName)
 		}
 	}
 	{
@@ -117,7 +117,7 @@ func TestParseHostAccount(t *testing.T) {
 			t.Errorf("userName must be empty")
 		}
 		if hostName != pHostName {
-			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+			t.Errorf("hostName != pHostName, '%s' != '%s'", hostName, pHostName)
 		}
 	}
 	{
@@ -130,10 +130,10 @@ func TestParseHostAccount(t *testing.T) {
 		}
 
 		if userName != pUserName {
-			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+			t.Errorf("userName != pUserName, '%s' != '%s'", userName, pUserName)
 		}
 		if hostName != pHostName {
-			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+			t.Errorf("hostName != pHostName, '%s' != '%s'", hostName, pHostName)
 		}
 	}
 	{
@@ -146,10 +146,10 @@ func TestParseHostAccount(t *testing.T) {
 		}
 
 		if userName != pUserName {
-			t.Errorf("userName != pUserName, `%s` != `%s`", userName, pUserName)
+			t.Errorf("userName != pUserName, '%s' != '%s'", userName, pUserName)
 		}
 		if hostName != pHostName {
-			t.Errorf("hostName != pHostName, `%s` != `%s`", hostName, pHostName)
+			t.Errorf("hostName != pHostName, '%s' != '%s'", hostName, pHostName)
 		}
 	}
 }
@@ -169,10 +169,10 @@ func TestParseAccountName(t *testing.T) {
 			t.Error(err)
 		}
 		if userName != "" {
-			t.Errorf("userName != \"\", `%s` != ``", userName)
+			t.Errorf("userName != \"\", '%s' != ``", userName)
 		}
 		if hostName != a {
-			t.Errorf("hostName != a, `%s` != `%s`", hostName, a)
+			t.Errorf("hostName != a, '%s' != '%s'", hostName, a)
 		}
 	}
 	{
@@ -183,10 +183,10 @@ func TestParseAccountName(t *testing.T) {
 			t.Error(err)
 		}
 		if userName != u {
-			t.Errorf("userName != u, `%s` != `%s`", userName, u)
+			t.Errorf("userName != u, '%s' != '%s'", userName, u)
 		}
 		if hostName != h {
-			t.Errorf("hostName != h, `%s` != `%s`", hostName, h)
+			t.Errorf("hostName != h, '%s' != '%s'", hostName, h)
 		}
 	}
 	{
@@ -197,10 +197,10 @@ func TestParseAccountName(t *testing.T) {
 			t.Error(err)
 		}
 		if userName != u {
-			t.Errorf("userName != u, `%s` != `%s`", userName, u)
+			t.Errorf("userName != u, '%s' != '%s'", userName, u)
 		}
 		if hostName != h {
-			t.Errorf("hostName != h, `%s` != `%s`", hostName, h)
+			t.Errorf("hostName != h, '%s' != '%s'", hostName, h)
 		}
 	}
 }
@@ -268,10 +268,10 @@ func TestSplitHostPort(t *testing.T) {
 		}
 
 		if host != pHost {
-			t.Errorf("host != pHost, `%s` != `%s`", host, pHost)
+			t.Errorf("host != pHost, '%s' != '%s'", host, pHost)
 		}
 		if port != pPort {
-			t.Errorf("port != pPort, `%s` != `%s`", port, pPort)
+			t.Errorf("port != pPort, '%s' != '%s'", port, pPort)
 		}
 	}
 	{
@@ -285,10 +285,10 @@ func TestSplitHostPort(t *testing.T) {
 		}
 
 		if host != pHost {
-			t.Errorf("host != pHost, `%s` != `%s`", host, pHost)
+			t.Errorf("host != pHost, '%s' != '%s'", host, pHost)
 		}
 		if port != pPort {
-			t.Errorf("port != pPort, `%s` != `%s`", port, pPort)
+			t.Errorf("port != pPort, '%s' != '%s'", port, pPort)
 		}
 	}
 	{

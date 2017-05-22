@@ -49,13 +49,13 @@ func parseUserUpdateOptions(op *Options, args []string) error {
 	}
 
 	if strings.ToLower(userName) == "username" || !CheckUserName(userName) {
-		return fmt.Errorf("invalid userName, `%s`", userName)
+		return fmt.Errorf("invalid userName, '%s'", userName)
 	}
 
 	op.Extra["NewUserName"] = ""
 	if newUserName != "" {
 		if !CheckUserName(newUserName) {
-			return fmt.Errorf("invalid new userName, `%s`", newUserName)
+			return fmt.Errorf("invalid new userName, '%s'", newUserName)
 		}
 
 		op.Extra["NewUserName"] = newUserName

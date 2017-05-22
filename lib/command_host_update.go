@@ -47,7 +47,7 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 	{
 		hostName := commandArgs[0]
 		if !CheckHostName(hostName) {
-			return fmt.Errorf("invalid hostName, `%s`", hostName)
+			return fmt.Errorf("invalid hostName, '%s'", hostName)
 		}
 		op.Extra["HostName"] = hostName
 	}
@@ -60,12 +60,12 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 		switch i[0] {
 		case "hostName":
 			if !CheckHostName(i[1]) {
-				return fmt.Errorf("invalid hostName, `%s`", i[1])
+				return fmt.Errorf("invalid hostName, '%s'", i[1])
 			}
 			op.Extra["NewHostName"] = i[1]
 		case "defaultAccount":
 			if !CheckUserName(i[1]) {
-				return fmt.Errorf("invalid defaultAccount, `%s`", i[1])
+				return fmt.Errorf("invalid defaultAccount, '%s'", i[1])
 			}
 			op.Extra["NewDefaultAccount"] = i[1]
 		case "accounts":
@@ -85,7 +85,7 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 			}
 			for _, a := range n {
 				if !CheckUserName(a) {
-					return fmt.Errorf("invalid account, `%s`", a)
+					return fmt.Errorf("invalid account, '%s'", a)
 				}
 			}
 			op.Extra["NewAccounts"] = n
@@ -94,11 +94,11 @@ func parseHostUpdateOptions(op *Options, args []string) error {
 		case "port":
 			port, err := strconv.ParseUint(i[1], 10, 32)
 			if err != nil {
-				return fmt.Errorf("invalid port: `%v`", err)
+				return fmt.Errorf("invalid port: '%v'", err)
 			}
 			op.Extra["NewPort"] = port
 		default:
-			return fmt.Errorf("unknown value, `%v`", i)
+			return fmt.Errorf("unknown value, '%v'", i)
 		}
 	}
 

@@ -139,11 +139,11 @@ func handleCommandMsg(
 	msg commandMsg,
 ) (exitStatus uint32) {
 	var err error
-	log.Debugf("command: `%s`", strings.TrimSpace(msg.Command))
+	log.Debugf("command: '%s'", strings.TrimSpace(msg.Command))
 
 	if !pc.userData.IsAdmin {
 		if allowed, ok := commandForNotAdmin[msg.Command]; !ok || !allowed {
-			err = fmt.Errorf("command, `%s`: permission denied", msg.Command)
+			err = fmt.Errorf("command, '%s': permission denied", msg.Command)
 			log.Error(err)
 
 			response, _ := newResponseMsg(nil, commandErrorPermissionDenied, err).ToJSON()
@@ -204,13 +204,13 @@ func connectSaultServer(serverName, address string, signer saultSsh.Signer) (*sa
 		HostKeyCallback: saultSsh.InsecureIgnoreHostKey(),
 	}
 
-	log.Debugf("trying to connect to sault server, `%s`", address)
+	log.Debugf("trying to connect to sault server, '%s'", address)
 
 	connection, err := saultSsh.Dial("tcp", address, clientConfig)
 	if err != nil {
 		return nil, newCommandError(
 			commandErrorAuthFailed,
-			fmt.Sprintf("failed to connect sault server, `%s`: %v", address, err),
+			fmt.Sprintf("failed to connect sault server, '%s': %v", address, err),
 		)
 	}
 

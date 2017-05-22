@@ -124,7 +124,7 @@ func (r *Registry) GetActiveUserByUserName(userName string) (userData UserRegist
 	}
 
 	if userData.Deactivated {
-		return UserRegistryData{}, fmt.Errorf("user, `%s`, deactivated", userName)
+		return UserRegistryData{}, fmt.Errorf("user, '%s', deactivated", userName)
 	}
 
 	return
@@ -137,7 +137,7 @@ func (r *Registry) GetActiveUserByPublicKey(publicKey saultSsh.PublicKey) (userD
 	}
 
 	if userData.Deactivated {
-		return UserRegistryData{}, fmt.Errorf("user, `%s`, deactivated", userData.User)
+		return UserRegistryData{}, fmt.Errorf("user, '%s', deactivated", userData.User)
 	}
 
 	return
@@ -242,7 +242,7 @@ func (r *Registry) UpdateUserPublicKey(userName string, newPublicKey string) (us
 
 func (r *Registry) AddHost(hostName, defaultAccount, address string, port uint64, accounts []string) (hostRegistryData, error) {
 	if _, err := r.GetHostByHostName(hostName); err == nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s` already added", hostName)
+		return hostRegistryData{}, fmt.Errorf("hostName, '%s' already added", hostName)
 	}
 
 	if len(accounts) < 1 {
@@ -550,7 +550,7 @@ func NewRegistry(sourceType string, config configSourceRegistry, initialize bool
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("registry source type, `%s` not found", t)
+		return nil, fmt.Errorf("registry source type, '%s' not found", t)
 	}
 
 	return &Registry{DataSource: dataSource}, nil

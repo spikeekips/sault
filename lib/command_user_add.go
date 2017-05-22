@@ -31,7 +31,7 @@ func parseUserAddOptions(op *Options, args []string) error {
 	userName, publicKeyFile := commandArgs[0], commandArgs[1]
 
 	if !CheckUserName(userName) {
-		return fmt.Errorf("invalid userName, `%s`", userName)
+		return fmt.Errorf("invalid userName, '%s'", userName)
 	}
 
 	op.Extra["UserName"] = userName
