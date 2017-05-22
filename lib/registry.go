@@ -419,23 +419,67 @@ func (r *Registry) UpdateHostPort(hostName string, port uint64) (hostData hostRe
 	return
 }
 
-func (r *Registry) Link(hostName, userName string, targetAccounts []string) error {
+func (r *Registry) Link(hostName, userName string, targetAccounts []string) (err error) {
+	if r.IsLinkedAll(hostName, userName) {
+		return
+	}
+
+	if _, err = r.GetHostByHostName(hostName); err != nil {
+		return
+	}
+
+	if _, err = r.GetUserByUserName(userName); err != nil {
+		return
+	}
+
 	return r.DataSource.Link(hostName, userName, targetAccounts)
 }
 
-func (r *Registry) Unlink(hostName, userName string, targetAccounts []string) error {
+func (r *Registry) Unlink(hostName, userName string, targetAccounts []string) (err error) {
+	if _, err = r.GetHostByHostName(hostName); err != nil {
+		return
+	}
+
+	if _, err = r.GetUserByUserName(userName); err != nil {
+		return
+	}
+
 	return r.DataSource.Unlink(hostName, userName, targetAccounts)
 }
 
-func (r *Registry) LinkAll(hostName, userName string) error {
+func (r *Registry) LinkAll(hostName, userName string) (err error) {
+	if _, err = r.GetHostByHostName(hostName); err != nil {
+		return
+	}
+
+	if _, err = r.GetUserByUserName(userName); err != nil {
+		return
+	}
+
 	return r.DataSource.LinkAll(hostName, userName)
 }
 
-func (r *Registry) UnlinkAll(hostName, userName string) error {
+func (r *Registry) UnlinkAll(hostName, userName string) (err error) {
+	if _, err = r.GetHostByHostName(hostName); err != nil {
+		return
+	}
+
+	if _, err = r.GetUserByUserName(userName); err != nil {
+		return
+	}
+
 	return r.DataSource.UnlinkAll(hostName, userName)
 }
 
 func (r *Registry) IsLinkedAll(hostName, userName string) bool {
+	if _, err := r.GetHostByHostName(hostName); err != nil {
+		return false
+	}
+
+	if _, err := r.GetUserByUserName(userName); err != nil {
+		return false
+	}
+
 	return r.DataSource.IsLinkedAll(hostName, userName)
 }
 
@@ -443,8 +487,20 @@ func (r *Registry) IsLinked(hostName, userName, targetAccount string) bool {
 	return r.DataSource.IsLinked(hostName, userName, targetAccount)
 }
 
-func (r *Registry) GetLinkedHosts(userName string) map[string][]string {
-	return r.DataSource.GetLinkedHosts(userName)
+func (r *Registry) GetLinkedHosts(userName string) (hosts map[string][]string) {
+	if _, err := r.GetUserByUserName(userName); err != nil {
+		return
+	}
+
+	for _, hostData := range r.GetHosts(activeFilterAll) {
+		accounts := r.DataSource.GetLinkedAccounts(hostData.Host, userName)
+		if len(accounts) < 1 {
+			continue
+		}
+		hosts[hostData.Host] = accounts
+	}
+
+	return
 }
 
 type RegistryDataSource interface {
@@ -479,9 +535,9 @@ type RegistryDataSource interface {
 	Unlink(hostName, userName string, targetAccounts []string) error
 	LinkAll(hostName, userName string) error
 	UnlinkAll(hostName, userName string) error
-	IsLinkedAll(hostName, userName string) bool
 	IsLinked(hostName, userName, targetAccount string) bool
-	GetLinkedHosts(userName string) map[string][]string
+	IsLinkedAll(hostName, userName string) bool
+	GetLinkedAccounts(hostName, userName string) []string
 }
 
 func NewRegistry(sourceType string, config configSourceRegistry, initialize bool) (*Registry, error) {
