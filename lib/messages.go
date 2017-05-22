@@ -50,7 +50,19 @@ func (r *ResponseMsgError) IsError(errType commandErrorType) bool {
 }
 
 func (r *ResponseMsgError) Error() string {
-	return r.Message
+	var m string
+
+	switch r.ErrorType {
+	case commandErrorPermissionDenied:
+		m = "Permission denied"
+	case commandErrorAuthFailed:
+		m = "Authentication failed"
+	case commandErrorInjectClientKey:
+		m = "Failed to inject client key"
+	default:
+		m = r.Message
+	}
+	return m
 }
 
 type responseMsg struct {

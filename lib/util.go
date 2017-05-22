@@ -417,8 +417,25 @@ var commonTempalteFMap = template.FuncMap{
 	"align_format": func(format, s string) string {
 		return fmt.Sprintf(format, s)
 	},
-	"line": func(m string) string {
-		return strings.Repeat(m, int(currentTermSize.Col)/len(m))
+	"line": func(m ...string) string {
+		var prefix string
+		var body string
+		if len(m) < 2 {
+			prefix = ""
+			body = m[0]
+		} else {
+			prefix = fmt.Sprintf(" %s ", m[0])
+			body = m[1]
+		}
+
+		return fmt.Sprintf(
+			"%s%s",
+			prefix,
+			strings.Repeat(
+				body,
+				int(currentTermSize.Col-uint16(len(prefix)))/len(body),
+			),
+		)
 	},
 }
 
@@ -608,4 +625,8 @@ func checkSSHAgent() {
 		}
 	}
 	warnSSHAgentNotRunning = true
+}
+
+func makeChannelMessage(s string) []byte {
+	return []byte(strings.Replace(s, "\n", "\r\n", -1))
 }

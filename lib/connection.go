@@ -278,6 +278,22 @@ func (pc *proxyConnection) handleProxyChannel(newChannel saultSsh.NewChannel) er
 		switch request.Type {
 		case "exit-status":
 			break
+		case "pty-req":
+			welcomeMsg, _ := ExecuteCommonTemplate(`
+{{ line "* You logged in thru sault" "*" }}
+sault user: {{ .user.User }}
+      host: {{ .account }}@{{ .host.Host }}
+{{ line "*" }}
+			`,
+				map[string]interface{}{
+					"user":    pc.userData,
+					"host":    pc.hostData,
+					"account": pc.manualAccountName,
+				},
+			)
+			proxyChannel.Stderr().Write(
+				makeChannelMessage(strings.TrimSpace(welcomeMsg) + "\r\n\r\n"),
+			)
 		default:
 			//
 		}

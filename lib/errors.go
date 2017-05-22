@@ -1,7 +1,6 @@
 package sault
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -23,7 +22,7 @@ func (e *missingCommandError) Error() string {
 }
 
 type commandErrorType uint
-type commandError struct {
+type CommandError struct {
 	Type    commandErrorType
 	Message string
 }
@@ -32,11 +31,26 @@ const (
 	commandErrorNone commandErrorType = iota + 1
 	commandErrorAuthFailed
 	commandErrorInjectClientKey
+	commandErrorPermissionDenied
 )
 
-func (e *commandError) Error() string {
-	jsoned, _ := json.Marshal(e)
-	return string(jsoned)
+func (e *CommandError) Error() string {
+	var m string
+	switch e.Type {
+	case commandErrorAuthFailed:
+		m = "Authentication failed"
+	default:
+		m = e.Message
+	}
+
+	return m
+}
+
+func newCommandError(errType commandErrorType, message string) *CommandError {
+	return &CommandError{
+		Type:    errType,
+		Message: message,
+	}
 }
 
 type InvalidHostName struct {

@@ -146,7 +146,7 @@ func handleCommandMsg(
 			err = fmt.Errorf("command, `%s`: permission denied", msg.Command)
 			log.Error(err)
 
-			response, _ := newResponseMsgWithError(err).ToJSON()
+			response, _ := newResponseMsg(nil, commandErrorPermissionDenied, err).ToJSON()
 			channel.Write(response)
 			return
 		}
@@ -208,7 +208,10 @@ func connectSaultServer(serverName, address string, signer saultSsh.Signer) (*sa
 
 	connection, err := saultSsh.Dial("tcp", address, clientConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect sault server, `%s`: %v", address, err)
+		return nil, newCommandError(
+			commandErrorAuthFailed,
+			fmt.Sprintf("failed to connect sault server, `%s`: %v", address, err),
+		)
 	}
 
 	log.Debug("connection established")

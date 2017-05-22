@@ -232,7 +232,7 @@ func printUser(data userResponseData) string {
 {{ "User:"|yellow }}      {{ .user.User | yellow }} {{ if .user.IsAdmin }} {{ "(admin)" | green }} {{ end }} {{ if .user.Deactivated }}{{ "(deactivated)" | red }}{{ end }}
 PublicKey: {{ .user.PublicKey | escape }}
 {{ $length := len .linked }}Linked hosts and it's accounts: {{ if eq $length 0 }}-{{ else }}
-{{ range $key, $accounts := .linked }} - {{ $key | escape }}: {{ $accounts | join}}
+{{ range $key, $accounts := .linked }} - {{ $key | escape }}: {{ $first := index $accounts 0 }}{{ if eq $first "*" }}{{ "all accounts" | bold }}{{ else }} {{ $accounts | join}}{{ end }}
 {{ end }}{{ end }}
 `,
 		map[string]interface{}{

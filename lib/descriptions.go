@@ -175,11 +175,17 @@ With {{ "user link" | yellow }} can link the sault user with the specific host,
   {{ "$ sault user link spikeekips president-server" | yellow }}
   This will link the user, 'spikeekips' with the host, 'president-server'.
 
-Linking without specifying {{ "<account>" | yellow }}, allows to access all the avaiable accounts of that host, the available accounts can be limited by "{{ "accounts" | yellow }}" of host data.
+Linking without specifying {{ "<account>" | yellow }}, open to all the avaiable accounts of the host, the available accounts can be limited by '{{ "accounts" | yellow }}' by '{{ "host update -accounts" | yellow }}' flag.
 
 To unlink the user with the host, append {{ "-" | yellow }} at the end of host name,
   {{ "$ sault user link spikeekips president-server-" | yellow }}
   This will prevent the user, 'spikeekips' to access to the host, 'president-server' with any kind of account.
+
+You also limit the access by host account.
+  {{ "$ sault user link spikeekips casobon@president-server" | yellow }}
+  This will open access only to the '{{ "casobon@president-server" | yellow }}'. The way to unlink is the same,
+  {{ "$ sault user link spikeekips casobon@president-server-" | yellow }}
+  But if your host opened to every account, you must unlink host first and then add the specific account.
 	`
 
 	descriptionUserRemove = `
