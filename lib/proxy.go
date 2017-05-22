@@ -9,11 +9,11 @@ import (
 // Proxy is the core strcut to proxying connections
 type Proxy struct {
 	Config   *Config
-	Registry Registry
+	Registry *Registry
 }
 
 // NewProxy makes the new Proxy instance
-func NewProxy(config *Config, registry Registry) (*Proxy, error) {
+func NewProxy(config *Config, registry *Registry) (*Proxy, error) {
 	return &Proxy{Config: config, Registry: registry}, nil
 }
 

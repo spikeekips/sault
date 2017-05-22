@@ -19,7 +19,7 @@ func makeUserName() string {
 	return fmt.Sprintf("%x", m.Sum(nil))
 }
 
-func makeUsers(registry Registry, c int) (users []UserRegistryData) {
+func makeUsers(registry *Registry, c int) (users []UserRegistryData) {
 	for i := 0; i < c; i++ {
 		userData, _ := registry.AddUser(makeUserName(), generatePublicKey())
 		users = append(users, userData)
@@ -58,7 +58,7 @@ func TestFileRegistry(t *testing.T) {
 	}
 }
 
-func registrySetup() (registry Registry) {
+func registrySetup() (registry *Registry) {
 	sourceType := "toml"
 
 	registryToml, _ := ioutil.TempFile("/tmp/", "sault-test")
@@ -104,8 +104,8 @@ func TestRegistryAddUser(t *testing.T) {
 		t.Errorf("userData.PublicKey != publicKeyString, `%v` != `%v`", userData.PublicKey, publicKeyString)
 	}
 
-	if len(registry.(*tomlRegistry).DataSource.User) != 1 {
-		t.Errorf("wrong user count, %d", len(registry.(*tomlRegistry).DataSource.User))
+	if len(registry.DataSource.(*tomlRegistry).Data.User) != 1 {
+		t.Errorf("wrong user count, %d", len(registry.DataSource.(*tomlRegistry).Data.User))
 	}
 }
 
@@ -575,7 +575,7 @@ deactivated = false
 
 func TestRegistrySync(t *testing.T) {
 	registry := registrySetup()
-	defer os.Remove(registry.(*tomlRegistry).Path)
+	defer os.Remove(registry.DataSource.(*tomlRegistry).Path)
 
 	defaultAccount := "ubuntu"
 	address := "192.168.99.110"
@@ -625,7 +625,7 @@ deactivated = false
 	if err != nil {
 		t.Error(err)
 	}
-	synced, err := ioutil.ReadFile(registry.(*tomlRegistry).Path)
+	synced, err := ioutil.ReadFile(registry.DataSource.(*tomlRegistry).Path)
 	if err != nil {
 		t.Error(err)
 	}
@@ -797,12 +797,9 @@ func TestRegistryGetActiveUserByUserName(t *testing.T) {
 
 	registry.SetUserActive(users[0].User, false)
 	{
-		u, err := registry.GetActiveUserByUserName(users[0].User)
+		_, err := registry.GetActiveUserByUserName(users[0].User)
 		if err == nil {
 			t.Errorf("registry.GetActiveUserByUserName() must be failed")
-		}
-		if u.User != users[0].User {
-			t.Errorf("registry.GetActiveUserByUserName() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
 		}
 	}
 }
@@ -823,12 +820,9 @@ func TestRegistryGetActiveUserByPublicKey(t *testing.T) {
 
 	registry.SetUserActive(users[0].User, false)
 	{
-		u, err := registry.GetActiveUserByPublicKey(users[0].GetPublicKey())
+		_, err := registry.GetActiveUserByPublicKey(users[0].GetPublicKey())
 		if err == nil {
 			t.Errorf("registry.GetActiveUserByPublicKey() must be failed")
-		}
-		if u.User != users[0].User {
-			t.Errorf("registry.GetActiveUserByPublicKey() == users[0].User; but `%v` != `%v`", u.User, users[0].User)
 		}
 	}
 }

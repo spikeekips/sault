@@ -217,7 +217,7 @@ type userResponseData struct {
 	Linked   map[string][]string
 }
 
-func newUserResponseData(registry Registry, userData UserRegistryData) userResponseData {
+func newUserResponseData(registry *Registry, userData UserRegistryData) userResponseData {
 	return userResponseData{
 		UserData: userData,
 		Linked:   registry.GetLinkedHosts(userData.User),

@@ -185,7 +185,7 @@ func createDefaultFiles(config *Config, configDir string) error {
 	return nil
 }
 
-func addAdmin(registry Registry, adminName, publicKeyString string) (UserRegistryData, error) {
+func addAdmin(registry *Registry, adminName, publicKeyString string) (UserRegistryData, error) {
 	// add new admin with publicKey
 	if _, err := registry.AddUser(adminName, publicKeyString); err != nil {
 		return UserRegistryData{}, fmt.Errorf("failed to create admin: %v", err)
@@ -250,7 +250,7 @@ func runInit(options OptionsValues, globalOptions OptionsValues) (err error) {
 		}
 	}
 
-	var registry Registry
+	var registry *Registry
 	registry, err = getRegistryFromConfig(config, true)
 	if err != nil {
 		log.Error(err)

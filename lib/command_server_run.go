@@ -94,7 +94,7 @@ func parseServerOptions(op *Options, args []string) error {
 	return nil
 }
 
-func getRegistryFromConfig(config *Config, initialize bool) (Registry, error) {
+func getRegistryFromConfig(config *Config, initialize bool) (*Registry, error) {
 	cs, err := config.Registry.GetSource()
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (err error) {
 		}
 	}
 
-	var registry Registry
+	var registry *Registry
 	registry, err = getRegistryFromConfig(config, false)
 	if err != nil {
 		log.Error(err)

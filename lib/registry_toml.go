@@ -2,11 +2,11 @@ package sault
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/naoina/toml"
@@ -17,20 +17,20 @@ type tomlLinkedUserRegistryData struct {
 	Account []string
 }
 
-type tomlRegistryDataSource struct {
+type tomlRegistryData struct {
 	User   map[string]UserRegistryData
 	Host   map[string]hostRegistryData
 	Linked map[string]map[string]tomlLinkedUserRegistryData
 }
 
 type tomlRegistry struct {
-	Path       string
-	DataSource *tomlRegistryDataSource
+	Path string
+	Data *tomlRegistryData
 }
 
 func (r *tomlRegistry) marshal() *bytes.Buffer {
 	b := bytes.NewBuffer([]byte{})
-	toml.NewEncoder(b).Encode(r.DataSource)
+	toml.NewEncoder(b).Encode(r.Data)
 
 	return b
 }
@@ -55,10 +55,10 @@ func (r *tomlRegistry) Sync() error {
 }
 
 func (r *tomlRegistry) Save(w io.Writer) error {
-	return toml.NewEncoder(w).Encode(r.DataSource)
+	return toml.NewEncoder(w).Encode(r.Data)
 }
 
-func newTOMLRegistry(config configTOMLRegistry, initialize bool) (*tomlRegistry, error) {
+func newTOMLRegistryDataSource(config configTOMLRegistry, initialize bool) (*tomlRegistry, error) {
 	r := tomlRegistry{Path: config.Path}
 
 	if initialize {
@@ -75,7 +75,7 @@ func newTOMLRegistry(config configTOMLRegistry, initialize bool) (*tomlRegistry,
 	}
 	defer f.Close()
 
-	dataSource := &tomlRegistryDataSource{
+	dataSource := &tomlRegistryData{
 		User:   map[string]UserRegistryData{},
 		Host:   map[string]hostRegistryData{},
 		Linked: map[string]map[string]tomlLinkedUserRegistryData{},
@@ -84,7 +84,7 @@ func newTOMLRegistry(config configTOMLRegistry, initialize bool) (*tomlRegistry,
 	if err := defaultTOML.NewDecoder(f).Decode(dataSource); err != nil {
 		return nil, err
 	}
-	r.DataSource = dataSource
+	r.Data = dataSource
 
 	return &r, nil
 }
@@ -97,7 +97,7 @@ func (r *tomlRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 	authorizedKey := GetAuthorizedKey(publicKey)
 
 	var matchedUserData *UserRegistryData
-	for _, userData := range r.DataSource.User {
+	for _, userData := range r.Data.User {
 		userAuthorizedKey := userData.GetAuthorizedKey()
 		if userAuthorizedKey == "" {
 			log.Errorf("invalid publicKey for `%s`, %v: %v", userData.User, userData.PublicKey)
@@ -115,23 +115,9 @@ func (r *tomlRegistry) GetUserByPublicKey(publicKey saultSsh.PublicKey) (UserReg
 	return *matchedUserData, nil
 }
 
-func (r *tomlRegistry) GetActiveUserByPublicKey(publicKey saultSsh.PublicKey) (userData UserRegistryData, err error) {
-	userData, err = r.GetUserByPublicKey(publicKey)
-	if err != nil {
-		return
-	}
-
-	if userData.Deactivated {
-		err = fmt.Errorf("user, `%s`, deactivated", userData.User)
-		return
-	}
-
-	return
-}
-
 func (r *tomlRegistry) GetHostByHostName(hostName string) (hostRegistryData, error) {
 	var matchedHostData *hostRegistryData
-	for _, hostData := range r.DataSource.Host {
+	for _, hostData := range r.Data.Host {
 		if hostName == hostData.Host {
 			matchedHostData = &hostData
 			break
@@ -157,38 +143,29 @@ func (r *tomlRegistry) GetActiveHostByHostName(hostName string) (hostData hostRe
 	return
 }
 
-func (r *tomlRegistry) IsHostActive(hostName string) (bool, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return false, err
-	}
-
-	return !hostData.Deactivated, nil
-}
-
 func (r *tomlRegistry) SetHostActive(hostName string, active bool) error {
 	hostData, err := r.GetHostByHostName(hostName)
 	if err != nil {
 		return err
 	}
 
-	if ok, _ := r.IsHostActive(hostName); ok == active {
+	if !hostData.Deactivated == active {
 		return nil
 	}
 
 	hostData.Deactivated = !active
-	r.DataSource.Host[hostName] = hostData
+	r.Data.Host[hostName] = hostData
 
 	return nil
 }
 
 func (r *tomlRegistry) GetHosts(f activeFilter) (hosts map[string]hostRegistryData) {
 	if f == activeFilterAll {
-		return r.DataSource.Host
+		return r.Data.Host
 	}
 
 	hosts = map[string]hostRegistryData{}
-	for _, h := range r.DataSource.Host {
+	for _, h := range r.Data.Host {
 		if f == activeFilterActive && h.Deactivated {
 			continue
 		}
@@ -204,10 +181,10 @@ func (r *tomlRegistry) GetHosts(f activeFilter) (hosts map[string]hostRegistryDa
 func (r *tomlRegistry) GetUserCount(f activeFilter) (c int) {
 	switch f {
 	case activeFilterAll:
-		c = len(r.DataSource.User)
+		c = len(r.Data.User)
 		return
 	default:
-		for _, u := range r.DataSource.User {
+		for _, u := range r.Data.User {
 			if u.Deactivated && f == activeFilterDeactivated {
 				c++
 			} else if !u.Deactivated && f == activeFilterActive {
@@ -224,10 +201,10 @@ func (r *tomlRegistry) GetUsers(f activeFilter) (users map[string]UserRegistryDa
 
 	switch f {
 	case activeFilterAll:
-		users = r.DataSource.User
+		users = r.Data.User
 		return
 	default:
-		for userName, u := range r.DataSource.User {
+		for userName, u := range r.Data.User {
 			if u.Deactivated && f == activeFilterDeactivated {
 				users[userName] = u
 			} else if !u.Deactivated && f == activeFilterActive {
@@ -240,7 +217,7 @@ func (r *tomlRegistry) GetUsers(f activeFilter) (users map[string]UserRegistryDa
 }
 
 func (r *tomlRegistry) GetUserByUserName(userName string) (UserRegistryData, error) {
-	userData, ok := r.DataSource.User[userName]
+	userData, ok := r.Data.User[userName]
 	if !ok {
 		return UserRegistryData{}, fmt.Errorf("user with userName, `%s`, not found", userName)
 	}
@@ -270,126 +247,58 @@ func (r *tomlRegistry) AddUser(userName, publicKey string) (UserRegistryData, er
 		User:      userName,
 		PublicKey: strings.TrimSpace(publicKey),
 	}
-	r.DataSource.User[userName] = userData
+	r.Data.User[userName] = userData
 
 	return userData, nil
 }
 
-func (r *tomlRegistry) GetActiveUserByUserName(userName string) (userData UserRegistryData, err error) {
-	userData, err = r.GetUserByUserName(userName)
-	if err != nil {
-		return
-	}
-	if userData.Deactivated {
-		err = fmt.Errorf("user, `%s`, deactivated", userName)
-		return
-	}
-	return
-}
-
 func (r *tomlRegistry) RemoveUser(userName string) error {
-	_, ok := r.DataSource.User[userName]
+	_, ok := r.Data.User[userName]
 	if !ok {
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	delete(r.DataSource.User, userName)
+	delete(r.Data.User, userName)
 
-	for hostName, users := range r.DataSource.Linked {
+	for hostName, users := range r.Data.Linked {
 		if _, ok := users[userName]; !ok {
 			continue
 		}
-		delete(r.DataSource.Linked[hostName], userName)
+		delete(r.Data.Linked[hostName], userName)
 	}
 
 	return nil
 }
 
-func (r *tomlRegistry) SetAdmin(userName string, set bool) error {
+func (r *tomlRegistry) UpdateUser(userName string, newUserData UserRegistryData) (err error) {
 	userData, err := r.GetUserByUserName(userName)
 	if err != nil {
-		return err
+		return
 	}
 
-	userData.IsAdmin = set
-	r.DataSource.User[userName] = userData
-
-	return nil
-}
-
-func (r *tomlRegistry) IsUserActive(userName string) (bool, error) {
-	userData, err := r.GetUserByUserName(userName)
-	if err != nil {
-		return false, err
+	old, _ := json.Marshal(userData)
+	new, _ := json.Marshal(newUserData)
+	if string(old) == string(new) {
+		return
 	}
 
-	return !userData.Deactivated, nil
-}
-
-func (r *tomlRegistry) SetUserActive(userName string, active bool) error {
-	userData, err := r.GetUserByUserName(userName)
-	if err != nil {
-		return err
-	}
-	if ok, _ := r.IsUserActive(userName); ok == active {
+	r.Data.User[newUserData.User] = newUserData
+	if userName == newUserData.User {
 		return nil
 	}
 
-	userData.Deactivated = !active
-	r.DataSource.User[userName] = userData
+	delete(r.Data.User, userName)
 
-	return nil
-}
-
-func (r *tomlRegistry) UpdateUserName(userName, newUserName string) (UserRegistryData, error) {
-	userData, err := r.GetUserByUserName(userName)
-	if err != nil {
-		return UserRegistryData{}, err
-	}
-
-	if userData.User == newUserName {
-		return userData, nil
-	}
-
-	userData.User = newUserName
-	delete(r.DataSource.User, userName)
-
-	r.DataSource.User[newUserName] = userData
-
-	for hostName, users := range r.DataSource.Linked {
+	for hostName, users := range r.Data.Linked {
 		if _, ok := users[userName]; !ok {
 			continue
 		}
-		r.DataSource.Linked[hostName][newUserName] = r.DataSource.Linked[hostName][userName]
+		r.Data.Linked[hostName][newUserData.User] = r.Data.Linked[hostName][userName]
 
-		delete(r.DataSource.Linked[hostName], userName)
+		delete(r.Data.Linked[hostName], userName)
 	}
 
-	return userData, nil
-}
-
-func (r *tomlRegistry) UpdateUserPublicKey(userName, newPublicKey string) (UserRegistryData, error) {
-	userData, err := r.GetUserByUserName(userName)
-	if err != nil {
-		return UserRegistryData{}, err
-	}
-
-	if userData.PublicKey == newPublicKey {
-		return userData, nil
-	}
-	var publicKey saultSsh.PublicKey
-	if publicKey, err = ParsePublicKeyFromString(newPublicKey); err != nil {
-		return UserRegistryData{}, err
-	}
-	if another, err := r.GetUserByPublicKey(publicKey); err == nil && another.User != userData.User {
-		return UserRegistryData{}, fmt.Errorf("another user has same publicKey")
-	}
-
-	userData.PublicKey = strings.TrimSpace(newPublicKey)
-	userData.parsedPublicKey = nil
-	r.DataSource.User[userName] = userData
-
-	return userData, nil
+	return nil
 }
 
 func (r *tomlRegistry) AddHost(
@@ -399,14 +308,6 @@ func (r *tomlRegistry) AddHost(
 	port uint64,
 	accounts []string,
 ) (hostRegistryData, error) {
-	if _, err := r.GetHostByHostName(hostName); err == nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s` already added", hostName)
-	}
-
-	if len(accounts) < 1 {
-		accounts = append(accounts, defaultAccount)
-	}
-
 	hostData := hostRegistryData{
 		Host:           hostName,
 		DefaultAccount: defaultAccount,
@@ -415,7 +316,7 @@ func (r *tomlRegistry) AddHost(
 		Accounts:       accounts,
 	}
 
-	r.DataSource.Host[hostName] = hostData
+	r.Data.Host[hostName] = hostData
 
 	return hostData, nil
 }
@@ -423,9 +324,9 @@ func (r *tomlRegistry) AddHost(
 func (r *tomlRegistry) GetHostCount(f activeFilter) (c int) {
 	switch f {
 	case activeFilterAll:
-		c = len(r.DataSource.Host)
+		c = len(r.Data.Host)
 	default:
-		for _, u := range r.DataSource.Host {
+		for _, u := range r.Data.Host {
 			if u.Deactivated && f == activeFilterDeactivated {
 				c++
 			} else if !u.Deactivated && f == activeFilterActive {
@@ -442,10 +343,37 @@ func (r *tomlRegistry) RemoveHost(hostName string) error {
 		return fmt.Errorf("hostName, `%s`, not found", hostName)
 	}
 
-	delete(r.DataSource.Host, hostName)
+	delete(r.Data.Host, hostName)
 
-	if _, ok := r.DataSource.Linked[hostName]; ok {
-		delete(r.DataSource.Linked, hostName)
+	if _, ok := r.Data.Linked[hostName]; ok {
+		delete(r.Data.Linked, hostName)
+	}
+
+	return nil
+}
+
+func (r *tomlRegistry) UpdateHost(hostName string, newHostData hostRegistryData) (err error) {
+	hostData, err := r.GetHostByHostName(hostName)
+	if err != nil {
+		return
+	}
+
+	old, _ := json.Marshal(hostData)
+	new, _ := json.Marshal(newHostData)
+	if string(old) == string(new) {
+		return
+	}
+
+	r.Data.Host[newHostData.Host] = newHostData
+	if hostName == newHostData.Host {
+		return nil
+	}
+
+	delete(r.Data.Host, hostName)
+
+	if _, ok := r.Data.Linked[hostName]; ok {
+		r.Data.Linked[newHostData.Host] = r.Data.Linked[hostName]
+		delete(r.Data.Linked, hostName)
 	}
 
 	return nil
@@ -466,102 +394,13 @@ func (r *tomlRegistry) UpdateHostName(hostName, newHostName string) (hostRegistr
 
 	hostData.Host = newHostName
 
-	delete(r.DataSource.Host, hostName)
-	r.DataSource.Host[newHostName] = hostData
+	delete(r.Data.Host, hostName)
+	r.Data.Host[newHostName] = hostData
 
-	if _, ok := r.DataSource.Linked[hostName]; ok {
-		r.DataSource.Linked[newHostName] = r.DataSource.Linked[hostName]
-		delete(r.DataSource.Linked, hostName)
+	if _, ok := r.Data.Linked[hostName]; ok {
+		r.Data.Linked[newHostName] = r.Data.Linked[hostName]
+		delete(r.Data.Linked, hostName)
 	}
-
-	return hostData, nil
-}
-
-func (r *tomlRegistry) UpdateHostDefaultAccount(hostName, defaultAccount string) (hostRegistryData, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
-	}
-	if defaultAccount == hostData.DefaultAccount {
-		return hostData, nil
-	}
-
-	hostData.DefaultAccount = defaultAccount
-
-	var found bool
-	for _, a := range hostData.Accounts {
-		if a == defaultAccount {
-			found = true
-			break
-		}
-	}
-	if !found {
-		hostData.Accounts = append(hostData.Accounts, defaultAccount)
-	}
-
-	r.DataSource.Host[hostName] = hostData
-
-	return hostData, nil
-}
-
-func (r *tomlRegistry) UpdateHostAccounts(hostName string, accounts []string) (hostRegistryData, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
-	}
-
-	if reflect.DeepEqual(accounts, hostData.Accounts) {
-		return hostData, nil
-	}
-
-	var found bool
-	for _, a := range accounts {
-		if a == hostData.DefaultAccount {
-			found = true
-			break
-		}
-	}
-	if !found {
-		accounts = append(accounts, hostData.DefaultAccount)
-	}
-
-	hostData.Accounts = accounts
-
-	r.DataSource.Host[hostName] = hostData
-
-	return hostData, nil
-}
-
-func (r *tomlRegistry) UpdateHostAddress(hostName, address string) (hostRegistryData, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
-	}
-
-	if address == hostData.Address {
-		return hostData, nil
-	}
-
-	hostData.Address = address
-
-	r.DataSource.Host[hostName] = hostData
-
-	return hostData, nil
-}
-
-func (r *tomlRegistry) UpdateHostPort(hostName string, port uint64) (hostRegistryData, error) {
-	hostData, err := r.GetHostByHostName(hostName)
-	if err != nil {
-		return hostRegistryData{}, fmt.Errorf("hostName, `%s`, not found", hostName)
-	}
-
-	if port == hostData.Port {
-		return hostData, nil
-	}
-
-	hostData.Port = port
-
-	r.DataSource.Host[hostName] = hostData
 
 	return hostData, nil
 }
@@ -575,11 +414,11 @@ func (r *tomlRegistry) IsLinkedAll(hostName, userName string) bool {
 		return false
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
 		return false
 	}
-	uc, ok := r.DataSource.Linked[hostName][userName]
+	uc, ok := r.Data.Linked[hostName][userName]
 	if !ok {
 		return false
 	}
@@ -606,11 +445,11 @@ func (r *tomlRegistry) IsLinked(hostName, userName, targetAccount string) bool {
 		return false
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
 		return false
 	}
-	uc, ok := r.DataSource.Linked[hostName][userName]
+	uc, ok := r.Data.Linked[hostName][userName]
 	if !ok {
 		return false
 	}
@@ -633,11 +472,11 @@ func (r *tomlRegistry) LinkAll(hostName, userName string) error {
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
-		r.DataSource.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
+		r.Data.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
 	}
-	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: []string{"*"}}
+	r.Data.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: []string{"*"}}
 
 	return nil
 }
@@ -655,13 +494,13 @@ func (r *tomlRegistry) Link(hostName, userName string, targetAccounts []string) 
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
-		r.DataSource.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
+		r.Data.Linked[hostName] = map[string]tomlLinkedUserRegistryData{}
 	}
-	uc, ok := r.DataSource.Linked[hostName][userName]
+	uc, ok := r.Data.Linked[hostName][userName]
 	if !ok {
-		r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: targetAccounts}
+		r.Data.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: targetAccounts}
 		return nil
 	}
 
@@ -682,7 +521,7 @@ func (r *tomlRegistry) Link(hostName, userName string, targetAccounts []string) 
 		filtered = append(filtered, a)
 	}
 
-	r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
+	r.Data.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
 
 	return nil
 }
@@ -699,11 +538,11 @@ func (r *tomlRegistry) Unlink(hostName, userName string, targetAccounts []string
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
 		return nil
 	}
-	uc, ok := r.DataSource.Linked[hostName][userName]
+	uc, ok := r.Data.Linked[hostName][userName]
 	if !ok {
 		return nil
 	}
@@ -725,9 +564,9 @@ func (r *tomlRegistry) Unlink(hostName, userName string, targetAccounts []string
 	}
 
 	if len(filtered) < 1 {
-		delete(r.DataSource.Linked[hostName], userName)
+		delete(r.Data.Linked[hostName], userName)
 	} else {
-		r.DataSource.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
+		r.Data.Linked[hostName][userName] = tomlLinkedUserRegistryData{Account: filtered}
 	}
 
 	return nil
@@ -742,11 +581,11 @@ func (r *tomlRegistry) UnlinkAll(hostName, userName string) error {
 		return fmt.Errorf("userName, `%s`, not found", userName)
 	}
 
-	_, ok := r.DataSource.Linked[hostName]
+	_, ok := r.Data.Linked[hostName]
 	if !ok {
 		return nil
 	}
-	delete(r.DataSource.Linked[hostName], userName)
+	delete(r.Data.Linked[hostName], userName)
 
 	return nil
 }
@@ -754,10 +593,10 @@ func (r *tomlRegistry) UnlinkAll(hostName, userName string) error {
 func (r *tomlRegistry) GetLinkedHosts(userName string) map[string][]string {
 	linked := map[string][]string{}
 	for _, hostData := range r.GetHosts(activeFilterAll) {
-		if _, ok := r.DataSource.Linked[hostData.Host]; !ok {
+		if _, ok := r.Data.Linked[hostData.Host]; !ok {
 			continue
 		}
-		if ch, ok := r.DataSource.Linked[hostData.Host][userName]; !ok {
+		if ch, ok := r.Data.Linked[hostData.Host][userName]; !ok {
 			continue
 		} else {
 			linked[hostData.Host] = ch.Account
