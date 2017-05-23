@@ -1,6 +1,7 @@
 package sault
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -45,6 +46,11 @@ func (u UserRegistryData) String() string {
 		a = "*"
 	}
 	return fmt.Sprintf("{%s%s %s}", u.User, a, "...")
+}
+
+func (u UserRegistryData) ToJSON() []byte {
+	jsoned, _ := json.Marshal(u)
+	return jsoned
 }
 
 type hostRegistryData struct {

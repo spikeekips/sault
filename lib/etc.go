@@ -51,8 +51,9 @@ var availableLogLevel = [6]string{
 	"quiet",
 }
 
-var availableRegistryType = [1]string{
+var availableRegistryType = [2]string{
 	"toml",
+	"consul",
 }
 
 var defaultServerName = "sault"

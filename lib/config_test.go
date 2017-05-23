@@ -132,7 +132,7 @@ global_client_key_path = "./client.key"
   "Registry": {
     "Type": "toml",
     "Source": {
-      "File": {
+      "Toml": {
         "Path": "{{.BaseDirectory}}registry.toml"
       }
     }

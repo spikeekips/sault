@@ -12,6 +12,14 @@ import (
 	"github.com/spikeekips/sault/ssh"
 )
 
+type configTOMLRegistry struct {
+	Path string
+}
+
+func (c configTOMLRegistry) GetType() string {
+	return "toml"
+}
+
 type tomlLinkedUserRegistryData struct {
 	Accounts []string
 }
@@ -27,15 +35,24 @@ type tomlRegistry struct {
 	Data *tomlRegistryData
 }
 
-func newTOMLRegistryDataSource(config configTOMLRegistry, initialize bool) (*tomlRegistry, error) {
-	r := tomlRegistry{Path: config.Path}
+func newTOMLRegistryDataSource(config configTOMLRegistry, initialize bool) (r *tomlRegistry, err error) {
+	r = &tomlRegistry{Path: config.Path}
 
 	if initialize {
-		f, err := os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE, 0600)
+		var f *os.File
+		f, err = os.OpenFile(config.Path, os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
-			return nil, err
+			return
 		}
 		f.Close()
+	} else {
+		var fi os.FileInfo
+		if fi, err = os.Stat(config.Path); os.IsNotExist(err) {
+			return
+		} else if fmt.Sprintf("%04o", fi.Mode()) != "0600" {
+			err = fmt.Errorf("registry file must have the perm, 0600")
+			return
+		}
 	}
 
 	f, err := os.Open(config.Path)
@@ -55,7 +72,7 @@ func newTOMLRegistryDataSource(config configTOMLRegistry, initialize bool) (*tom
 	}
 	r.Data = dataSource
 
-	return &r, nil
+	return r, nil
 }
 
 func (r *tomlRegistry) marshal() *bytes.Buffer {

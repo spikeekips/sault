@@ -37,25 +37,17 @@ type configSourceRegistry interface {
 type configRegistry struct {
 	Type   string
 	Source struct {
-		File configTOMLRegistry
+		Toml configTOMLRegistry
 	}
 }
 
 func (c configRegistry) GetSource() (configSourceRegistry, error) {
 	switch t := c.Type; t {
 	case "toml":
-		return c.Source.File, nil
+		return c.Source.Toml, nil
 	default:
 		return nil, fmt.Errorf("invalid source type, '%s'", t)
 	}
-}
-
-type configTOMLRegistry struct {
-	Path string
-}
-
-func (c configTOMLRegistry) GetType() string {
-	return "toml"
 }
 
 // Config contains all available configurations
@@ -143,8 +135,8 @@ func (c *Config) fillEmpty() {
 		c.Log.Format = DefaultLogFormat
 	}
 
-	if c.Registry.Type == "toml" && c.Registry.Source.File.Path == "" {
-		c.Registry.Source.File.Path = BaseJoin(c.baseDirectory, "./registry.toml")
+	if c.Registry.Type == "toml" && c.Registry.Source.Toml.Path == "" {
+		c.Registry.Source.Toml.Path = BaseJoin(c.baseDirectory, "./registry.toml")
 	}
 }
 
@@ -263,19 +255,7 @@ func (c *Config) validateRegistry() error {
 		return fmt.Errorf("invalid registry type, '%s'", c.Registry.Type)
 	}
 
-	if c.Registry.Type != "toml" {
-		return nil
-	}
-	config := c.Registry.Source.File
-	if config.Path == "" {
-		return fmt.Errorf("registry file, '%s' is missing", config.Path)
-	}
-
-	if fi, err := os.Stat(config.Path); os.IsNotExist(err) {
-		return err
-	} else if fmt.Sprintf("%04o", fi.Mode()) != "0600" {
-		return fmt.Errorf("registry file must have the perm, 0600")
-	}
+	log.Debugf("registry type is %s", c.Registry.Type)
 
 	return nil
 }
