@@ -37,7 +37,7 @@ func TestNewRegistry(t *testing.T) {
 	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	_, err := NewRegistry(sourceType, configSource, false)
+	_, err := newRegistry(sourceType, configSource, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -52,7 +52,7 @@ func TestFileRegistry(t *testing.T) {
 	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	registry, _ := NewRegistry(sourceType, configSource, false)
+	registry, _ := newRegistry(sourceType, configSource, false)
 	if registry.GetType() != "toml" {
 		t.Errorf("invalid registry type, '%v'", registry.GetType())
 	}
@@ -67,7 +67,7 @@ func registrySetup() (registry *Registry) {
 	configSource := configTOMLRegistry{
 		Path: registryToml.Name(),
 	}
-	registry, _ = NewRegistry(sourceType, configSource, false)
+	registry, _ = newRegistry(sourceType, configSource, false)
 	return
 }
 
@@ -104,8 +104,8 @@ func TestRegistryAddUser(t *testing.T) {
 		t.Errorf("userData.PublicKey != publicKeyString, '%v' != '%v'", userData.PublicKey, publicKeyString)
 	}
 
-	if len(registry.DataSource.(*tomlRegistry).Data.User) != 1 {
-		t.Errorf("wrong user count, %d", len(registry.DataSource.(*tomlRegistry).Data.User))
+	if len(registry.d.User) != 1 {
+		t.Errorf("wrong user count, %d", len(registry.d.User))
 	}
 }
 
@@ -532,7 +532,7 @@ deactivated = false
 		},
 	)
 
-	rString := registry.String()
+	rString := strings.TrimSpace(string(registry.Bytes()))
 	bwString := strings.TrimSpace(bw.String())
 	if rString != bwString {
 		t.Errorf("registry.String() != bw.String()")
@@ -545,16 +545,12 @@ deactivated = false
 	`, rString, bwString)
 	}
 
-	newToml, _ := ioutil.TempFile("/tmp/", "sault-test")
-	defer os.Remove(newToml.Name())
-
-	err := registry.Save(newToml)
+	err := registry.Save()
 	if err != nil {
 		t.Error(err)
 	}
-	newToml.Close()
 
-	saved, err := ioutil.ReadFile(newToml.Name())
+	saved, err := registry.source.Bytes()
 	if err != nil {
 		t.Error(err)
 	}
@@ -570,77 +566,6 @@ deactivated = false
 %s
 --------------------------------------------------------------------------------
 	`, rString, savedString)
-	}
-}
-
-func TestRegistrySync(t *testing.T) {
-	registry := registrySetup()
-	defer os.Remove(registry.DataSource.(*tomlRegistry).Path)
-
-	defaultAccount := "ubuntu"
-	address := "192.168.99.110"
-	var port uint64
-
-	userName := makeUserName()
-	publicKeyString := generatePublicKey()
-
-	userData, _ := registry.AddUser(userName, publicKeyString)
-	hostData, _ := registry.AddHost(
-		GetUUID(),
-		defaultAccount,
-		address,
-		port,
-		[]string{},
-	)
-
-	tmpl, _ := template.New("t").Parse(`
-[user.{{.user.User}}]
-user = "{{.user.User}}"
-public_key = "{{.publicKey}}"
-is_admin = false
-deactivated = false
-
-[host.{{.host.Host}}]
-host = "{{.host.Host}}"
-default_account = "{{.host.DefaultAccount}}"
-accounts = ["{{.host.DefaultAccount}}"]
-address = "{{.host.Address}}"
-port = {{.host.Port}}
-deactivated = false
-	`)
-
-	bw := bytes.NewBuffer([]byte{})
-	tmpl.Execute(
-		bw,
-		map[string]interface{}{
-			"user":      userData,
-			"host":      hostData,
-			"publicKey": template.HTML(userData.PublicKey),
-		},
-	)
-
-	bwString := strings.TrimSpace(bw.String())
-
-	err := registry.Sync()
-	if err != nil {
-		t.Error(err)
-	}
-	synced, err := ioutil.ReadFile(registry.DataSource.(*tomlRegistry).Path)
-	if err != nil {
-		t.Error(err)
-	}
-
-	syncedString := strings.TrimSpace(string(synced))
-
-	if syncedString != bwString {
-		t.Errorf("syncedString != bwString")
-		fmt.Printf(`
---------------------------------------------------------------------------------
-%s
---------------------------------------------------------------------------------
-%s
---------------------------------------------------------------------------------
-			`, syncedString, bwString)
 	}
 }
 

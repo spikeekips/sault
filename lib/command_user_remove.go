@@ -94,7 +94,7 @@ func responseUserRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		users = append(users, userName)
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

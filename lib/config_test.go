@@ -2,6 +2,7 @@ package sault
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -11,12 +12,29 @@ import (
 
 var BaseDirectory = "/tmp/"
 
+func makeTestKeys() (string, string) {
+	hostKey, _ := ioutil.TempFile("/tmp/", "sault-test")
+	hostKey.Write([]byte(generatePrivateKey()))
+	hostKey.Close()
+	clientKey, _ := ioutil.TempFile("/tmp/", "sault-test")
+	clientKey.Write([]byte(generatePrivateKey()))
+	clientKey.Close()
+
+	return hostKey.Name(), clientKey.Name()
+}
+
 func TestLoadConfigFile(t *testing.T) {
-	configTOML := `
+	hostKey, clientKey := makeTestKeys()
+	defer os.Remove(hostKey)
+	defer os.Remove(clientKey)
+
+	configTOML := fmt.Sprintf(`
 [server]
-host_key_path = "./host.key"
-global_client_key_path = "./client.key"
-	`
+host_key_path = "%s"
+global_client_key_path = "%s"
+	`, hostKey, clientKey,
+	)
+
 	configFile, _ := ioutil.TempFile("/tmp/", "sault-test")
 	defer os.Remove(configFile.Name())
 
@@ -57,8 +75,10 @@ func TestLoadMultipleConfigFile(t *testing.T) {
 host_key_path = "./host0.key"
 global_client_key_path = "./client0.key"
 	`
-	lastHostKeyPath := "./host1.key"
-	lastGlobalClientKeyPath := "./client1.key"
+
+	lastHostKeyPath, lastGlobalClientKeyPath := makeTestKeys()
+	defer os.Remove(lastHostKeyPath)
+	defer os.Remove(lastGlobalClientKeyPath)
 
 	templateConfigTOML1, _ := template.New("t").Parse(`
 [server]
@@ -99,11 +119,15 @@ global_client_key_path = "{{.lastGlobalClientKeyPath}}"
 }
 
 func TestConfigToJSON(t *testing.T) {
-	configTOML := `
+	hostKey, clientKey := makeTestKeys()
+	defer os.Remove(hostKey)
+	defer os.Remove(clientKey)
+
+	configTOML := fmt.Sprintf(`
 [server]
-host_key_path = "./host.key"
-global_client_key_path = "./client.key"
-	`
+host_key_path = "%s"
+global_client_key_path = "%s"
+	`, hostKey, clientKey)
 	configFile, _ := ioutil.TempFile("/tmp/", "sault-test")
 	defer os.Remove(configFile.Name())
 
@@ -119,8 +143,8 @@ global_client_key_path = "./client.key"
 {
   "Server": {
     "Bind": "{{ .ServerBind }}",
-    "HostKeyPath": "./host.key",
-    "GlobalClientKeyPath": "./client.key",
+    "HostKeyPath": "{{ .hostKey }}",
+    "GlobalClientKeyPath": "{{ .clientKey }}",
     "ServerName": "sault",
     "AllowUserCanUpdate": true
   },
@@ -142,6 +166,8 @@ global_client_key_path = "./client.key"
 	templateConfigJSON.Execute(bw, map[string]interface{}{
 		"ServerBind":    defaultServerBind,
 		"BaseDirectory": BaseDirectory,
+		"hostKey":       hostKey,
+		"clientKey":     clientKey,
 	})
 
 	configJSON := strings.TrimSpace(bw.String())

@@ -194,7 +194,7 @@ func addAdmin(registry *Registry, adminName, publicKeyString string) (UserRegist
 		return UserRegistryData{}, fmt.Errorf("failed to create admin: %v", err)
 	}
 
-	if err := registry.Sync(); err != nil {
+	if err := registry.Save(); err != nil {
 		return UserRegistryData{}, fmt.Errorf("failed to save registry: %v", err)
 	}
 

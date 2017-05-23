@@ -100,7 +100,7 @@ func responseHostActive(
 		hosts = append(hosts, hostData)
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

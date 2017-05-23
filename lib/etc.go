@@ -51,6 +51,11 @@ var availableLogLevel = [6]string{
 	"quiet",
 }
 
+const (
+	configFileMode   = 0600
+	registryFileMode = 0600
+)
+
 var availableRegistryType = [2]string{
 	"toml",
 	"consul",

@@ -100,7 +100,7 @@ func getRegistryFromConfig(config *Config, initialize bool) (*Registry, error) {
 		return nil, err
 	}
 
-	registry, err := NewRegistry(config.Registry.Type, cs, initialize)
+	registry, err := newRegistry(config.Registry.Type, cs, initialize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load registry: %v", err)
 	}
@@ -125,12 +125,6 @@ func runServer(options OptionsValues, globalOptions OptionsValues) (err error) {
 		config, err = loadConfig(flagArgs)
 		if err != nil {
 			log.Errorf("failed to load configs: %v", err)
-
-			return
-		}
-
-		if err = config.validate(); err != nil {
-			log.Errorf("%v", err)
 
 			return
 		}

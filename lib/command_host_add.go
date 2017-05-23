@@ -250,7 +250,7 @@ func responseHostAdd(pc *proxyConnection, channel saultSsh.Channel, msg commandM
 		return
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

@@ -88,7 +88,7 @@ func responseUserAdmin(pc *proxyConnection, channel saultSsh.Channel, msg comman
 		users = append(users, newUserResponseData(pc.proxy.Registry, userData))
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

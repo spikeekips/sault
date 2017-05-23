@@ -116,7 +116,7 @@ func responseLink(pc *proxyConnection, channel saultSsh.Channel, msg commandMsg)
 		}
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

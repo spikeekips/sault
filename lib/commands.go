@@ -13,6 +13,7 @@ var commandForNotAdmin map[string]bool
 var serverOptionsTemplate OptionsTemplate
 var userOptionsTemplate OptionsTemplate
 var hostOptionsTemplate OptionsTemplate
+var serverReloadOptionsTemplate OptionsTemplate
 
 // GlobalOptionsTemplate has global flags
 var GlobalOptionsTemplate OptionsTemplate
@@ -22,6 +23,16 @@ var RequestCommands map[string]func(OptionsValues, OptionsValues) error
 var responseCommands map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error)
 
 func init() {
+	serverReloadOptionsTemplate = OptionsTemplate{
+		Name:  "reload",
+		Help:  "reload server",
+		Usage: "[flags] command",
+		Commands: []OptionsTemplate{
+			reloadConfigOptionsTemplate,
+			reloadRegistryOptionsTemplate,
+		},
+	}
+
 	serverOptionsTemplate = OptionsTemplate{
 		Name:  "server",
 		Help:  "sault server",
@@ -30,6 +41,7 @@ func init() {
 			serverRunOptionsTemplate,
 			showConfigOptionsTemplate,
 			showClientKeysOptionsTemplate,
+			serverReloadOptionsTemplate,
 		},
 	}
 
@@ -64,53 +76,57 @@ func init() {
 
 	globalOptionsTemplate.Commands = append(globalOptionsTemplate.Commands,
 		[]OptionsTemplate{
-			initOptionsTemplate,
-			serverOptionsTemplate,
 			userOptionsTemplate,
 			hostOptionsTemplate,
 			whoAmIOptionsTemplate,
+			serverOptionsTemplate,
+			initOptionsTemplate,
 		}...,
 	)
 	GlobalOptionsTemplate = globalOptionsTemplate
 
 	RequestCommands = map[string]func(OptionsValues, OptionsValues) error{
-		"init":              runInit,
-		"server.run":        runServer,
-		"server.config":     requestShowConfig,
-		"server.clientKeys": requestShowClientKeys,
-		"user.get":          requestUserGet,
-		"user.add":          requestUserAdd,
-		"user.remove":       requestUserRemove,
-		"user.active":       requestUserActive,
-		"user.admin":        requestUserAdmin,
-		"user.update":       requestUserUpdate,
-		"host.get":          requestHostGet,
-		"host.add":          requestHostAdd,
-		"host.remove":       requestHostRemove,
-		"host.update":       requestHostUpdate,
-		"host.active":       requestHostActive,
-		"host.alive":        requesthostAlive,
-		"user.link":         requestLink,
-		"whoami":            requestWhoAmI,
+		"init":                   runInit,
+		"server.run":             runServer,
+		"server.config":          requestShowConfig,
+		"server.clientKeys":      requestShowClientKeys,
+		"server.reload.registry": requestReloadRegistry,
+		"server.reload.config":   requestReloadConfig,
+		"user.get":               requestUserGet,
+		"user.add":               requestUserAdd,
+		"user.remove":            requestUserRemove,
+		"user.active":            requestUserActive,
+		"user.admin":             requestUserAdmin,
+		"user.update":            requestUserUpdate,
+		"host.get":               requestHostGet,
+		"host.add":               requestHostAdd,
+		"host.remove":            requestHostRemove,
+		"host.update":            requestHostUpdate,
+		"host.active":            requestHostActive,
+		"host.alive":             requesthostAlive,
+		"user.link":              requestLink,
+		"whoami":                 requestWhoAmI,
 	}
 	responseCommands = map[string]func(*proxyConnection, saultSsh.Channel, commandMsg) (uint32, error){
-		"server.config":     responseShowConfig,
-		"server.clientKeys": responseShowClientKeys,
-		"user.get":          responseUserGet,
-		"user.add":          responseUserAdd,
-		"user.remove":       responseUserRemove,
-		"user.active":       responseUserActive,
-		"user.admin":        responseUserAdmin,
-		"user.update":       responseUserUpdate,
-		"user.link":         responseLink,
-		"host.get":          responseHostGet,
-		"host.add":          responseHostAdd,
-		"host.remove":       responseHostRemove,
-		"host.update":       responseHostUpdate,
-		"host.active":       responseHostActive,
-		"host.alive":        responsehostAlive,
-		"whoami":            responseWhoAmI,
-		"publicKey":         responseUpdatePublicKey,
+		"server.config":          responseShowConfig,
+		"server.clientKeys":      responseShowClientKeys,
+		"server.reload.registry": responseReloadRegistry,
+		"server.reload.config":   responseReloadConfig,
+		"user.get":               responseUserGet,
+		"user.add":               responseUserAdd,
+		"user.remove":            responseUserRemove,
+		"user.active":            responseUserActive,
+		"user.admin":             responseUserAdmin,
+		"user.update":            responseUserUpdate,
+		"user.link":              responseLink,
+		"host.get":               responseHostGet,
+		"host.add":               responseHostAdd,
+		"host.remove":            responseHostRemove,
+		"host.update":            responseHostUpdate,
+		"host.active":            responseHostActive,
+		"host.alive":             responsehostAlive,
+		"whoami":                 responseWhoAmI,
+		"publicKey":              responseUpdatePublicKey,
 	}
 
 	// this is for commands thru native ssh client

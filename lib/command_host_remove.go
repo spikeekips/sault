@@ -92,7 +92,7 @@ func responseHostRemove(pc *proxyConnection, channel saultSsh.Channel, msg comma
 		hosts = append(hosts, hostName)
 	}
 
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		return
 	}

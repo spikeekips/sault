@@ -20,7 +20,7 @@ func responseUpdatePublicKey(pc *proxyConnection, channel saultSsh.Channel, msg 
 		channel.Write([]byte(err.Error()))
 		return
 	}
-	err = pc.proxy.Registry.Sync()
+	err = pc.proxy.Registry.Save()
 	if err != nil {
 		channel.Write([]byte(err.Error()))
 		return

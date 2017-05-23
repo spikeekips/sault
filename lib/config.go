@@ -32,6 +32,7 @@ type configLog struct {
 
 type configSourceRegistry interface {
 	GetType() string
+	Validate(*Config) error
 }
 
 type configRegistry struct {
@@ -52,6 +53,7 @@ func (c configRegistry) GetSource() (configSourceRegistry, error) {
 
 // Config contains all available configurations
 type Config struct {
+	args          map[string]interface{}
 	Server        configServer
 	Log           configLog
 	Registry      configRegistry
@@ -93,10 +95,18 @@ func loadConfig(args map[string]interface{}) (*Config, error) {
 
 	config.fillEmpty()
 
+	if err := config.validate(); err != nil {
+		return nil, err
+	}
+
 	log.Debugf(`loaded config:
 --------------------------------------------------------------------------------
 %s
---------------------------------------------------------------------------------`, strings.TrimSpace(config.String()))
+--------------------------------------------------------------------------------`,
+		strings.TrimSpace(config.String()),
+	)
+
+	config.args = args
 
 	return config, nil
 }
@@ -118,11 +128,19 @@ func (c *Config) fillEmpty() {
 	if c.Server.ServerName == "" {
 		c.Server.ServerName = defaultServerName
 	}
-	if c.Server.HostKeyPath == "" {
-		c.Server.HostKeyPath = BaseJoin(c.baseDirectory, "./host.key")
+	{
+		p := c.Server.HostKeyPath
+		if p == "" {
+			p = "./host.key"
+		}
+		c.Server.HostKeyPath = BaseJoin(c.baseDirectory, p)
 	}
-	if c.Server.GlobalClientKeyPath == "" {
-		c.Server.GlobalClientKeyPath = BaseJoin(c.baseDirectory, "./client.key")
+	{
+		p := c.Server.GlobalClientKeyPath
+		if p == "" {
+			p = "./client.key"
+		}
+		c.Server.GlobalClientKeyPath = BaseJoin(c.baseDirectory, p)
 	}
 
 	if c.Log.Level == "" {
@@ -257,6 +275,15 @@ func (c *Config) validateRegistry() error {
 
 	log.Debugf("registry type is %s", c.Registry.Type)
 
+	source, err := c.Registry.GetSource()
+	if err != nil {
+		return err
+	}
+	err = source.Validate(c)
+	if err != nil {
+		return nil
+	}
+
 	return nil
 }
 
@@ -275,7 +302,7 @@ func (c *Config) ToJSON() string {
 
 // Save saves configuration to file as TOML format
 func (c *Config) Save(path string) error {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, configFileMode)
 	if err != nil {
 		return err
 	}
