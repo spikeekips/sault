@@ -53,6 +53,7 @@ func (e *HostNothingToUpdate) Error() string {
 	return fmt.Sprintf("nothing to be updated for host, '%s'", e.ID)
 }
 
+// TODO move to saultcommon
 type HostExistError struct {
 	ID string
 }

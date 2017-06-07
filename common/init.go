@@ -1,6 +1,7 @@
 package saultcommon
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -54,6 +55,7 @@ func init() {
 				0,
 				0,
 			)
+			fmt.Fprint(os.Stdout, "\n")
 			os.Exit(1)
 		}
 	}()

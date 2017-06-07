@@ -1,10 +1,17 @@
 package saultcommands
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
+	"github.com/spikeekips/sault/sault"
+	"github.com/spikeekips/sault/sssh"
 )
 
 var maxConnectionString = 3
@@ -189,4 +196,154 @@ func printServerKind(templateName, key string, value string) string {
 	}
 
 	return strings.TrimSpace(t) + "\n"
+}
+
+func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey sssh.PublicKey) (err error) {
+	log.Debugf("trying to inject client public key to host")
+
+	checkCmd := fmt.Sprintf("sh -c '[ -d %s ] && echo 1 || echo 0'", sault.SSHDirectory)
+	output, err := sc.Run(checkCmd)
+	if err != nil {
+		log.Errorf("failed to check ssh directory, %s: %v", sault.SSHDirectory, err)
+		return
+	}
+
+	if strings.TrimSpace(string(output)) == "0" {
+		log.Debugf("ssh directory, '%s' does not exist, create new", sault.SSHDirectory)
+		if err = sc.MakeDir(sault.SSHDirectory, 0700, true); err != nil {
+			log.Debugf("failed to create ssh directory, '%s': %v", sault.SSHDirectory, err)
+			return
+		}
+		err = sc.PutFile(saultcommon.GetAuthorizedKey(publicKey)+"\n", sault.AuthorizedKeyFile, 0600)
+		if err != nil {
+			log.Debugf("failed to create new authorized_keys file, '%s': %v", sault.AuthorizedKeyFile, err)
+			return
+		}
+		log.Debugf("created new authorized_keys file, '%s'", sault.AuthorizedKeyFile)
+
+		return nil
+	}
+
+	log.Debugf("check file exists, '%s'", sault.AuthorizedKeyFile)
+	authorizedPublicKey := saultcommon.GetAuthorizedKey(publicKey)
+	output, err = sc.GetFile(sault.AuthorizedKeyFile)
+	if err != nil {
+		log.Debugf("'%s' does not exist, create new", sault.AuthorizedKeyFile)
+		err = sc.PutFile(authorizedPublicKey+"\n", sault.AuthorizedKeyFile, 0600)
+		if err != nil {
+			return
+		}
+
+		return
+	}
+
+	log.Debugf("found '%s', check the same record", sault.AuthorizedKeyFile)
+	var foundSame bool
+	r := bufio.NewReader(bytes.NewBuffer(output))
+	for {
+		c, err := r.ReadString(10)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			break
+		}
+		if len(strings.TrimSpace(c)) < 1 {
+			continue
+		}
+
+		p, err := saultcommon.ParsePublicKey([]byte(c))
+		if err != nil {
+			continue
+		}
+		if saultcommon.GetAuthorizedKey(p) == authorizedPublicKey {
+			foundSame = true
+			break
+		}
+	}
+
+	if foundSame {
+		log.Debugf("found same record in '%s', client public key already added.", sault.AuthorizedKeyFile)
+		err = nil
+		return
+	}
+
+	content := fmt.Sprintf(`%s
+
+# from sault ###################################################################
+%s
+################################################################################
+`,
+		strings.TrimSpace(string(output)),
+		authorizedPublicKey,
+	)
+
+	err = sc.PutFile(content, sault.AuthorizedKeyFile, 0600)
+	if err != nil {
+		return
+	}
+
+	return nil
+}
+
+func passphraseChallenge(run func(passphrase string) error) (err error) {
+	var passphrase string
+	var MaxPassphraseTries = 3
+	var passphraseTried int
+
+	for {
+		err = run(passphrase)
+		if err == nil {
+			return nil
+		}
+
+		var responseMsgErr *saultcommon.ResponseMsgError
+		var ok bool
+		if responseMsgErr, ok = err.(*saultcommon.ResponseMsgError); !ok {
+			return
+		}
+
+		if responseMsgErr.IsError(saultcommon.CommandErrorAuthFailed) {
+			passphraseTried++
+			if passphraseTried > MaxPassphraseTries {
+				err = &saultcommon.ResponseMsgError{
+					ErrorType: saultcommon.CommandErrorAuthFailed,
+					Message:   fmt.Sprintf("failed to add host, because could not authenticate"),
+				}
+				return
+			}
+
+			var helpMessage string
+			if passphraseTried < 2 {
+				helpMessage, _ = saultcommon.SimpleTemplating(hostAddHelpFirstMessage, nil)
+			} else {
+				helpMessage, _ = saultcommon.SimpleTemplating(hostAddHelpNextMessage, nil)
+			}
+			fmt.Fprint(os.Stdout, strings.TrimSpace(helpMessage)+"\n")
+			passphrase, err = saultcommon.ReadPassword(3)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			continue
+		}
+
+		if responseMsgErr.IsError(saultcommon.CommandErrorInjectClientKey) {
+			err = &saultcommon.ResponseMsgError{
+				ErrorType: saultcommon.CommandErrorAuthFailed,
+				Message:   "failed to add host, something wrong. Could not inject the sault client key to host.",
+			}
+		}
+
+		if responseMsgErr.IsError(saultcommon.CommandErrorDialError) {
+			err = &saultcommon.ResponseMsgError{
+				ErrorType: saultcommon.CommandErrorDialError,
+				Message:   fmt.Sprintf("failed to add host, because could not connect"),
+			}
+		}
+
+		return err
+	}
+
+	return nil
 }

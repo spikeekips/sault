@@ -3,6 +3,7 @@ package saultcommon
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,7 +128,8 @@ func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
 	go func() {
 		w, _ := session.StdinPipe()
 		defer w.Close()
-		fmt.Fprint(w, "\x00\x00\x00\x00\x00\x00\x00")
+
+		fmt.Fprintln(w, "\x00\x00\x00\x00\x00\x00\x00")
 	}()
 
 	var b bytes.Buffer
@@ -136,7 +138,17 @@ func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
 		return
 	}
 
-	content = b.Bytes()
+	_, err = b.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return
+	}
+	err = nil
+
+	var c bytes.Buffer
+	io.Copy(&c, &b)
+
+	content = c.Bytes()
+	return content[:len(content)-1], nil // remove the last "\x00"
 	return
 }
 

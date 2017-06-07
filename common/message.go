@@ -1,6 +1,8 @@
 package saultcommon
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type CommandErrorType uint
 type CommandError struct {
@@ -11,6 +13,7 @@ type CommandError struct {
 const (
 	CommandErrorNone CommandErrorType = iota + 1
 	CommandErrorCommon
+	CommandErrorDialError
 	CommandErrorAuthFailed
 	CommandErrorInjectClientKey
 	CommandErrorPermissionDenied
@@ -45,18 +48,23 @@ func (r *ResponseMsgError) IsError(errType CommandErrorType) bool {
 }
 
 func (r *ResponseMsgError) Error() string {
+	if len(r.Message) > 0 {
+		return r.Message
+	}
+
 	var m string
 
 	switch r.ErrorType {
-	case CommandErrorPermissionDenied:
-		m = "permission denied"
+	case CommandErrorDialError:
+		m = "connection failed"
 	case CommandErrorAuthFailed:
 		m = "authentication failed"
 	case CommandErrorInjectClientKey:
 		m = "failed to inject client key"
-	default:
-		m = r.Message
+	case CommandErrorPermissionDenied:
+		m = "permission denied"
 	}
+
 	return m
 }
 

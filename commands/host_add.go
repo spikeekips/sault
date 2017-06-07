@@ -2,8 +2,11 @@ package saultcommands
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
@@ -88,37 +91,61 @@ func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 }
 
 type HostAddRequestData struct {
-	ID       string
-	HostName string
-	Port     uint64
-	Accounts []string
-	IsActive bool
+	ID         string
+	HostName   string
+	Port       uint64
+	Accounts   []string
+	IsActive   bool
+	Passphrase string
 }
 
 type HostAddCommand struct{}
 
-func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	data := thisFlags.Values["Host"]
+var hostAddHelpFirstMessage = `
+{{ "error" | red }} failed to complete to add host, because not authenticated to your host from sault server'.
+{{ line "-" }}
+{{ "note" | note }}
+* sault supports to inject the public key into your host automatically with passphrase.
+* If your host does not support password authentication, or you don't know it's passphrase, just hit Control-C. You can manually append the sault client public key into your host account.
+* To verify the sault client public key, use {{ "$ sault server print clientkey" | magenta }}
+* sault does not remember your passphrase :)
+{{ line "-" }}
+Enter passphrase to inject the sault client key into your host, or you can skip this step with {{ "-f" | yellow }} flag.
+`
 
-	var host saultregistry.HostRegistry
-	_, err = runCommand(
-		allFlags[0],
-		HostAddFlagsTemplate.ID,
-		data,
-		&host,
-	)
-	if err != nil {
-		return
+var hostAddHelpNextMessage = `
+{{ "error" | red }} failed to authenticate, it maybe wrong passphrase. Try again.
+`
+
+func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	data := thisFlags.Values["Host"].(HostAddRequestData)
+
+	run := func(passphrase string) error {
+		data.Passphrase = passphrase
+
+		var host saultregistry.HostRegistry
+		_, err := runCommand(
+			allFlags[0],
+			HostAddFlagsTemplate.ID,
+			data,
+			&host,
+		)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stdout, PrintHostData(
+			"host-added",
+			allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
+			host,
+			nil,
+		))
+
+		return nil
 	}
 
-	fmt.Fprintf(os.Stdout, PrintHostData(
-		"host-added",
-		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
-		host,
-		nil,
-	))
-
-	return nil
+	err = passphraseChallenge(run)
+	return
 }
 
 func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
@@ -128,8 +155,63 @@ func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandM
 		return err
 	}
 
-	// TODO: inject client key
-	// TODO: check connectivity
+	if _, err = registry.GetHost(data.ID, saultregistry.HostFilterNone); err == nil {
+		err = &saultregistry.HostExistError{ID: data.ID}
+		return
+	}
+
+	slog := log.WithFields(logrus.Fields{
+		"Address": fmt.Sprintf("%s@%s:%d", data.Accounts[0], data.HostName, data.Port),
+	})
+
+	slog.Debugf("trying to connect")
+
+	var authMethod sssh.AuthMethod
+	if len(data.Passphrase) < 1 {
+		authMethod = sssh.PublicKeys(config.Server.GetClientKeySigner())
+	} else {
+		authMethod = sssh.Password(data.Passphrase)
+	}
+
+	sc := saultcommon.NewSSHClient(data.Accounts[0], fmt.Sprintf("%s:%d", data.HostName, data.Port))
+	sc.AddAuthMethod(authMethod)
+	sc.SetTimeout(time.Second * 3)
+	defer sc.Close()
+
+	if err = sc.Connect(); err != nil {
+		slog.Error(err)
+
+		var errType saultcommon.CommandErrorType
+		if _, ok := err.(*net.OpError); ok {
+			errType = saultcommon.CommandErrorDialError
+		} else {
+			errType = saultcommon.CommandErrorAuthFailed
+		}
+
+		var response []byte
+		response, err = saultcommon.NewResponseMsg(nil, errType, err).ToJSON()
+		if err != nil {
+			return
+		}
+
+		channel.Write(response)
+		return
+	}
+
+	slog.Debugf("successfully connected; and then trying to inject client key.")
+
+	err = injectClientKeyToHost(sc, config.Server.GetClientKeySigner().PublicKey())
+	if err != nil {
+		slog.Error(err)
+		var response []byte
+		response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorInjectClientKey, err).ToJSON()
+		if err != nil {
+			return
+		}
+
+		channel.Write(response)
+		return
+	}
 
 	var host saultregistry.HostRegistry
 	if host, err = registry.AddHost(data.ID, data.HostName, data.Port, data.Accounts); err != nil {
