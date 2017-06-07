@@ -10,19 +10,21 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 )
 
-var defaultHelpTemplate = `
-{{ if .error }}{{ .error }}{{ end }}{{ if .error }}{{ else }}{{ .description }}{{ end }}
-Usage: {{ .f.Name }} {{ .f.Usage }}
+var defaultHelpTemplate = `{{ $el := len .error }}{{ $dl := len .description }}{{ $sl := len .f.Subcommands }}
+{{ "* sault *" | blue }}
+{{ if ne $el 0 }}
+{{ "error" | red }} {{ .error }}{{ else }}{{ if ne $dl 0 }}
+{{ .description }}
+{{ end }}{{ end }}
+Usage: {{ join .commands " " }} {{ .f.Usage }}
 {{ .defaults }}
-
-{{ $sl := len .f.Subcommands }}{{ if ne $sl 0 }}
-Commands{{ end }}
-{{ range $_, $sc := .f.Subcommands }}
-{{ $sc.Name | name | alignFormat "%10s" | yellow }}  {{ $sc.Help }}{{ end }}
+{{ if ne $sl 0 }}
+Commands:{{ end }}
+{{ range $_, $sc := .f.Subcommands }}{{ $sc.Name | sprintf "%10s" | yellow }}  {{ $sc.Help }}
+{{ end }}
 `
 
 // ErrorOccured wraps error from Parse()
@@ -32,6 +34,13 @@ type ErrorOccured struct {
 
 func (e *ErrorOccured) Error() string {
 	return e.Err.Error()
+}
+
+// SkipSubCommandError represents the error when unknown command is inserted
+type SkipSubCommandError struct{}
+
+func (e *SkipSubCommandError) Error() string {
+	return "skip sub command"
 }
 
 // MissingCommand represents the error when unknown command is inserted
@@ -211,38 +220,46 @@ func (f *Flags) RawParse(args []string) (err error) {
 		return
 	}
 
+	var skipSubCommand bool
 	if f.ParseFunc != nil {
 		if err = f.ParseFunc(f, args); err != nil {
-			return
-		}
-	}
-
-	commandArgs := f.FlagSet.Args()
-
-	var subCommand *Flags
-	if len(f.Subcommands) > 0 {
-		if len(commandArgs) < 1 {
-			err = &MissingCommand{}
-			return
-		} else {
-			for _, s := range f.Subcommands {
-				if saultcommon.MakeFirstLowerCase(s.Name) == commandArgs[0] {
-					subCommand = s
-					break
-				}
-			}
-			if subCommand == nil {
-				err = &UnknownCommand{Command: commandArgs[0]}
+			if _, skipSubCommand = err.(*SkipSubCommandError); skipSubCommand {
+				skipSubCommand = true
+				err = nil
+			} else {
 				return
 			}
-
-			err = subCommand.Parse(commandArgs[1:])
-			if err != nil {
-				return err
-			}
 		}
 	}
-	f.Subcommand = subCommand
+
+	if !skipSubCommand {
+		commandArgs := f.FlagSet.Args()
+
+		var subCommand *Flags
+		if len(f.Subcommands) > 0 {
+			if len(commandArgs) < 1 {
+				err = &MissingCommand{}
+				return
+			} else {
+				for _, s := range f.Subcommands {
+					if saultcommon.MakeFirstLowerCase(s.Name) == commandArgs[0] {
+						subCommand = s
+						break
+					}
+				}
+				if subCommand == nil {
+					err = &UnknownCommand{Command: commandArgs[0]}
+					return
+				}
+
+				err = subCommand.Parse(commandArgs[1:])
+				if err != nil {
+					return err
+				}
+			}
+		}
+		f.Subcommand = subCommand
+	}
 
 	return
 }
@@ -259,15 +276,15 @@ func (f *Flags) GetParentCommands() []*Flags {
 	return append(s, parents...)
 }
 
-// GetSubCommands parses arguments
-func (f *Flags) GetSubCommands() []*Flags {
+// GetSubcommands parses arguments
+func (f *Flags) GetSubcommands() []*Flags {
 	s := []*Flags{f}
 
-	if len(f.Subcommands) < 1 {
+	if f.Subcommand == nil || len(f.Subcommands) < 1 {
 		return s
 	}
 
-	return append(s, f.Subcommand.GetSubCommands()...)
+	return append(s, f.Subcommand.GetSubcommands()...)
 }
 
 // PrintHelp prints help
@@ -288,7 +305,7 @@ func (f *Flags) PrintHelp(err error) {
 
 	var errorString string
 	if err != nil {
-		errorString = saultcommon.MakeOutputString(log, err.Error(), logrus.ErrorLevel)
+		errorString = err.Error()
 	}
 
 	var commandNames []string
@@ -296,7 +313,6 @@ func (f *Flags) PrintHelp(err error) {
 		commandNames = append(commandNames, n.Name)
 	}
 
-	fmt.Println(">>", f.Name, f.Subcommands)
 	values := map[string]interface{}{
 		"error":    errorString,
 		"f":        f,
@@ -306,14 +322,14 @@ func (f *Flags) PrintHelp(err error) {
 
 	var description string
 	if len(strings.TrimSpace(f.Description)) > 0 {
-		description, err = saultcommon.Templating(f.Description, values)
+		description, err = saultcommon.SimpleTemplating(f.Description, values)
 		if err != nil {
 			return
 		}
 	}
 	values["description"] = strings.TrimSpace(description)
 
-	o, err := saultcommon.Templating(f.helpTemplate, values)
+	o, err := saultcommon.SimpleTemplating(f.helpTemplate, values)
 	if err != nil {
 		return
 	}
@@ -327,7 +343,7 @@ func (f *Flags) PrintHelp(err error) {
 
 // NewFlag renders FlagTemplate
 func NewFlag(flagSet *flag.FlagSet, ft FlagTemplate) interface{} {
-	name := saultcommon.MakeFirstLowerCase(ft.Name)
+	name := strings.ToLower(ft.Name)
 	defaultValue := ft.Value
 	help := ft.Help
 

@@ -7,7 +7,9 @@ import (
 
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
+	"github.com/spikeekips/sault/registry"
 	"github.com/spikeekips/sault/sault"
+	"github.com/spikeekips/sault/sssh"
 )
 
 var VersionFlagsTemplate *saultflags.FlagsTemplate
@@ -26,7 +28,7 @@ type VersionCommand struct {
 }
 
 func (c *VersionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error {
-	o, err := saultcommon.Templating(`
+	o, err := saultcommon.SimpleTemplating(`
      version: {{ .version }}
   build date: {{ .date }}
 build commit: {{ .commit }}
@@ -45,4 +47,6 @@ build commit: {{ .commit }}
 	return nil
 }
 
-func (c *VersionCommand) Response(msg sault.CommandMsg) error { return nil }
+func (c *VersionCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+	return nil
+}

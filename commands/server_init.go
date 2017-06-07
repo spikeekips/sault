@@ -26,7 +26,7 @@ func init() {
 	currentDirectory, _ = filepath.Abs("./")
 	currentUser, _ = user.Current()
 
-	description, _ := saultcommon.Templating(`{{ "server init" | yellow }} initialize the sault server environment
+	description, _ := saultcommon.SimpleTemplating(`{{ "server init" | yellow }} initialize the sault server environment
 
 After initializing sault server,
 
@@ -45,7 +45,7 @@ After initializing sault server,
 	)
 
 	ServerInitFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "server.init",
+		ID:          "server init",
 		Name:        "init",
 		Help:        "initialize sault server environment",
 		Usage:       "[flags] <admin user's publicKey file>",
@@ -82,11 +82,11 @@ func parseServerInitCommandFlags(f *saultflags.Flags, args []string) (err error)
 	if err != nil {
 		return
 	}
-	_, err = saultcommon.ParsePublicKeyFromString(string(b))
+	_, err = saultcommon.ParsePublicKey(b)
 	if err != nil {
 		return
 	}
-	f.Values["PublicKey"] = strings.TrimSpace(string(b))
+	f.Values["PublicKey"] = b
 
 	envDir := f.Values["Env"].(string)
 	if len(envDir) < 1 {
@@ -197,7 +197,7 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 
 	log.Debugf("admin user will be registered thru registry")
 
-	publicKey := thisFlags.Values["PublicKey"].(string)
+	publicKey := thisFlags.Values["PublicKey"].([]byte)
 	log.Debugf("the user.ID for admin will be 'admin' by default and the publicKey will be given, '%s'", publicKey)
 
 	cr := config.Registry.GetSources()
@@ -229,7 +229,9 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	log.Debugf("admin user was registered thru registry")
 
 	if !thisFlags.Values["SkipThisHost"].(bool) {
-		localAddress := "127.0.0.1:22"
+		hostName := "127.0.0.1"
+		port := uint64(22)
+		localAddress := fmt.Sprintf("%s:%d", hostName, port)
 		found := checkSSHService(localAddress)
 		if !found {
 			log.Debugf("ssh service, '%s' not found", localAddress)
@@ -238,7 +240,7 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 			currentUser, _ := user.Current()
 
 			var host saultregistry.HostRegistry
-			host, err = registry.AddHost(sault.DefaultSaultHostID, localAddress, []string{currentUser.Username})
+			host, err = registry.AddHost(sault.DefaultSaultHostID, hostName, port, []string{currentUser.Username})
 			if err != nil {
 				log.Debugf("tried to register local ssh service, '%s', but failed: %v", localAddress, err)
 				return
@@ -264,7 +266,9 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	return nil
 }
 
-func (c *ServerInitCommand) Response(msg sault.CommandMsg) error { return nil }
+func (c *ServerInitCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+	return nil
+}
 
 func checkSSHService(address string) bool {
 	clog := log.WithFields(logrus.Fields{

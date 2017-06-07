@@ -46,7 +46,7 @@ func TestNewFlags(t *testing.T) {
 				flagTemplates,
 				FlagTemplate{Name: name, Value: value[0]},
 			)
-			args = append(args, "-"+saultcommon.MakeFirstLowerCase(name), fmt.Sprintf("%v", value[1]))
+			args = append(args, "-"+strings.ToLower(name), fmt.Sprintf("%v", value[1]))
 		}
 		flagTemplates = append(
 			flagTemplates,
@@ -55,7 +55,7 @@ func TestNewFlags(t *testing.T) {
 				Value: false,
 			},
 		)
-		args = append(args, "-fBool")
+		args = append(args, "-fbool")
 
 		mainFlags := &FlagsTemplate{
 			Name:  saultcommon.MakeRandomString(),
@@ -181,7 +181,7 @@ func TestParseFlag(t *testing.T) {
 	}
 }
 
-func TestPrintHelp(t *testing.T) {
+func TestFlagPrintHelp(t *testing.T) {
 	mainFlags := &FlagsTemplate{
 		Name: saultcommon.MakeRandomString(),
 		Flags: []FlagTemplate{
@@ -255,7 +255,7 @@ func TestPrintHelp(t *testing.T) {
 	}
 }
 
-func TestSubCommands(t *testing.T) {
+func TestFlagSubcommands(t *testing.T) {
 	subCommand := &FlagsTemplate{
 		Name: "Sub0",
 		Flags: []FlagTemplate{
@@ -281,7 +281,7 @@ func TestSubCommands(t *testing.T) {
 
 	flags := NewFlags(mainFlags, nil)
 
-	args := []string{"-name", "killme", "sub0", "-subName", "ok good"}
+	args := []string{"-name", "killme", "sub0", "-subname", "ok good"}
 	{
 		err := flags.Parse(args)
 		if err != nil {
@@ -305,7 +305,7 @@ func TestSubCommands(t *testing.T) {
 	}
 }
 
-func TestSubCommandsHelp(t *testing.T) {
+func TestFlagSubcommandsHelp(t *testing.T) {
 	mainFlags := &FlagsTemplate{
 		Name: saultcommon.MakeRandomString(),
 		Flags: []FlagTemplate{
@@ -367,7 +367,7 @@ func TestSubCommandsHelp(t *testing.T) {
 	}
 }
 
-func TestPrintHelpMessage(t *testing.T) {
+func TestFlagPrintHelpMessage(t *testing.T) {
 	mainFlags := &FlagsTemplate{
 		Name:        "cName",
 		Usage:       "[flags]",
@@ -391,7 +391,7 @@ func TestPrintHelpMessage(t *testing.T) {
 	}
 }
 
-func TestSubCommandsNames(t *testing.T) {
+func TestFlagSubcommandsNames(t *testing.T) {
 	subCommand1 := &FlagsTemplate{
 		Name: "Sub00",
 	}
@@ -431,7 +431,7 @@ func TestSubCommandsNames(t *testing.T) {
 
 		expectedCommands := []string{"main", "Sub0", "Sub00"}
 		var commands []string
-		for _, f := range flags.GetSubCommands() {
+		for _, f := range flags.GetSubcommands() {
 			commands = append(commands, f.Name)
 		}
 
@@ -453,7 +453,7 @@ func TestSubCommandsNames(t *testing.T) {
 		}
 
 		expectedCommands := []string{"main", "Sub0", "Sub00"}
-		subcommands := flags.GetSubCommands()
+		subcommands := flags.GetSubcommands()
 		commands := subcommands[len(subcommands)-1].GetParentCommands()
 		for i := 0; i < len(expectedCommands); i++ {
 			if commands[i].Name != expectedCommands[i] {

@@ -3,6 +3,7 @@ package saultregistry
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,22 +16,17 @@ type HostFilter byte
 
 const (
 	UserFilterNone UserFilter = 1 << iota
+	UserFilterIsActive
 	UserFilterIsNotActive
 	UserFilterIsAdmin
+	UserFilterIsNotAdmin
 )
 
 const (
 	HostFilterNone HostFilter = 1 << iota
+	HostFilterIsActive
 	HostFilterIsNotActive
 )
-
-type InvalidUserIDError struct {
-	ID string
-}
-
-func (e *InvalidUserIDError) Error() string {
-	return fmt.Sprintf("invalid user.ID, '%s'", e.ID)
-}
 
 type HostAndUserNotLinked struct {
 	UserID string
@@ -41,65 +37,20 @@ func (e *HostAndUserNotLinked) Error() string {
 	return fmt.Sprintf("user, '%s' and host, '%s' was not linked", e.UserID, e.HostID)
 }
 
-type InvalidHostAddressError struct {
-	Address string
-	Err     error
+type UserNothingToUpdate struct {
+	ID string
 }
 
-func (e *InvalidHostAddressError) Error() string {
-	return fmt.Sprintf("invalid host.Address, '%s': %v", e.Address, e.Err)
+func (e *UserNothingToUpdate) Error() string {
+	return fmt.Sprintf("nothing to be updated for user, '%s'", e.ID)
 }
 
-type UserDoesNotExistError struct {
-	ID        string
-	PublicKey sssh.PublicKey
-	Message   string
+type HostNothingToUpdate struct {
+	ID string
 }
 
-func (e *UserDoesNotExistError) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-
-	var v []string
-	if e.ID != "" {
-		v = append(v, fmt.Sprintf("id='%s'", e.ID))
-	}
-	if e.PublicKey != nil {
-		v = append(v, fmt.Sprintf("publicKey='%s'", saultcommon.FingerprintSHA256PublicKey(e.PublicKey)))
-	}
-
-	return fmt.Sprintf("user, %s does not exist", strings.Join(v, " "))
-}
-
-type HostDoesNotExistError struct {
-	ID      string
-	Message string
-}
-
-func (e *HostDoesNotExistError) Error() string {
-	if e.Message != "" {
-		return e.Message
-	}
-
-	return fmt.Sprintf("host, '%s' does not exist", e.ID)
-}
-
-type UserExistsError struct {
-	ID        string
-	PublicKey string
-}
-
-func (e *UserExistsError) Error() string {
-	var v []string
-	if e.ID != "" {
-		v = append(v, fmt.Sprintf("id='%s'", e.ID))
-	}
-	if e.PublicKey != "" {
-		v = append(v, fmt.Sprintf("publicKey='%s'", e.PublicKey))
-	}
-
-	return fmt.Sprintf("user, %v already exists", v)
+func (e *HostNothingToUpdate) Error() string {
+	return fmt.Sprintf("nothing to be updated for host, '%s'", e.ID)
 }
 
 type HostExistError struct {
@@ -117,9 +68,26 @@ func (e *LinkedAllError) Error() string {
 	return "Linked all"
 }
 
+type RegistryPublicKey []byte
+
+func (r *RegistryPublicKey) UnmarshalText(data []byte) (err error) {
+	if _, err = saultcommon.ParsePublicKey(data); err != nil {
+		return
+	}
+
+	*r = RegistryPublicKey(data)
+
+	return
+}
+
+func (r RegistryPublicKey) MarshalText() ([]byte, error) {
+	return r, nil
+}
+
 type UserRegistry struct {
-	ID        string
-	PublicKey string
+	ID string
+
+	PublicKey RegistryPublicKey
 	publicKey sssh.PublicKey
 
 	IsAdmin     bool
@@ -141,7 +109,7 @@ func (r UserRegistry) HasPublicKey(publicKey sssh.PublicKey) bool {
 }
 
 func (r UserRegistry) GetPublicKey() sssh.PublicKey {
-	p, _ := saultcommon.ParsePublicKeyFromString(r.PublicKey)
+	p, _ := saultcommon.ParsePublicKey([]byte(r.PublicKey))
 
 	return p
 }
@@ -157,7 +125,8 @@ type LinkAccountRegistry struct {
 
 type HostRegistry struct {
 	ID       string
-	Address  string
+	HostName string
+	Port     uint64
 	Accounts []string
 
 	IsActive    bool
@@ -165,12 +134,36 @@ type HostRegistry struct {
 	DateUpdated time.Time
 }
 
+func (r HostRegistry) Address() string {
+	return fmt.Sprintf(
+		"%s:%d",
+		r.HostName,
+		r.Port,
+	)
+}
+
 func (r HostRegistry) String() string {
 	return fmt.Sprintf(
 		"host=%s(%s)",
 		r.ID,
-		r.Address,
+		r.Address(),
 	)
+}
+
+func (r HostRegistry) HasAccount(accounts ...string) bool {
+	for _, a := range accounts {
+		var found bool
+		for _, i := range r.Accounts {
+			if a == i {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 type RegistryData struct {
@@ -206,7 +199,13 @@ func NewRegistryDataFromSource(source RegistrySource) (data *RegistryData, err e
 
 func (registry *Registry) GetUserCount(f UserFilter) (c int) {
 	for _, u := range registry.Data.User {
+		if f&UserFilterIsActive == UserFilterIsActive && !u.IsActive {
+			continue
+		}
 		if f&UserFilterIsNotActive == UserFilterIsNotActive && u.IsActive {
+			continue
+		}
+		if f&UserFilterIsNotAdmin == UserFilterIsNotAdmin && u.IsAdmin {
 			continue
 		}
 		if f&UserFilterIsAdmin == UserFilterIsAdmin && !u.IsAdmin {
@@ -228,10 +227,18 @@ func (registry *Registry) GetUser(id string, publicKey sssh.PublicKey, f UserFil
 		return
 	}
 
+	if f&UserFilterIsActive == UserFilterIsActive {
+		if !user.IsActive {
+			user = UserRegistry{}
+			err = &saultcommon.UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is not active", user.ID)}
+			return
+		}
+	}
+
 	if f&UserFilterIsNotActive == UserFilterIsNotActive {
 		if user.IsActive {
 			user = UserRegistry{}
-			err = &UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is active", user.ID)}
+			err = &saultcommon.UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is active", user.ID)}
 			return
 		}
 	}
@@ -239,7 +246,15 @@ func (registry *Registry) GetUser(id string, publicKey sssh.PublicKey, f UserFil
 	if f&UserFilterIsAdmin == UserFilterIsAdmin {
 		if !user.IsAdmin {
 			user = UserRegistry{}
-			err = &UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is not admin", user.ID)}
+			err = &saultcommon.UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is not admin", user.ID)}
+			return
+		}
+	}
+
+	if f&UserFilterIsNotAdmin == UserFilterIsNotAdmin {
+		if user.IsAdmin {
+			user = UserRegistry{}
+			err = &saultcommon.UserDoesNotExistError{Message: fmt.Sprintf("user, '%s' is admin", user.ID)}
 			return
 		}
 	}
@@ -251,7 +266,7 @@ func (registry *Registry) getUserByID(id string) (user UserRegistry, err error) 
 	var ok bool
 	user, ok = registry.Data.User[id]
 	if !ok {
-		err = &UserDoesNotExistError{ID: id}
+		err = &saultcommon.UserDoesNotExistError{ID: id}
 		return
 	}
 
@@ -266,13 +281,13 @@ func (registry *Registry) getUserByPublicKey(publicKey sssh.PublicKey) (user Use
 		}
 	}
 
-	err = &UserDoesNotExistError{PublicKey: publicKey}
+	err = &saultcommon.UserDoesNotExistError{PublicKey: publicKey}
 	return
 }
 
 func (registry *Registry) getUser(id string, publicKey sssh.PublicKey) (user UserRegistry, err error) {
 	if id == "" && publicKey == nil {
-		err = &UserDoesNotExistError{Message: "id and publicKey is empty"}
+		err = &saultcommon.UserDoesNotExistError{Message: "id and publicKey is empty"}
 		return
 	}
 
@@ -300,7 +315,7 @@ func (registry *Registry) getUser(id string, publicKey sssh.PublicKey) (user Use
 			return
 		}
 
-		err = &UserDoesNotExistError{ID: id, PublicKey: publicKey}
+		err = &saultcommon.UserDoesNotExistError{ID: id, PublicKey: publicKey}
 		return
 	}
 	if userByID != nil {
@@ -315,16 +330,35 @@ func (registry *Registry) getUser(id string, publicKey sssh.PublicKey) (user Use
 		return
 	}
 
-	err = &UserDoesNotExistError{ID: id, PublicKey: publicKey}
+	err = &saultcommon.UserDoesNotExistError{ID: id, PublicKey: publicKey}
 	return
 }
 
-func (registry *Registry) GetUsers(f UserFilter) (users []UserRegistry) {
+func (registry *Registry) GetUsers(f UserFilter, userIDs ...string) (users []UserRegistry) {
 	for _, u := range registry.Data.User {
+		if len(userIDs) > 0 {
+			var found bool
+			for _, id := range userIDs {
+				if u.ID == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		if f&UserFilterIsActive == UserFilterIsActive && !u.IsActive {
+			continue
+		}
 		if f&UserFilterIsNotActive == UserFilterIsNotActive && u.IsActive {
 			continue
 		}
 		if f&UserFilterIsAdmin == UserFilterIsAdmin && !u.IsAdmin {
+			continue
+		}
+		if f&UserFilterIsNotAdmin == UserFilterIsNotAdmin && u.IsAdmin {
 			continue
 		}
 		users = append(users, u)
@@ -333,34 +367,35 @@ func (registry *Registry) GetUsers(f UserFilter) (users []UserRegistry) {
 	return
 }
 
-func (registry *Registry) AddUser(id string, publicKey string) (user UserRegistry, err error) {
+func (registry *Registry) AddUser(id string, publicKey []byte) (user UserRegistry, err error) {
 	if !saultcommon.CheckUserID(id) {
-		err = &InvalidUserIDError{ID: id}
+		err = &saultcommon.InvalidUserIDError{ID: id}
 		return
 	}
 
 	var parsedPublicKey sssh.PublicKey
-	parsedPublicKey, err = saultcommon.ParsePublicKeyFromString(publicKey)
+	parsedPublicKey, err = saultcommon.ParsePublicKey(publicKey)
 	if err != nil {
 		return
 	}
 
 	user, _ = registry.GetUser(id, parsedPublicKey, UserFilterNone)
 	if user.ID != "" {
-		var eid, ePublicKey string
+		var eid string
+		var ePublicKey []byte
 		if user.ID == id {
 			eid = id
 		}
 		if user.HasPublicKey(parsedPublicKey) {
 			ePublicKey = publicKey
 		}
-		err = &UserExistsError{ID: eid, PublicKey: ePublicKey}
+		err = &saultcommon.UserExistsError{ID: eid, PublicKey: ePublicKey}
 		return
 	}
 
 	user = UserRegistry{
 		ID:          id,
-		PublicKey:   strings.TrimSpace(publicKey),
+		PublicKey:   []byte(strings.TrimSpace(string(publicKey))),
 		IsActive:    true,
 		IsAdmin:     false,
 		DateAdded:   time.Now(),
@@ -379,32 +414,47 @@ func (registry *Registry) UpdateUser(id string, newUser UserRegistry) (user User
 		return
 	}
 
+	var updated bool
 	if id != newUser.ID {
 		if !saultcommon.CheckUserID(newUser.ID) {
-			err = &InvalidUserIDError{ID: id}
+			err = &saultcommon.InvalidUserIDError{ID: id}
 			return
 		}
 
 		_, err = registry.GetUser(newUser.ID, nil, UserFilterNone)
 		if err == nil {
-			err = &UserExistsError{ID: id}
+			err = &saultcommon.UserExistsError{ID: id}
 			return
 		}
+		updated = true
 	}
 
 	if !oldUser.HasPublicKey(newUser.GetPublicKey()) {
 		_, err = registry.GetUser("", newUser.GetPublicKey(), UserFilterNone)
 		if err == nil {
-			err = &UserExistsError{PublicKey: newUser.PublicKey}
+			err = &saultcommon.UserExistsError{PublicKey: newUser.PublicKey}
 			return
 		}
+		updated = true
+	}
+	if oldUser.IsAdmin != newUser.IsAdmin {
+		updated = true
+	}
+	if oldUser.IsActive != newUser.IsActive {
+		updated = true
+	}
+
+	if !updated {
+		user = oldUser
+		err = &UserNothingToUpdate{ID: id}
+		return
 	}
 
 	err = nil
 
 	delete(registry.Data.User, id)
 
-	newUser.PublicKey = strings.TrimSpace(newUser.PublicKey)
+	newUser.PublicKey = []byte(strings.TrimSpace(string(newUser.PublicKey)))
 	newUser.DateUpdated = time.Now()
 	registry.Data.User[newUser.ID] = newUser
 
@@ -442,6 +492,9 @@ func (registry *Registry) RemoveUser(id string) (err error) {
 
 func (registry *Registry) GetHostCount(f HostFilter) (c int) {
 	for _, h := range registry.Data.Host {
+		if f&HostFilterIsActive == HostFilterIsActive && !h.IsActive {
+			continue
+		}
 		if f&HostFilterIsNotActive == HostFilterIsNotActive && h.IsActive {
 			continue
 		}
@@ -454,20 +507,39 @@ func (registry *Registry) GetHostCount(f HostFilter) (c int) {
 func (registry *Registry) GetHost(id string, f HostFilter) (host HostRegistry, err error) {
 	var ok bool
 	if host, ok = registry.Data.Host[id]; !ok {
-		err = &HostDoesNotExistError{ID: id}
+		err = &saultcommon.HostDoesNotExistError{ID: id}
 		return
 	}
 
+	if f&HostFilterIsActive == HostFilterIsActive && !host.IsActive {
+		return
+	}
 	if f&HostFilterIsNotActive == HostFilterIsNotActive && host.IsActive {
-		err = &HostDoesNotExistError{Message: fmt.Sprintf("host, '%s' is active", id)}
+		err = &saultcommon.HostDoesNotExistError{Message: fmt.Sprintf("host, '%s' is active", id)}
 		return
 	}
 
 	return
 }
 
-func (registry *Registry) GetHosts(f HostFilter) (hosts []HostRegistry) {
+func (registry *Registry) GetHosts(f HostFilter, hostIDs ...string) (hosts []HostRegistry) {
 	for _, h := range registry.Data.Host {
+		if len(hostIDs) > 0 {
+			var found bool
+			for _, a := range hostIDs {
+				if a == h.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		if f&HostFilterIsNotActive == HostFilterIsNotActive && h.IsActive {
+			continue
+		}
 		if f&HostFilterIsNotActive == HostFilterIsNotActive && h.IsActive {
 			continue
 		}
@@ -477,19 +549,14 @@ func (registry *Registry) GetHosts(f HostFilter) (hosts []HostRegistry) {
 	return
 }
 
-func (registry *Registry) AddHost(id, address string, accounts []string) (host HostRegistry, err error) {
+func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []string) (host HostRegistry, err error) {
 	if !saultcommon.CheckHostID(id) {
 		err = &saultcommon.InvalidHostIDError{ID: id}
 		return
 	}
-
-	var hostName string
-	var port uint64
-	if hostName, port, err = saultcommon.SplitHostPort(address, uint64(22)); err != nil {
-		err = &InvalidHostAddressError{Address: address, Err: err}
+	if hostName, port, err = saultcommon.SplitHostPort(fmt.Sprintf("%s:%d", hostName, port), uint64(22)); err != nil {
 		return
 	}
-	address = fmt.Sprintf("%s:%d", hostName, port)
 
 	if _, notFound := registry.GetHost(id, HostFilterNone); notFound == nil {
 		err = &HostExistError{ID: id}
@@ -497,15 +564,20 @@ func (registry *Registry) AddHost(id, address string, accounts []string) (host H
 	}
 
 	for _, a := range accounts {
-		if !saultcommon.CheckUserName(a) {
+		if !saultcommon.CheckAccountName(a) {
 			err = &saultcommon.InvalidAccountNameError{Name: a}
 			return
 		}
 	}
 
+	if len(accounts) > 0 {
+		sort.Strings(accounts)
+	}
+
 	host = HostRegistry{
 		ID:          id,
-		Address:     address,
+		HostName:    hostName,
+		Port:        port,
 		Accounts:    accounts,
 		IsActive:    true,
 		DateAdded:   time.Now(),
@@ -519,6 +591,7 @@ func (registry *Registry) AddHost(id, address string, accounts []string) (host H
 }
 
 func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host HostRegistry, err error) {
+	var updated bool
 	if id != newHost.ID {
 		if !saultcommon.CheckHostID(newHost.ID) {
 			err = &saultcommon.InvalidHostIDError{ID: newHost.ID}
@@ -529,6 +602,7 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 			err = &HostExistError{ID: newHost.ID}
 			return
 		}
+		updated = true
 	}
 
 	var oldHost HostRegistry
@@ -537,25 +611,46 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		return
 	}
 
-	if oldHost.Address != newHost.Address {
+	if oldHost.Address() != newHost.Address() {
 		var hostName string
 		var port uint64
-		if hostName, port, err = saultcommon.SplitHostPort(newHost.Address, uint64(22)); err != nil {
-			err = &InvalidHostAddressError{Address: newHost.Address, Err: err}
+		if hostName, port, err = saultcommon.SplitHostPort(newHost.Address(), uint64(22)); err != nil {
+			err = &saultcommon.InvalidHostAddressError{Address: newHost.Address(), Err: err}
 			return
 		}
-		newHost.Address = fmt.Sprintf("%s:%d", hostName, port)
+		newHost.HostName = hostName
+		newHost.Port = port
+
+		updated = true
 	}
 
 	for _, a := range newHost.Accounts {
-		if !saultcommon.CheckUserName(a) {
+		if !saultcommon.CheckAccountName(a) {
 			err = &saultcommon.InvalidAccountNameError{Name: a}
 			return
 		}
 	}
+	sort.Strings(newHost.Accounts)
+
+	if len(oldHost.Accounts) != len(newHost.Accounts) {
+		updated = true
+	} else {
+		for i := 0; i < len(oldHost.Accounts); i++ {
+			if oldHost.Accounts[i] != newHost.Accounts[i] {
+				updated = true
+			}
+		}
+	}
+
+	if !updated {
+		host = oldHost
+		err = &HostNothingToUpdate{ID: id}
+	}
 
 	registry.Data.Host[newHost.ID] = newHost
-	delete(registry.Data.Host, id)
+	if id != newHost.ID {
+		delete(registry.Data.Host, id)
+	}
 
 	if _, ok := registry.Data.Links[id]; ok {
 		registry.Data.Links[newHost.ID] = registry.Data.Links[id]
@@ -600,7 +695,7 @@ func (registry *Registry) GetLinksOfUser(id string) (links map[string]LinkAccoun
 
 func (registry *Registry) Link(userID, hostID string, accounts ...string) (err error) {
 	for _, a := range accounts {
-		if !saultcommon.CheckUserName(a) {
+		if !saultcommon.CheckAccountName(a) {
 			err = &saultcommon.InvalidAccountNameError{Name: a}
 			return
 		}
@@ -634,7 +729,21 @@ func (registry *Registry) Link(userID, hostID string, accounts ...string) (err e
 	}
 
 	existingAccounts := link.Accounts
-	existingAccounts = append(existingAccounts, accounts...)
+	for _, a := range accounts {
+		var found bool
+		for _, b := range existingAccounts {
+			if a == b {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		existingAccounts = append(existingAccounts, a)
+	}
+
+	sort.Strings(existingAccounts)
 
 	registry.Data.Links[host.ID][userID] = LinkAccountRegistry{Accounts: existingAccounts}
 
@@ -677,6 +786,10 @@ func (registry *Registry) LinkAll(userID, hostID string) (err error) {
 		return
 	}
 
+	if _, ok := registry.Data.Links[host.ID]; !ok {
+		registry.Data.Links[host.ID] = map[string]LinkAccountRegistry{}
+	}
+
 	registry.Data.Links[host.ID][userID] = LinkAccountRegistry{All: true}
 
 	registry.Data.updated()
@@ -685,7 +798,7 @@ func (registry *Registry) LinkAll(userID, hostID string) (err error) {
 
 func (registry *Registry) Unlink(userID, hostID string, accounts ...string) (err error) {
 	for _, a := range accounts {
-		if !saultcommon.CheckUserName(a) {
+		if !saultcommon.CheckAccountName(a) {
 			err = &saultcommon.InvalidAccountNameError{Name: a}
 			return
 		}
@@ -724,10 +837,13 @@ func (registry *Registry) Unlink(userID, hostID string, accounts ...string) (err
 				found = true
 			}
 		}
-		if !found {
-			slicedAccounts = append(slicedAccounts, e)
+		if found {
+			continue
 		}
+		slicedAccounts = append(slicedAccounts, e)
 	}
+
+	sort.Strings(slicedAccounts)
 
 	registry.Data.Links[host.ID][userID] = LinkAccountRegistry{Accounts: slicedAccounts}
 

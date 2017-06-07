@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
 	"github.com/spikeekips/sault/sault"
+	"github.com/spikeekips/sault/sssh"
 )
 
 var ServerRunFlagsTemplate *saultflags.FlagsTemplate
@@ -46,7 +48,7 @@ func init() {
 	defaultEnvDir := flagEnvDirs{}
 
 	ServerRunFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "server.run",
+		ID:          "server run",
 		Name:        "run",
 		Help:        "run sault server.",
 		Usage:       "[flags]",
@@ -104,6 +106,7 @@ func (c *ServerRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saul
 
 	proxy, err = sault.NewServer(
 		registry,
+		config,
 		config.Server.GetHostKeySigner(),
 		config.Server.GetClientKeySigner(),
 		config.Server.SaultServerName,
@@ -119,4 +122,6 @@ func (c *ServerRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saul
 	return nil
 }
 
-func (c *ServerRunCommand) Response(msg sault.CommandMsg) error { return nil }
+func (c *ServerRunCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+	return nil
+}

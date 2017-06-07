@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -128,12 +129,19 @@ var flagTempalteFMap = template.FuncMap{
 	"dim":    terminalFormat(2, 22),
 	//"hide":   terminalFormat(8, 28),
 
-	"red":     colorFunc(color.FgRed),
-	"green":   colorFunc(color.FgGreen),
-	"yellow":  colorFunc(color.FgYellow),
-	"blue":    colorFunc(color.FgBlue),
-	"magenta": colorFunc(color.FgMagenta),
-	"cyan":    colorFunc(color.FgCyan),
+	"red":     ColorFunc(color.FgRed),
+	"green":   ColorFunc(color.FgGreen),
+	"yellow":  ColorFunc(color.FgYellow),
+	"blue":    ColorFunc(color.FgBlue),
+	"magenta": ColorFunc(color.FgMagenta),
+	"cyan":    ColorFunc(color.FgCyan),
+	"note":    ColorFunc(color.FgRed, color.BgYellow),
+	"colorUserID": func(s string) string {
+		return ColorFunc(color.FgCyan)(terminalFormat(1, 0)(s))
+	},
+	"colorHostID": func(s string) string {
+		return ColorFunc(color.FgBlue)(terminalFormat(1, 0)(s))
+	},
 
 	"name": func(s string) string {
 		return MakeFirstLowerCase(s)
@@ -144,8 +152,14 @@ var flagTempalteFMap = template.FuncMap{
 	"slice": func(a []string) string {
 		return fmt.Sprintf("[ %s ]", strings.Join(a, " "))
 	},
-	"alignFormat": func(format, s string) string {
-		return fmt.Sprintf(format, s)
+	"sprintf": func(format string, s ...interface{}) string {
+		return fmt.Sprintf(format, s...)
+	},
+	"minus": func(a, b int) int {
+		return a - b
+	},
+	"plus": func(a, b int) int {
+		return a + b
 	},
 	"line": func(m ...string) string {
 		var prefix string
@@ -154,7 +168,7 @@ var flagTempalteFMap = template.FuncMap{
 			prefix = ""
 			body = m[0]
 		} else {
-			prefix = fmt.Sprintf(" %s ", m[0])
+			prefix = m[0]
 			body = m[1]
 		}
 
@@ -166,6 +180,48 @@ var flagTempalteFMap = template.FuncMap{
 				int(termSize.Col-uint16(len(prefix)))/len(body),
 			),
 		)
+	},
+	"trimSpace": strings.TrimSpace,
+	"dict": func(s ...interface{}) (m map[string]interface{}) {
+		if len(s)%2 != 0 {
+			log.Errorf("%v is not valid", s...)
+			return
+		}
+
+		m = map[string]interface{}{}
+		for i := 0; i < len(s)/2; i++ {
+			m[s[i*2].(string)] = s[(i*2)+1]
+		}
+
+		return
+	},
+	"splitHostPort": func(s string, defaultPort int) (m map[string]interface{}) {
+		hostName, port, err := SplitHostPort(s, uint64(defaultPort))
+		if err != nil {
+			hostName = ""
+			port = 0
+		}
+
+		return map[string]interface{}{
+			"HostName": hostName,
+			"Port":     port,
+		}
+	},
+	"publicKeyFingerprintMd5": func(s sssh.PublicKey) string {
+		return FingerprintMD5PublicKey(s)
+	},
+	"publicKeyFingerprintSha256": func(s sssh.PublicKey) string {
+		return FingerprintSHA256PublicKey(s)
+	},
+	"stringify": func(s interface{}) string {
+		switch s.(type) {
+		case string:
+			return s.(string)
+		case []byte:
+			return string(s.([]byte))
+		default:
+			return fmt.Sprintf("%s", s)
+		}
 	},
 }
 
@@ -181,13 +237,13 @@ func terminalFormat(code, reset int) func(string) string {
 	}
 }
 
-func colorFunc(attr color.Attribute) func(string) string {
+func ColorFunc(attr ...color.Attribute) func(string) string {
 	return func(s string) string {
-		return color.New(attr).SprintFunc()(s)
+		return color.New(attr...).SprintFunc()(s)
 	}
 }
 
-func Templating(t string, values interface{}) (string, error) {
+func SimpleTemplating(t string, values interface{}) (string, error) {
 	tmpl, err := template.New(MakeRandomString()).Funcs(flagTempalteFMap).Parse(t)
 	if err != nil {
 		return "", err
@@ -195,6 +251,18 @@ func Templating(t string, values interface{}) (string, error) {
 
 	var b bytes.Buffer
 	tmpl.Execute(&b, values)
+
+	return b.String(), nil
+}
+
+func Templating(t, name string, values interface{}) (string, error) {
+	tmpl, err := template.New(MakeRandomString()).Funcs(flagTempalteFMap).Parse(t)
+	if err != nil {
+		return "", err
+	}
+
+	var b bytes.Buffer
+	tmpl.ExecuteTemplate(&b, name, values)
 
 	return b.String(), nil
 }
@@ -210,9 +278,9 @@ func StringFilter(vs []string, f func(string) bool) []string {
 	return vsf
 }
 
-// GetSignerFromPrivateKeyString loads private key signer from string
-func GetSignerFromPrivateKeyString(s string) (sssh.Signer, error) {
-	signer, err := sssh.ParsePrivateKey([]byte(s))
+// GetSignerFromPrivateKey loads private key signer from string
+func GetSignerFromPrivateKey(s []byte) (sssh.Signer, error) {
+	signer, err := sssh.ParsePrivateKey(s)
 	if err != nil {
 		return nil, err
 	}
@@ -239,13 +307,17 @@ func BaseJoin(base string, paths ...string) string {
 func SplitHostPort(s string, defaultPort uint64) (host string, port uint64, err error) {
 	if regexp.MustCompile(`\:$`).MatchString(s) {
 		s = fmt.Sprintf("%s%d", s, defaultPort)
-	} else if !regexp.MustCompile(`\:[1-9][0-9]+$`).MatchString(s) {
+	} else if !regexp.MustCompile(`\:[0-9]+$`).MatchString(s) {
 		s = fmt.Sprintf("%s:%d", s, defaultPort)
 	}
 
 	var portString string
 	host, portString, err = net.SplitHostPort(s)
 	if err != nil {
+		return
+	}
+	if portString == "0" {
+		port = defaultPort
 		return
 	}
 
@@ -295,11 +367,13 @@ func GetAuthorizedKey(publicKey sssh.PublicKey) string {
 	return strings.TrimSpace(string(sssh.MarshalAuthorizedKey(publicKey)))
 }
 
-// ParsePublicKeyFromString parses string and makes PublicKey
-func ParsePublicKeyFromString(s string) (sssh.PublicKey, error) {
-	body := s
-	f := strings.Fields(s)
-	if len(f) < 2 {
+// ParsePublicKey parses string and makes PublicKey
+func ParsePublicKey(b []byte) (sssh.PublicKey, error) {
+	body := string(b)
+	f := strings.Fields(body)
+	if len(f) < 1 {
+		return nil, fmt.Errorf("empty key string")
+	} else if len(f) < 2 {
 		body = f[0]
 	} else {
 		body = f[1]
@@ -330,8 +404,8 @@ func CheckUserID(s string) bool {
 	return regexp.MustCompile(reUserID).MatchString(s)
 }
 
-// CheckUserName checkes whether user name is valid or not
-func CheckUserName(s string) bool {
+// CheckAccountName checkes whether user name is valid or not
+func CheckAccountName(s string) bool {
 	return CheckUserID(s)
 }
 
@@ -359,7 +433,7 @@ func ParseSaultAccountName(s string) (account, hostID string, err error) {
 		return
 	}
 
-	if len(account) > 0 && !CheckUserName(account) {
+	if len(account) > 0 && !CheckAccountName(account) {
 		err = &InvalidAccountNameError{Name: account}
 		return
 	}
@@ -397,12 +471,25 @@ func parseSaultAccountName(s string) (account, hostID string, err error) {
 }
 
 // FingerprintSHA256PublicKey makes the sha256 fingerprint string of ssh public
-// key; from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
+// key; from https://github.com/golang/go/issues/12292#issuecomment-255588529
 func FingerprintSHA256PublicKey(key sssh.PublicKey) string {
 	hash := sha256.Sum256(key.Marshal())
 	b64hash := base64.StdEncoding.EncodeToString(hash[:])
 
 	return strings.TrimRight(b64hash, "=")
+}
+
+// FingerprintMD5PublicKey makes md5 finterprint string of ssh public key; from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
+func FingerprintMD5PublicKey(key sssh.PublicKey) string {
+	hash := md5.Sum(key.Marshal())
+	out := ""
+	for i := 0; i < 16; i++ {
+		if i > 0 {
+			out += ":"
+		}
+		out += fmt.Sprintf("%02x", hash[i])
+	}
+	return out
 }
 
 var warnSSHAgentNotRunning bool
@@ -438,7 +525,7 @@ func (e *SSHAgentNotRunning) PrintWarning() {
 		return
 	}
 
-	errString, _ := Templating(`
+	errString, _ := SimpleTemplating(`
 {{ .err.Error() | escape }}
 {{ "Without 'ssh-agent', you must enter the passphrase in every time you run sault. For details, see 'Using SSH Agent to Automate Login'(https://code.snipcademy.com/tutorials/linux-command-line/ssh-secure-shell-access/ssh-agent-add)." | yellow }}
 
@@ -482,7 +569,7 @@ func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey sssh.PublicKey, err er
 	if err != nil {
 		return
 	}
-	publicKey, err = ParsePublicKeyFromString(string(b))
+	publicKey, err = ParsePublicKey(b)
 
 	return
 }
@@ -545,7 +632,7 @@ func FindSignerInSSHAgentFromFile(file string) (signer sssh.Signer, err error) {
 		}
 
 		if os.SameFile(fi, loadedFi) {
-			pubKey, _ := ParsePublicKeyFromString(key.String())
+			pubKey, _ := ParsePublicKey([]byte(key.String()))
 			foundAuthorizedKey = GetAuthorizedKey(pubKey)
 			break
 		}
@@ -578,7 +665,7 @@ func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sss
 
 	// if private key does not have passphrase,
 	{
-		signer, err = GetSignerFromPrivateKeyString(string(b))
+		signer, err = GetSignerFromPrivateKey(b)
 		if err == nil {
 			return
 		}
@@ -623,7 +710,7 @@ func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sss
 		fmt.Fprintf(
 			os.Stderr,
 			"%s failed to parse private key, will try again: %v",
-			colorFunc(color.FgRed)("error"),
+			ColorFunc(color.FgRed)("error"),
 			err,
 		)
 	}
@@ -698,4 +785,48 @@ func ParseHostAccount(s string) (userName, hostName string, err error) {
 	hostName = n[len(n)-1]
 
 	return
+}
+
+func SprintInstance(data interface{}) string {
+	jsoned, _ := json.MarshalIndent(data, "", "  ")
+	return fmt.Sprintf("%s", jsoned)
+}
+
+func PrintInstance(data interface{}) {
+	fmt.Println(SprintInstance(data))
+}
+
+func SprintfInstance(format string, data ...interface{}) string {
+	var datum []interface{}
+	for _, d := range data {
+		jsoned, _ := json.MarshalIndent(d, "", "  ")
+		datum = append(datum, jsoned)
+	}
+	return fmt.Sprintf(format, datum...)
+}
+
+func PrintfInstance(format string, data ...interface{}) {
+	fmt.Println(SprintfInstance(format, data...))
+}
+
+func ParseBooleanString(s string) (v bool, err error) {
+	if s == "true" {
+		return true, nil
+	}
+	if s == "false" {
+		return false, nil
+	}
+
+	err = fmt.Errorf("invalid boolean string, '%s'", s)
+	return
+}
+
+func ParseMinusName(s string) (name string, minus bool) {
+	s = strings.TrimSpace(s)
+	if !strings.HasSuffix(s, "-") {
+		return s, false
+	}
+
+	r := []rune(s)
+	return string(r[:len(r)-1]), true
 }

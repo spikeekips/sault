@@ -134,3 +134,37 @@ func TestParseSaultAccountName(t *testing.T) {
 		}
 	}
 }
+
+func TestParseMinusName(t *testing.T) {
+	{
+		s := "shoem"
+		a, minus := ParseMinusName(s)
+		if a != s {
+			t.Errorf("a != s; '%s' != '%s'", a, s)
+		}
+		if minus {
+			t.Errorf("minus must be false")
+		}
+	}
+	{
+		s := "shoem"
+		a, minus := ParseMinusName(s + "-")
+		if a != s {
+			t.Errorf("a != s; '%s' != '%s'", a, s)
+		}
+		if !minus {
+			t.Errorf("minus must be true")
+		}
+	}
+	{
+		// with blank
+		s := "shoem"
+		a, minus := ParseMinusName(s + "- ")
+		if a != s {
+			t.Errorf("a != s; '%s' != '%s'", a, s)
+		}
+		if !minus {
+			t.Errorf("minus must be true")
+		}
+	}
+}

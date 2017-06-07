@@ -6,8 +6,8 @@ import (
 
 var (
 	ServerFlagsTemplate,
-	HostFlagsTemplate,
-	UserFlagsTemplate *saultflags.FlagsTemplate
+	UserFlagsTemplate,
+	HostFlagsTemplate *saultflags.FlagsTemplate
 )
 
 func init() {
@@ -18,26 +18,36 @@ func init() {
 Run {{ "sault" | yellow }} server.
 		`,
 		Subcommands: []*saultflags.FlagsTemplate{
-			ServerInitFlagsTemplate,
 			ServerRunFlagsTemplate,
+			ServerPrintFlagsTemplate,
+			ServerInitFlagsTemplate,
 		},
 	}
 
 	UserFlagsTemplate = &saultflags.FlagsTemplate{
 		Name: "user",
 		Help: "manage users",
-		Description: `
-Mange users of sault server.
-		`,
-		Subcommands: []*saultflags.FlagsTemplate{},
+		Description: `Manage sault users.
+				`,
+		Subcommands: []*saultflags.FlagsTemplate{
+			UserListFlagsTemplate,
+			UserLinkFlagsTemplate,
+			UserUpdateFlagsTemplate,
+			UserRemoveFlagsTemplate,
+			UserAddFlagsTemplate,
+		},
 	}
-
 	HostFlagsTemplate = &saultflags.FlagsTemplate{
 		Name: "host",
 		Help: "manage hosts",
 		Description: `
 Mange hosts of sault server.
 		`,
-		Subcommands: []*saultflags.FlagsTemplate{},
+		Subcommands: []*saultflags.FlagsTemplate{
+			HostListFlagsTemplate,
+			HostUpdateFlagsTemplate,
+			HostRemoveFlagsTemplate,
+			HostAddFlagsTemplate,
+		},
 	}
 }

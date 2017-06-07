@@ -7,16 +7,15 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
 	"github.com/spikeekips/sault/commands"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/sault"
-	"github.com/spikeekips/sault/sssh"
 )
 
 var log *logrus.Logger
@@ -75,104 +74,20 @@ func (l *flagLogOutput) Set(value string) error {
 	return nil
 }
 
-type flagPrivateKey struct {
-	Path   string
-	Signer sssh.Signer
-}
-
-func (f *flagPrivateKey) String() string {
-	return f.Path
-}
-
-func (f *flagPrivateKey) Set(file string) (err error) {
-	file = filepath.Clean(file)
-
-	{
-		// trying to find signer from ssh agent with private key file name
-		var signer sssh.Signer
-		signer, err = saultcommon.FindSignerInSSHAgentFromFile(file)
-		if err == nil {
-			*f = flagPrivateKey{Path: file, Signer: signer}
-			return
-		}
-	}
-
-	{
-		// trying to find signer from ssh agent with loading private key
-		var signer sssh.Signer
-		var tmpSigner sssh.Signer
-		tmpSigner, err = saultcommon.GetSignerFromPrivateKeyString(file)
-		if err != nil {
-			log.Debugf("failed to load signer from '%s' without passpharase", file)
-		} else {
-			signer, err = saultcommon.FindSignerInSSHAgentFromPublicKey(tmpSigner.PublicKey())
-			if err != nil {
-				log.Error(err)
-			} else {
-				*f = flagPrivateKey{Path: file, Signer: signer}
-				return
-			}
-		}
-	}
-
-	{
-		// passpharase trial
-		var signer sssh.Signer
-		signer, err = saultcommon.LoadPrivateKeySignerWithPasspharaseTrial(file)
-		if err != nil {
-			log.Error(err)
-		} else {
-			*f = flagPrivateKey{Path: file, Signer: signer}
-			return
-		}
-	}
-
-	err = fmt.Errorf("failed to load private identity from '%s'", file)
-	log.Error(err)
-	return
-}
-
-type flagSaultServer string
-
-func (f *flagSaultServer) String() string {
-	return string(*f)
-}
-
-func (f *flagSaultServer) Set(v string) error {
-	account, _, err := saultcommon.ParseHostAccount(v)
-	if err != nil {
-		return err
-	}
-	surplus, saultServerName, err := saultcommon.ParseSaultAccountName(account)
-	if err != nil {
-		return err
-	}
-	if len(surplus) > 0 {
-		return fmt.Errorf("in 'inSaultServer', '+' connected account name is prohibited")
-	}
-	if len(saultServerName) < 1 {
-		return fmt.Errorf("sault server name is missing")
-	}
-
-	*f = flagSaultServer(v)
-
-	return nil
-}
-
 var defaultLogOutput = flagLogOutput("stdout")
 
 var helpTemplate = `{{ $el := len .error }}{{ $dl := len .description }}{{ $sl := len .f.Subcommands }}
 {{ "* sault *" | blue }}
 {{ if ne $el 0 }}
-{{ .error }}{{ else }}{{ if ne $dl 0 }}
+{{ "error" | red }} {{ .error }}{{ else }}{{ if ne $dl 0 }}
 {{ .description }}
 {{ end }}{{ end }}
 Usage: {{ join .commands " " }} {{ .f.Usage }}
 {{ .defaults }}
 {{ if ne $sl 0 }}
 Commands:{{ end }}
-{{ range $_, $sc := .f.Subcommands }}
-{{ $sc.Name | name | alignFormat "%10s" | yellow }}  {{ $sc.Help }}{{ end }}
+{{ range $_, $sc := .f.Subcommands }}{{ $sc.Name | sprintf "%10s" | yellow }}  {{ $sc.Help }}
+{{ end }}
 `
 
 func init() {
@@ -181,8 +96,8 @@ func init() {
 	log.Formatter = defaultLogFormatter
 	log.Out = os.Stdout
 
-	identityFlag := flagPrivateKey{}
-	saultServerFlag := new(flagSaultServer)
+	identityFlag := saultcommon.FlagPrivateKey{}
+	saultServerFlag := new(saultcommon.FlagSaultServer)
 
 	subCommands := []*saultflags.FlagsTemplate{
 		saultcommands.ServerFlagsTemplate,
@@ -274,7 +189,7 @@ func main() {
 
 	log.Debugf("args: %s", os.Args)
 
-	subcommandFlags := mainFlags.GetSubCommands()
+	subcommandFlags := mainFlags.GetSubcommands()
 
 	var b bytes.Buffer
 	for _, s := range subcommandFlags {
@@ -297,6 +212,26 @@ func main() {
 
 	if err := command.Request(subcommandFlags, thisCommandFlags); err != nil {
 		log.Error(err)
+
+		var m string
+		switch err.(type) {
+		case *saultcommon.ResponseMsgError:
+			m = err.(*saultcommon.ResponseMsgError).Error()
+		case *saultcommon.CommandError:
+			m = err.(*saultcommon.CommandError).Error()
+		default:
+			m = "unexpected error occured"
+		}
+
+		fmt.Fprintf(
+			os.Stderr,
+			fmt.Sprintf(
+				"%s %s\n",
+				saultcommon.ColorFunc(color.FgRed)("error"),
+				m,
+			),
+		)
+
 		os.Exit(1)
 	}
 
