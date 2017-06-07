@@ -733,7 +733,8 @@ func ReadPassword(maxTries int) (password string, err error) {
 	var tries int
 	for {
 		if tries > (maxTries - 1) {
-			break
+			err = fmt.Errorf("stopped")
+			return
 		}
 
 		fmt.Fprint(os.Stdout, "Password: ")

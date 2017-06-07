@@ -231,7 +231,6 @@ func (c *HostUpdateCommand) Response(channel sssh.Channel, msg saultcommon.Comma
 		return err
 	}
 
-	fmt.Println(data.ID)
 	var host saultregistry.HostRegistry
 	if host, err = registry.GetHost(data.ID, saultregistry.HostFilterNone); err != nil {
 		return

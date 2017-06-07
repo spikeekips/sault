@@ -91,3 +91,18 @@ func (e *UserExistsError) Error() string {
 
 	return fmt.Sprintf("user with %s already exists", strings.Join(v, " and "))
 }
+
+type HostExistError struct {
+	ID string
+}
+
+func (e *HostExistError) Error() string {
+	return fmt.Sprintf("host, '%s' already exists", e.ID)
+}
+
+type LinkedAllError struct {
+}
+
+func (e *LinkedAllError) Error() string {
+	return "Linked all"
+}

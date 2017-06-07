@@ -238,6 +238,7 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey sssh.PublicKey) 
 	}
 
 	log.Debugf("found '%s', check the same record", sault.AuthorizedKeyFile)
+
 	var foundSame bool
 	r := bufio.NewReader(bytes.NewBuffer(output))
 	for {
@@ -285,9 +286,8 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey sssh.PublicKey) 
 	return nil
 }
 
-func passphraseChallenge(run func(passphrase string) error) (err error) {
+func passphraseChallenge(run func(passphrase string) error, firstMessage, nextMessage string, maxTries int) (err error) {
 	var passphrase string
-	var MaxPassphraseTries = 3
 	var passphraseTried int
 
 	for {
@@ -304,42 +304,25 @@ func passphraseChallenge(run func(passphrase string) error) (err error) {
 
 		if responseMsgErr.IsError(saultcommon.CommandErrorAuthFailed) {
 			passphraseTried++
-			if passphraseTried > MaxPassphraseTries {
-				err = &saultcommon.ResponseMsgError{
-					ErrorType: saultcommon.CommandErrorAuthFailed,
-					Message:   fmt.Sprintf("failed to add host, because could not authenticate"),
-				}
+			if passphraseTried > maxTries {
 				return
 			}
 
 			var helpMessage string
 			if passphraseTried < 2 {
-				helpMessage, _ = saultcommon.SimpleTemplating(hostAddHelpFirstMessage, nil)
+				helpMessage, _ = saultcommon.SimpleTemplating(firstMessage, nil)
 			} else {
-				helpMessage, _ = saultcommon.SimpleTemplating(hostAddHelpNextMessage, nil)
+				helpMessage, _ = saultcommon.SimpleTemplating(nextMessage, nil)
 			}
 			fmt.Fprint(os.Stdout, strings.TrimSpace(helpMessage)+"\n")
 			passphrase, err = saultcommon.ReadPassword(3)
 			if err != nil {
 				log.Error(err)
+				err = nil
 				return
 			}
 
 			continue
-		}
-
-		if responseMsgErr.IsError(saultcommon.CommandErrorInjectClientKey) {
-			err = &saultcommon.ResponseMsgError{
-				ErrorType: saultcommon.CommandErrorAuthFailed,
-				Message:   "failed to add host, something wrong. Could not inject the sault client key to host.",
-			}
-		}
-
-		if responseMsgErr.IsError(saultcommon.CommandErrorDialError) {
-			err = &saultcommon.ResponseMsgError{
-				ErrorType: saultcommon.CommandErrorDialError,
-				Message:   fmt.Sprintf("failed to add host, because could not connect"),
-			}
 		}
 
 		return err

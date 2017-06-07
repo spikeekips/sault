@@ -30,6 +30,11 @@ func init() {
 		Description: description,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
+				Name:  "F",
+				Help:  "force to add host without injecting client key",
+				Value: false,
+			},
+			saultflags.FlagTemplate{
 				Name:  "IsActive",
 				Help:  "set active user",
 				Value: true,
@@ -85,18 +90,21 @@ func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 		Port:     port,
 		Accounts: accounts,
 		IsActive: f.Values["IsActive"].(bool),
+		Force:    f.Values["F"].(bool),
 	}
 
 	return nil
 }
 
 type HostAddRequestData struct {
-	ID         string
-	HostName   string
-	Port       uint64
-	Accounts   []string
-	IsActive   bool
+	ID       string
+	HostName string
+	Port     uint64
+	Accounts []string
+	IsActive bool
+
 	Passphrase string
+	Force      bool
 }
 
 type HostAddCommand struct{}
@@ -144,7 +152,32 @@ func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 		return nil
 	}
 
-	err = passphraseChallenge(run)
+	err = passphraseChallenge(run, hostAddHelpFirstMessage, hostAddHelpNextMessage, sault.MaxPassphraseChallenge)
+	if err == nil {
+		return
+	}
+
+	var responseMsgErr *saultcommon.ResponseMsgError
+	var ok bool
+	if responseMsgErr, ok = err.(*saultcommon.ResponseMsgError); !ok {
+		return
+	}
+
+	if responseMsgErr.IsError(saultcommon.CommandErrorAuthFailed) {
+		responseMsgErr.Message = fmt.Sprintf("failed to add host, because could not authenticate")
+		return responseMsgErr
+	}
+
+	if responseMsgErr.IsError(saultcommon.CommandErrorInjectClientKey) {
+		responseMsgErr.Message = "failed to add host, something wrong. Could not inject the sault client key to host."
+		return responseMsgErr
+	}
+
+	if responseMsgErr.IsError(saultcommon.CommandErrorDialError) {
+		responseMsgErr.Message = fmt.Sprintf("failed to add host, because could not connect")
+		return responseMsgErr
+	}
+
 	return
 }
 
@@ -156,61 +189,64 @@ func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandM
 	}
 
 	if _, err = registry.GetHost(data.ID, saultregistry.HostFilterNone); err == nil {
-		err = &saultregistry.HostExistError{ID: data.ID}
+		err = &saultcommon.HostExistError{ID: data.ID}
 		return
 	}
 
-	slog := log.WithFields(logrus.Fields{
-		"Address": fmt.Sprintf("%s@%s:%d", data.Accounts[0], data.HostName, data.Port),
-	})
+	if !data.Force {
+		slog := log.WithFields(logrus.Fields{
+			"Address": fmt.Sprintf("%s@%s:%d", data.Accounts[0], data.HostName, data.Port),
+		})
 
-	slog.Debugf("trying to connect")
+		slog.Debugf("trying to connect")
 
-	var authMethod sssh.AuthMethod
-	if len(data.Passphrase) < 1 {
-		authMethod = sssh.PublicKeys(config.Server.GetClientKeySigner())
-	} else {
-		authMethod = sssh.Password(data.Passphrase)
-	}
-
-	sc := saultcommon.NewSSHClient(data.Accounts[0], fmt.Sprintf("%s:%d", data.HostName, data.Port))
-	sc.AddAuthMethod(authMethod)
-	sc.SetTimeout(time.Second * 3)
-	defer sc.Close()
-
-	if err = sc.Connect(); err != nil {
-		slog.Error(err)
-
-		var errType saultcommon.CommandErrorType
-		if _, ok := err.(*net.OpError); ok {
-			errType = saultcommon.CommandErrorDialError
+		var authMethod sssh.AuthMethod
+		if len(data.Passphrase) < 1 {
+			authMethod = sssh.PublicKeys(config.Server.GetClientKeySigner())
 		} else {
-			errType = saultcommon.CommandErrorAuthFailed
+			authMethod = sssh.Password(data.Passphrase)
 		}
 
-		var response []byte
-		response, err = saultcommon.NewResponseMsg(nil, errType, err).ToJSON()
-		if err != nil {
+		sc := saultcommon.NewSSHClient(data.Accounts[0], fmt.Sprintf("%s:%d", data.HostName, data.Port))
+		sc.AddAuthMethod(authMethod)
+		sc.SetTimeout(time.Second * 3)
+		defer sc.Close()
+
+		if err = sc.Connect(); err != nil {
+			slog.Error(err)
+
+			var errType saultcommon.CommandErrorType
+			if _, ok := err.(*net.OpError); ok {
+				errType = saultcommon.CommandErrorDialError
+			} else {
+				errType = saultcommon.CommandErrorAuthFailed
+			}
+
+			var response []byte
+			response, err = saultcommon.NewResponseMsg(nil, errType, err).ToJSON()
+			if err != nil {
+				return
+			}
+
+			channel.Write(response)
 			return
 		}
 
-		channel.Write(response)
-		return
-	}
+		slog.Debugf("successfully connected; and then trying to inject client key.")
 
-	slog.Debugf("successfully connected; and then trying to inject client key.")
-
-	err = injectClientKeyToHost(sc, config.Server.GetClientKeySigner().PublicKey())
-	if err != nil {
-		slog.Error(err)
-		var response []byte
-		response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorInjectClientKey, err).ToJSON()
+		err = injectClientKeyToHost(sc, config.Server.GetClientKeySigner().PublicKey())
 		if err != nil {
+			slog.Error(err)
+
+			var response []byte
+			response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorInjectClientKey, err).ToJSON()
+			if err != nil {
+				return
+			}
+
+			channel.Write(response)
 			return
 		}
-
-		channel.Write(response)
-		return
 	}
 
 	var host saultregistry.HostRegistry

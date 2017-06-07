@@ -53,22 +53,6 @@ func (e *HostNothingToUpdate) Error() string {
 	return fmt.Sprintf("nothing to be updated for host, '%s'", e.ID)
 }
 
-// TODO move to saultcommon
-type HostExistError struct {
-	ID string
-}
-
-func (e *HostExistError) Error() string {
-	return fmt.Sprintf("host, '%s' already exists", e.ID)
-}
-
-type LinkedAllError struct {
-}
-
-func (e *LinkedAllError) Error() string {
-	return "Linked all"
-}
-
 type RegistryPublicKey []byte
 
 func (r *RegistryPublicKey) UnmarshalText(data []byte) (err error) {
@@ -551,6 +535,7 @@ func (registry *Registry) GetHosts(f HostFilter, hostIDs ...string) (hosts []Hos
 }
 
 func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []string) (host HostRegistry, err error) {
+	// TODO remove account duplications
 	if !saultcommon.CheckHostID(id) {
 		err = &saultcommon.InvalidHostIDError{ID: id}
 		return
@@ -560,7 +545,7 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 	}
 
 	if _, notFound := registry.GetHost(id, HostFilterNone); notFound == nil {
-		err = &HostExistError{ID: id}
+		err = &saultcommon.HostExistError{ID: id}
 		return
 	}
 
@@ -592,6 +577,7 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 }
 
 func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host HostRegistry, err error) {
+	// TODO remove account duplications
 	var updated bool
 	if id != newHost.ID {
 		if !saultcommon.CheckHostID(newHost.ID) {
@@ -600,7 +586,7 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		}
 
 		if _, notFound := registry.GetHost(newHost.ID, HostFilterNone); notFound == nil {
-			err = &HostExistError{ID: newHost.ID}
+			err = &saultcommon.HostExistError{ID: newHost.ID}
 			return
 		}
 		updated = true
@@ -826,7 +812,7 @@ func (registry *Registry) Unlink(userID, hostID string, accounts ...string) (err
 
 	link := registry.Data.Links[host.ID][userID]
 	if link.All {
-		err = &LinkedAllError{}
+		err = &saultcommon.LinkedAllError{}
 		return
 	}
 
