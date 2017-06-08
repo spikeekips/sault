@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
@@ -130,6 +131,11 @@ func init() {
 				Help:  "set host adddress, \"<hostname or ip>:<port default 22>\"",
 				Value: &hostUpdateNewAddress,
 			},
+			saultflags.FlagTemplate{
+				Name:  "SkipTest",
+				Help:  "skip connectivity check, only available with the new address",
+				Value: false,
+			},
 		},
 		ParseFunc: parseHostUpdateCommandFlags,
 	}
@@ -149,7 +155,10 @@ func parseHostUpdateCommandFlags(f *saultflags.Flags, args []string) (err error)
 		return
 	}
 
-	newHost := HostUpdateRequestData{ID: subArgs[0]}
+	newHost := HostUpdateRequestData{
+		ID:       subArgs[0],
+		SkipTest: f.Values["SkipTest"].(bool),
+	}
 	{
 		v := f.Values["ID"].(flagHostUpdateNewID)
 		if v.IsSet {
@@ -186,6 +195,7 @@ type HostUpdateRequestData struct {
 	NewAddress  flagHostUpdateNewAddress
 	NewAccounts flagHostUpdateNewAccounts
 	NewIsActive flagHostUpdateNewIsActive
+	SkipTest    bool
 }
 
 type HostUpdateResponsetData struct {
@@ -205,23 +215,35 @@ func (c *HostUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 		data,
 		&result,
 	)
-	if err != nil {
+	if err == nil {
+		var resultErr error
+		if len(result.Err) > 0 {
+			resultErr = fmt.Errorf(result.Err)
+		}
+
+		fmt.Fprintf(os.Stdout, PrintHostData(
+			"host-updated",
+			allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
+			result.Host,
+			resultErr,
+		))
+	}
+
+	var responseMsgErr *saultcommon.ResponseMsgError
+	var ok bool
+	if responseMsgErr, ok = err.(*saultcommon.ResponseMsgError); !ok {
 		return
 	}
 
-	var resultErr error
-	if len(result.Err) > 0 {
-		resultErr = fmt.Errorf(result.Err)
+	if responseMsgErr.IsError(saultcommon.CommandErrorDialError) {
+		t, _ := saultcommon.SimpleTemplating(`
+failed to update host, because could not connect to the host.
+{{ "HELP" | note }} You can use {{ "-skiptest" | yellow }} flag, it can skip the connectivity test.
+		`, nil)
+		responseMsgErr.Message = strings.TrimSpace(t)
 	}
 
-	fmt.Fprintf(os.Stdout, PrintHostData(
-		"host-updated",
-		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
-		result.Host,
-		resultErr,
-	))
-
-	return nil
+	return responseMsgErr
 }
 
 func (c *HostUpdateCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
@@ -234,6 +256,31 @@ func (c *HostUpdateCommand) Response(channel sssh.Channel, msg saultcommon.Comma
 	var host saultregistry.HostRegistry
 	if host, err = registry.GetHost(data.ID, saultregistry.HostFilterNone); err != nil {
 		return
+	}
+
+	if !data.SkipTest {
+		newAddress := fmt.Sprintf("%s:%d", data.NewAddress.HostName, data.NewAddress.Port)
+		if host.GetAddress() != newAddress {
+			err = checkConnectivity(
+				host.Accounts[0],
+				newAddress,
+				config.Server.GetClientKeySigner(),
+				time.Second*3,
+			)
+
+			if err != nil {
+				if responseMsgErr, ok := err.(*saultcommon.ResponseMsgError); ok {
+					var response []byte
+					response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorNone, responseMsgErr).ToJSON()
+					if err != nil {
+						return
+					}
+					channel.Write(response)
+					return
+				}
+				return
+			}
+		}
 	}
 
 	oldID := data.ID
@@ -250,9 +297,6 @@ func (c *HostUpdateCommand) Response(channel sssh.Channel, msg saultcommon.Comma
 	if data.NewIsActive.IsSet {
 		host.IsActive = data.NewIsActive.Value
 	}
-
-	// TODO: inject client key
-	// TODO: check connectivity
 
 	var errString string
 	var notUpdated bool

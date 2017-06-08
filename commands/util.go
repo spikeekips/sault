@@ -5,9 +5,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
 	"github.com/spikeekips/sault/sault"
@@ -329,4 +332,40 @@ func passphraseChallenge(run func(passphrase string) error, firstMessage, nextMe
 	}
 
 	return nil
+}
+
+func checkConnectivity(account, address string, signer sssh.Signer, timeout time.Duration) (err error) {
+	slog := log.WithFields(logrus.Fields{
+		"Address": fmt.Sprintf("%s@%s", account, address),
+	})
+
+	slog.Debugf("trying to connect")
+
+	sc := saultcommon.NewSSHClient(account, address)
+	sc.AddAuthMethod(sssh.PublicKeys(signer))
+	sc.SetTimeout(timeout)
+	defer sc.Close()
+
+	if err = sc.Connect(); err != nil {
+		slog.Errorf("%T: %v", err, err)
+
+		var errType saultcommon.CommandErrorType
+		if _, ok := err.(*net.OpError); ok {
+			errType = saultcommon.CommandErrorDialError
+		} else {
+			errType = saultcommon.CommandErrorAuthFailed
+		}
+
+		// NOTE only check the connectivity, not authentication
+		if errType == saultcommon.CommandErrorDialError {
+			err = &saultcommon.ResponseMsgError{ErrorType: errType, Message: err.Error()}
+			return
+		}
+
+		err = nil
+	}
+
+	slog.Debugf("successfully connected")
+
+	return
 }

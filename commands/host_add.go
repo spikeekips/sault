@@ -2,11 +2,10 @@ package saultcommands
 
 import (
 	"fmt"
-	"net"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
@@ -18,6 +17,7 @@ var HostAddFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host add" | yellow }} will add the new host in the registry of sault server.
+By default, the sault server tries to check the connection to your host. If failed, host will not be added. With {{ "-f" | yellow }} flag, you can force to add the host.
 		`,
 		nil,
 	)
@@ -30,8 +30,8 @@ func init() {
 		Description: description,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
-				Name:  "F",
-				Help:  "force to add host without injecting client key",
+				Name:  "SkipTest",
+				Help:  "skip connectivity check",
 				Value: false,
 			},
 			saultflags.FlagTemplate{
@@ -90,7 +90,7 @@ func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 		Port:     port,
 		Accounts: accounts,
 		IsActive: f.Values["IsActive"].(bool),
-		Force:    f.Values["F"].(bool),
+		SkipTest: f.Values["SkipTest"].(bool),
 	}
 
 	return nil
@@ -103,58 +103,28 @@ type HostAddRequestData struct {
 	Accounts []string
 	IsActive bool
 
-	Passphrase string
-	Force      bool
+	SkipTest bool
 }
 
 type HostAddCommand struct{}
 
-var hostAddHelpFirstMessage = `
-{{ "error" | red }} failed to complete to add host, because not authenticated to your host from sault server'.
-{{ line "-" }}
-{{ "note" | note }}
-* sault supports to inject the public key into your host automatically with passphrase.
-* If your host does not support password authentication, or you don't know it's passphrase, just hit Control-C. You can manually append the sault client public key into your host account.
-* To verify the sault client public key, use {{ "$ sault server print clientkey" | magenta }}
-* sault does not remember your passphrase :)
-{{ line "-" }}
-Enter passphrase to inject the sault client key into your host, or you can skip this step with {{ "-f" | yellow }} flag.
-`
-
-var hostAddHelpNextMessage = `
-{{ "error" | red }} failed to authenticate, it maybe wrong passphrase. Try again.
-`
-
 func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	data := thisFlags.Values["Host"].(HostAddRequestData)
 
-	run := func(passphrase string) error {
-		data.Passphrase = passphrase
-
-		var host saultregistry.HostRegistry
-		_, err := runCommand(
-			allFlags[0],
-			HostAddFlagsTemplate.ID,
-			data,
-			&host,
-		)
-		if err != nil {
-			return err
-		}
-
+	var host saultregistry.HostRegistry
+	_, err = runCommand(
+		allFlags[0],
+		HostAddFlagsTemplate.ID,
+		data,
+		&host,
+	)
+	if err == nil {
 		fmt.Fprintf(os.Stdout, PrintHostData(
 			"host-added",
 			allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 			host,
 			nil,
 		))
-
-		return nil
-	}
-
-	err = passphraseChallenge(run, hostAddHelpFirstMessage, hostAddHelpNextMessage, sault.MaxPassphraseChallenge)
-	if err == nil {
-		return
 	}
 
 	var responseMsgErr *saultcommon.ResponseMsgError
@@ -163,22 +133,15 @@ func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 		return
 	}
 
-	if responseMsgErr.IsError(saultcommon.CommandErrorAuthFailed) {
-		responseMsgErr.Message = fmt.Sprintf("failed to add host, because could not authenticate")
-		return responseMsgErr
-	}
-
-	if responseMsgErr.IsError(saultcommon.CommandErrorInjectClientKey) {
-		responseMsgErr.Message = "failed to add host, something wrong. Could not inject the sault client key to host."
-		return responseMsgErr
-	}
-
 	if responseMsgErr.IsError(saultcommon.CommandErrorDialError) {
-		responseMsgErr.Message = fmt.Sprintf("failed to add host, because could not connect")
-		return responseMsgErr
+		t, _ := saultcommon.SimpleTemplating(`
+failed to add host, because could not connect to the host.
+{{ "HELP" | note }} You can use {{ "-skiptest" | yellow }} flag, it can skip the connectivity test.
+		`, nil)
+		responseMsgErr.Message = strings.TrimSpace(t)
 	}
 
-	return
+	return responseMsgErr
 }
 
 func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
@@ -193,58 +156,24 @@ func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandM
 		return
 	}
 
-	if !data.Force {
-		slog := log.WithFields(logrus.Fields{
-			"Address": fmt.Sprintf("%s@%s:%d", data.Accounts[0], data.HostName, data.Port),
-		})
+	if !data.SkipTest {
+		err = checkConnectivity(
+			data.Accounts[0],
+			fmt.Sprintf("%s:%d", data.HostName, data.Port),
+			config.Server.GetClientKeySigner(),
+			time.Second*3,
+		)
 
-		slog.Debugf("trying to connect")
-
-		var authMethod sssh.AuthMethod
-		if len(data.Passphrase) < 1 {
-			authMethod = sssh.PublicKeys(config.Server.GetClientKeySigner())
-		} else {
-			authMethod = sssh.Password(data.Passphrase)
-		}
-
-		sc := saultcommon.NewSSHClient(data.Accounts[0], fmt.Sprintf("%s:%d", data.HostName, data.Port))
-		sc.AddAuthMethod(authMethod)
-		sc.SetTimeout(time.Second * 3)
-		defer sc.Close()
-
-		if err = sc.Connect(); err != nil {
-			slog.Error(err)
-
-			var errType saultcommon.CommandErrorType
-			if _, ok := err.(*net.OpError); ok {
-				errType = saultcommon.CommandErrorDialError
-			} else {
-				errType = saultcommon.CommandErrorAuthFailed
-			}
-
-			var response []byte
-			response, err = saultcommon.NewResponseMsg(nil, errType, err).ToJSON()
-			if err != nil {
-				return
-			}
-
-			channel.Write(response)
-			return
-		}
-
-		slog.Debugf("successfully connected; and then trying to inject client key.")
-
-		err = injectClientKeyToHost(sc, config.Server.GetClientKeySigner().PublicKey())
 		if err != nil {
-			slog.Error(err)
-
-			var response []byte
-			response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorInjectClientKey, err).ToJSON()
-			if err != nil {
+			if responseMsgErr, ok := err.(*saultcommon.ResponseMsgError); ok {
+				var response []byte
+				response, err = saultcommon.NewResponseMsg(nil, saultcommon.CommandErrorNone, responseMsgErr).ToJSON()
+				if err != nil {
+					return
+				}
+				channel.Write(response)
 				return
 			}
-
-			channel.Write(response)
 			return
 		}
 	}

@@ -74,16 +74,20 @@ type ResponseMsg struct {
 }
 
 func NewResponseMsg(result interface{}, errType CommandErrorType, e error) *ResponseMsg {
-	var errString string
-	if e != nil {
-		errString = e.Error()
-	}
-
 	var err *ResponseMsgError
-	if errType == CommandErrorNone {
-		err = nil
+	if responseMsgError, ok := e.(*ResponseMsgError); ok {
+		err = responseMsgError
 	} else {
-		err = &ResponseMsgError{ErrorType: errType, Message: errString}
+		var errString string
+		if e != nil {
+			errString = e.Error()
+		}
+
+		if errType == CommandErrorNone {
+			err = nil
+		} else {
+			err = &ResponseMsgError{ErrorType: errType, Message: errString}
+		}
 	}
 
 	return &ResponseMsg{

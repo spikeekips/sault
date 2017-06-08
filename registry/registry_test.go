@@ -524,7 +524,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		hostName := "new-server"
 		port := uint64(22)
-		host, err := registry.AddHost(id, hostName, port, nil)
+		host, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err != nil {
 			t.Error(err)
 		}
@@ -542,7 +542,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		hostName := "new-server"
 		port := uint64(0)
-		host, err := registry.AddHost(id, hostName, port, nil)
+		host, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err != nil {
 			t.Error(err)
 		}
@@ -552,8 +552,8 @@ func TestRegistryAddHost(t *testing.T) {
 		}
 
 		parsedAddress := fmt.Sprintf("%s:22", hostName)
-		if host.Address() != parsedAddress {
-			t.Errorf("host.Address() != parsedAddress; '%s' != '%s'", host.Address(), parsedAddress)
+		if host.GetAddress() != parsedAddress {
+			t.Errorf("host.Address() != parsedAddress; '%s' != '%s'", host.GetAddress(), parsedAddress)
 		}
 	}
 
@@ -562,7 +562,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		hostName := "new-server:"
 		port := uint64(0)
-		_, err := registry.AddHost(id, hostName, port, nil)
+		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err == nil {
 			t.Error("erro must be occured")
 		}
@@ -573,7 +573,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		hostName := ":"
 		port := uint64(0)
-		_, err := registry.AddHost(id, hostName, port, nil)
+		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err == nil {
 			t.Error("erro must be occured")
 		}
@@ -588,7 +588,7 @@ func TestRegistryAddHost(t *testing.T) {
 
 		hostName := "new-server"
 		port := uint64(22)
-		_, err := registry.AddHost(id, hostName, port, nil)
+		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err == nil {
 			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
 		}
@@ -603,7 +603,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id = id[:5] + "*" + id[5:10]
 		hostName := "new-server"
 		port := uint64(22)
-		_, err := registry.AddHost(id, hostName, port, nil)
+		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err == nil {
 			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
 		}
@@ -618,7 +618,7 @@ func TestRegistryAddHost(t *testing.T) {
 		id = id[:5] + "-"
 		hostName := "new-server"
 		port := uint64(22)
-		_, err := registry.AddHost(id, hostName, port, nil)
+		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
 		if err == nil {
 			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
 		}
@@ -672,7 +672,7 @@ func TestRegistryUpdateHost(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		hostName := "new-server"
 		port := uint64(22)
-		host, _ = registry.AddHost(id, hostName, port, nil)
+		host, _ = registry.AddHost(id, hostName, port, []string{"ubuntu"})
 	}
 
 	{
@@ -743,7 +743,7 @@ func TestRegistryRemoveHost(t *testing.T) {
 	var host HostRegistry
 	{
 		id := saultcommon.MakeRandomString()
-		host, _ = registry.AddHost(id, "new-server", uint64(22), nil)
+		host, _ = registry.AddHost(id, "new-server", uint64(22), []string{"ubuntu"})
 	}
 
 	{

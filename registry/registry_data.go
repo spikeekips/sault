@@ -119,7 +119,7 @@ type HostRegistry struct {
 	DateUpdated time.Time
 }
 
-func (r HostRegistry) Address() string {
+func (r HostRegistry) GetAddress() string {
 	return fmt.Sprintf(
 		"%s:%d",
 		r.HostName,
@@ -131,7 +131,7 @@ func (r HostRegistry) String() string {
 	return fmt.Sprintf(
 		"host=%s(%s)",
 		r.ID,
-		r.Address(),
+		r.GetAddress(),
 	)
 }
 
@@ -535,11 +535,15 @@ func (registry *Registry) GetHosts(f HostFilter, hostIDs ...string) (hosts []Hos
 }
 
 func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []string) (host HostRegistry, err error) {
-	// TODO remove account duplications
 	if !saultcommon.CheckHostID(id) {
 		err = &saultcommon.InvalidHostIDError{ID: id}
 		return
 	}
+	if len(accounts) < 1 {
+		err = fmt.Errorf("accounts must be set; empty accounts")
+		return
+	}
+
 	if hostName, port, err = saultcommon.SplitHostPort(fmt.Sprintf("%s:%d", hostName, port), uint64(22)); err != nil {
 		return
 	}
@@ -556,8 +560,18 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 		}
 	}
 
-	if len(accounts) > 0 {
-		sort.Strings(accounts)
+	{
+		m := map[string]int{}
+		newAccounts := []string{}
+		for _, a := range accounts {
+			if _, ok := m[a]; ok {
+				continue
+			}
+			m[a] = 1
+			newAccounts = append(newAccounts, a)
+		}
+		sort.Strings(newAccounts)
+		accounts = newAccounts
 	}
 
 	host = HostRegistry{
@@ -577,7 +591,6 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 }
 
 func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host HostRegistry, err error) {
-	// TODO remove account duplications
 	var updated bool
 	if id != newHost.ID {
 		if !saultcommon.CheckHostID(newHost.ID) {
@@ -592,17 +605,22 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		updated = true
 	}
 
+	if len(newHost.Accounts) < 1 {
+		err = fmt.Errorf("accounts must be set; empty accounts")
+		return
+	}
+
 	var oldHost HostRegistry
 	oldHost, err = registry.GetHost(id, HostFilterNone)
 	if err != nil {
 		return
 	}
 
-	if oldHost.Address() != newHost.Address() {
+	if oldHost.GetAddress() != newHost.GetAddress() {
 		var hostName string
 		var port uint64
-		if hostName, port, err = saultcommon.SplitHostPort(newHost.Address(), uint64(22)); err != nil {
-			err = &saultcommon.InvalidHostAddressError{Address: newHost.Address(), Err: err}
+		if hostName, port, err = saultcommon.SplitHostPort(newHost.GetAddress(), uint64(22)); err != nil {
+			err = &saultcommon.InvalidHostAddressError{Address: newHost.GetAddress(), Err: err}
 			return
 		}
 		newHost.HostName = hostName
@@ -611,13 +629,26 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		updated = true
 	}
 
+	{
+		m := map[string]int{}
+		newAccounts := []string{}
+		for _, a := range newHost.Accounts {
+			if _, ok := m[a]; ok {
+				continue
+			}
+			m[a] = 1
+			newAccounts = append(newAccounts, a)
+		}
+		sort.Strings(newAccounts)
+		newHost.Accounts = newAccounts
+	}
+
 	for _, a := range newHost.Accounts {
 		if !saultcommon.CheckAccountName(a) {
 			err = &saultcommon.InvalidAccountNameError{Name: a}
 			return
 		}
 	}
-	sort.Strings(newHost.Accounts)
 
 	if len(oldHost.Accounts) != len(newHost.Accounts) {
 		updated = true
