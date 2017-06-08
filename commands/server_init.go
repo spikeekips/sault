@@ -45,11 +45,12 @@ After initializing sault server,
 	)
 
 	ServerInitFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "server init",
-		Name:        "init",
-		Help:        "initialize sault server environment",
-		Usage:       "[flags] <admin user's publicKey file>",
-		Description: description,
+		ID:           "server init",
+		Name:         "init",
+		Help:         "initialize sault server environment",
+		Usage:        "<admin user's publicKey file> [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "Env",
@@ -69,7 +70,7 @@ After initializing sault server,
 }
 
 func parseServerInitCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	commandArgs := f.FlagSet.Args()
+	commandArgs := f.Args()
 	if len(commandArgs) < 1 {
 		err = fmt.Errorf("<admin user's publicKey file> must be given")
 		return

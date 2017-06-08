@@ -73,6 +73,7 @@ type FlagsTemplate struct {
 
 	ParseFuncBefore func(*Flags, []string) error
 	ParseFunc       func(*Flags, []string) error
+	IsPositioned    bool
 }
 
 // FlagTemplate is the template for one flag flag
@@ -101,6 +102,7 @@ type Flags struct {
 	Subcommands     []*Flags
 	ParseFuncBefore func(*Flags, []string) error
 	ParseFunc       func(*Flags, []string) error
+	IsPositioned    bool
 
 	Template      *FlagsTemplate
 	FlagSet       *flag.FlagSet
@@ -112,6 +114,7 @@ type Flags struct {
 
 	out          io.Writer
 	helpTemplate string
+	args         []string
 }
 
 // NewFlags renders FlagsTemplate
@@ -126,6 +129,7 @@ func NewFlags(ft *FlagsTemplate, parent *Flags) (fs *Flags) {
 		ParseFuncBefore: ft.ParseFuncBefore,
 		ParseFunc:       ft.ParseFunc,
 		Template:        ft,
+		IsPositioned:    ft.IsPositioned,
 		Parent:          parent,
 	}
 
@@ -174,6 +178,10 @@ func (f *Flags) SetOutput(out io.Writer) {
 	}
 }
 
+func (f *Flags) Args() []string {
+	return f.args
+}
+
 // Parse is similar with RawParse(), but Parse() handles errors
 func (f *Flags) Parse(args []string) (err error) {
 	err = f.RawParse(args)
@@ -197,6 +205,30 @@ func (f *Flags) Parse(args []string) (err error) {
 			return &ErrorOccured{Err: err}
 		}
 	}
+
+	f.args = f.FlagSet.Args()
+
+	return
+}
+
+func (f *Flags) ParsePositioned(args []string) (err error) {
+	var positioned, none_positioned []string
+
+	var foundFlag bool
+	for _, a := range args {
+		if !foundFlag && strings.HasPrefix(a, "-") {
+			foundFlag = true
+		}
+
+		if foundFlag {
+			none_positioned = append(none_positioned, a)
+		} else {
+			positioned = append(positioned, a)
+		}
+	}
+
+	f.args = positioned
+	err = f.Parse(none_positioned)
 
 	return
 }
@@ -252,7 +284,11 @@ func (f *Flags) RawParse(args []string) (err error) {
 					return
 				}
 
-				err = subCommand.Parse(commandArgs[1:])
+				if subCommand.IsPositioned {
+					err = subCommand.ParsePositioned(commandArgs[1:])
+				} else {
+					err = subCommand.Parse(commandArgs[1:])
+				}
 				if err != nil {
 					return err
 				}

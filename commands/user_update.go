@@ -91,11 +91,12 @@ func init() {
 	var userUpdateNewPublicKey flagUserUpdateNewPublicKey
 
 	UserUpdateFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "user update",
-		Name:        "update",
-		Help:        "update the sault user",
-		Usage:       "[flags] <user id>",
-		Description: description,
+		ID:           "user update",
+		Name:         "update",
+		Help:         "update the sault user",
+		Usage:        "<user id> [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "ID",
@@ -125,7 +126,7 @@ func init() {
 }
 
 func parseUserUpdateCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 1 {
 		err = fmt.Errorf("<user id> is missing")
 		return

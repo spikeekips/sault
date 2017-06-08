@@ -21,20 +21,21 @@ func init() {
 	)
 
 	HostRemoveFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "host remove",
-		Name:        "remove",
-		Help:        "remove the sault hosts",
-		Usage:       "[flags] <host id> [<host id>...]",
-		Description: description,
-		Flags:       []saultflags.FlagTemplate{},
-		ParseFunc:   parseHostRemoveCommandFlags,
+		ID:           "host remove",
+		Name:         "remove",
+		Help:         "remove the sault hosts",
+		Usage:        "<host id> [<host id>...] [flags]",
+		Description:  description,
+		IsPositioned: true,
+		Flags:        []saultflags.FlagTemplate{},
+		ParseFunc:    parseHostRemoveCommandFlags,
 	}
 
 	sault.Commands[HostRemoveFlagsTemplate.ID] = &HostRemoveCommand{}
 }
 
 func parseHostRemoveCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 1 {
 		err = fmt.Errorf("set host ids")
 		return

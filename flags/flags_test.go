@@ -463,3 +463,87 @@ func TestFlagSubcommandsNames(t *testing.T) {
 
 	}
 }
+
+func TestParseFlagArgs(t *testing.T) {
+	ft := &FlagsTemplate{
+		Name: saultcommon.MakeRandomString(),
+		Flags: []FlagTemplate{
+			FlagTemplate{
+				Name:  "lower",
+				Value: "l",
+			},
+			FlagTemplate{
+				Name:  "upper",
+				Value: "u",
+			},
+		},
+	}
+
+	{
+		args := []string{
+			"findme",
+			"-lower", "L",
+			"-upper", "U",
+		}
+
+		fs := NewFlags(ft, nil)
+		err := fs.Parse(args)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if fs.Values["lower"].(string) != "l" || fs.Values["upper"].(string) != "u" {
+			t.Errorf("flag parsed.")
+		}
+
+		if len(fs.Args()) == 3 {
+			t.Errorf("flag parsed.")
+		}
+	}
+
+	{
+		args := []string{
+			"-lower", "L",
+			"-upper", "U",
+			"findme",
+		}
+
+		fs := NewFlags(ft, nil)
+		err := fs.Parse(args)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if fs.Values["lower"].(string) != "L" || fs.Values["upper"].(string) != "U" {
+			t.Errorf("flag not parsed.")
+		}
+
+		if len(fs.Args()) != 1 || fs.Args()[0] != "findme" {
+			t.Errorf("flag not parsed.")
+		}
+	}
+
+	{
+		// positioned
+		args := []string{
+			"findme",
+			"-lower", "L",
+			"-upper", "U",
+		}
+
+		fs := NewFlags(ft, nil)
+		err := fs.ParsePositioned(args)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if fs.Values["lower"].(string) != "L" || fs.Values["upper"].(string) != "U" {
+			t.Errorf("flag not parsed.")
+		}
+
+		if len(fs.Args()) == 3 {
+			t.Errorf("flag not parsed.")
+		}
+	}
+
+}

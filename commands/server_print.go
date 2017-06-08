@@ -25,20 +25,21 @@ func init() {
 		ID:    "server print",
 		Name:  "print",
 		Help:  "prints the sault server informations",
-		Usage: fmt.Sprintf("[flags] [ %s ]", strings.Join(availableServerPrintKinds, " ")),
+		Usage: fmt.Sprintf("[ %s ] [flags]", strings.Join(availableServerPrintKinds, " ")),
 		Description: `{{ "server print" | yellow }} prints the sault server informations.
 * {{ "cilentkey" | yellow }}: prints the private and public key to connect the host
 * {{ "config" | yellow }}: prints the current running sault configurations
 * {{ "registry" | yellow }}: prints the current running sault registry
 		`,
-		ParseFunc: parseServerPrintCommandFlags,
+		IsPositioned: true,
+		ParseFunc:    parseServerPrintCommandFlags,
 	}
 
 	sault.Commands[ServerPrintFlagsTemplate.ID] = &ServerPrintCommand{}
 }
 
 func parseServerPrintCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 1 {
 		err = fmt.Errorf("select one of kinds, %s", availableServerPrintKinds)
 		return

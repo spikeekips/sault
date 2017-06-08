@@ -132,11 +132,12 @@ The belowed flags help to get the sault users from sault server, by default, it 
 	publicKeyFlag := new(flagPublicKey)
 	userFilters := new(flagUserFilters)
 	UserListFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "user list",
-		Name:        "list",
-		Help:        "get users information",
-		Usage:       "[flags] [<user id>...]",
-		Description: description,
+		ID:           "user list",
+		Name:         "list",
+		Help:         "get users information",
+		Usage:        "[<user id>...] [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "Filter",
@@ -156,7 +157,7 @@ The belowed flags help to get the sault users from sault server, by default, it 
 }
 
 func parseUserListCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 
 	for _, a := range subArgs {
 		if !saultcommon.CheckUserID(a) {

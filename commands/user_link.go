@@ -34,20 +34,21 @@ Such like appending '-' at the end of account name, this will disallow the user 
 	)
 
 	UserLinkFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "user link",
-		Name:        "link",
-		Help:        "link to the sault host",
-		Usage:       "[flags] <user id> <host id> [<account>...]",
-		Description: description,
-		Flags:       []saultflags.FlagTemplate{},
-		ParseFunc:   parseUserLinkCommandFlags,
+		ID:           "user link",
+		Name:         "link",
+		Help:         "link to the sault host",
+		Usage:        "<user id> <host id> [<account>...] [flags]",
+		Description:  description,
+		IsPositioned: true,
+		Flags:        []saultflags.FlagTemplate{},
+		ParseFunc:    parseUserLinkCommandFlags,
 	}
 
 	sault.Commands[UserLinkFlagsTemplate.ID] = &UserLinkCommand{}
 }
 
 func parseUserLinkCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 2 {
 		err = fmt.Errorf("wrong usage")
 		return

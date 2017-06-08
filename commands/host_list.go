@@ -86,15 +86,15 @@ The belowed flags help to get the sault hosts from sault server, by default, it 
 				Value: hostFilters,
 			},
 		},
-		ParseFunc: parseHostListCommandFlags,
+		ParseFunc:    parseHostListCommandFlags,
+		IsPositioned: true,
 	}
 
 	sault.Commands[HostListFlagsTemplate.ID] = &HostListCommand{}
 }
 
 func parseHostListCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
-
+	subArgs := f.Args()
 	for _, a := range subArgs {
 		if !saultcommon.CheckHostID(a) {
 			err = &saultcommon.InvalidHostIDError{ID: a}
@@ -116,7 +116,7 @@ type HostListCommand struct{}
 
 func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	flagFilter := thisFlags.Values["Filter"].(flagHostFilters)
-	log.Debugf("get hosts, filters: %s HostIDs: %s", flagFilter.Args, thisFlags.Values["UserIDs"])
+	log.Debugf("get hosts, filters: %s HostIDs: %s", flagFilter.Args, thisFlags.Values["HostIDs"])
 
 	var hosts []saultregistry.HostRegistry
 	_, err = runCommand(

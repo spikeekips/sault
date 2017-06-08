@@ -23,11 +23,12 @@ By default, the sault server tries to check the connection to your host. If fail
 	)
 
 	HostAddFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "host add",
-		Name:        "add",
-		Help:        "add new sault host",
-		Usage:       "[flags] <host id> <account>@<host address, hostname:port> [additional accounts...]",
-		Description: description,
+		ID:           "host add",
+		Name:         "add",
+		Help:         "add new sault host",
+		Usage:        "<host id> <account>@<host address, hostname:port> [additional accounts...] [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "SkipTest",
@@ -47,7 +48,7 @@ By default, the sault server tries to check the connection to your host. If fail
 }
 
 func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 2 {
 		err = fmt.Errorf("wrong usage")
 		return

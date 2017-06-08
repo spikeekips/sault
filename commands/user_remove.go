@@ -21,20 +21,21 @@ func init() {
 	)
 
 	UserRemoveFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "user remove",
-		Name:        "remove",
-		Help:        "remove the existing sault user",
-		Usage:       "[flags] <user id> [<user id>...]",
-		Description: description,
-		Flags:       []saultflags.FlagTemplate{},
-		ParseFunc:   parseUserRemoveCommandFlags,
+		ID:           "user remove",
+		Name:         "remove",
+		Help:         "remove the existing sault user",
+		Usage:        "<user id> [<user id>...] [flags]",
+		Description:  description,
+		IsPositioned: true,
+		Flags:        []saultflags.FlagTemplate{},
+		ParseFunc:    parseUserRemoveCommandFlags,
 	}
 
 	sault.Commands[UserRemoveFlagsTemplate.ID] = &UserRemoveCommand{}
 }
 
 func parseUserRemoveCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 1 {
 		err = fmt.Errorf("<user id>s are missing")
 		return

@@ -21,11 +21,12 @@ func init() {
 	)
 
 	UserAddFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "user add",
-		Name:        "add",
-		Help:        "add new sault user",
-		Usage:       "[flags] <user id> <public key file>",
-		Description: description,
+		ID:           "user add",
+		Name:         "add",
+		Help:         "add new sault user",
+		Usage:        "<user id> <public key file> [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "IsAdmin",
@@ -45,7 +46,7 @@ func init() {
 }
 
 func parseUserAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) < 1 {
 		err = fmt.Errorf("<user id> and <public key file> are missing")
 		return

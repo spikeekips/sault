@@ -105,11 +105,12 @@ func init() {
 	var hostUpdateNewAddress flagHostUpdateNewAddress
 	var hostUpdateNewAccounts flagHostUpdateNewAccounts
 	HostUpdateFlagsTemplate = &saultflags.FlagsTemplate{
-		ID:          "host update",
-		Name:        "update",
-		Help:        "update the sault host",
-		Usage:       "[flags] <host id>",
-		Description: description,
+		ID:           "host update",
+		Name:         "update",
+		Help:         "update the sault host",
+		Usage:        "<host id> [flags]",
+		Description:  description,
+		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "ID",
@@ -144,7 +145,7 @@ func init() {
 }
 
 func parseHostUpdateCommandFlags(f *saultflags.Flags, args []string) (err error) {
-	subArgs := f.FlagSet.Args()
+	subArgs := f.Args()
 	if len(subArgs) != 1 {
 		err = fmt.Errorf("wrong usage")
 		return
