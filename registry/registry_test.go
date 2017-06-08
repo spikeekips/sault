@@ -13,6 +13,7 @@ import (
 	"github.com/spikeekips/sault/sssh"
 )
 
+// TODO remove tmpfile garbages
 func testRegistryGetPublicKey() (publicKey sssh.PublicKey) {
 	privateKey, _ := saultcommon.CreateRSAPrivateKey(256)
 	publicKey, _ = sssh.NewPublicKey(privateKey.Public())
