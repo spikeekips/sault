@@ -14,8 +14,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spikeekips/sault/commands"
 	"github.com/spikeekips/sault/common"
+	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
-	"github.com/spikeekips/sault/sault"
 )
 
 var log *logrus.Logger

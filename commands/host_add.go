@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/spikeekips/sault/common"
+	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sault"
 	"github.com/spikeekips/sault/sssh"
 )
 
