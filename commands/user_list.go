@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spikeekips/sault/common"
@@ -125,6 +126,9 @@ The belowed flags help to get the sault users from sault server, by default, it 
   * {{ "-filter \"active\"" | yellow }}: active users
   * {{ "-filter \"admin active\"" | yellow }}: admin and active users
   * {{ "-filter \"admin- active\"" | yellow }}: not admin and active users
+
+{{ "-reverse" | yellow }}:
+By default, sault orders the sault users by the updated time, that is, the last updated usre will be listed at last. This flag will list them by reverse order.
 		`,
 		nil,
 	)
@@ -148,6 +152,11 @@ The belowed flags help to get the sault users from sault server, by default, it 
 				Name:  "PublicKey",
 				Help:  "get user, matched with public key",
 				Value: publicKeyFlag,
+			},
+			saultflags.FlagTemplate{
+				Name:  "Reverse",
+				Help:  "list reverse order by the updated time",
+				Value: false,
 			},
 		},
 		ParseFunc: parseUserListCommandFlags,
@@ -190,14 +199,26 @@ type UserListResponseUserData struct {
 
 type UserListResponseData []UserListResponseUserData
 
+func (s UserListResponseData) Len() int {
+	return len(s)
+}
+
+func (s UserListResponseData) Less(i, j int) bool {
+	return s[i].User.DateUpdated.Before(s[j].User.DateUpdated)
+}
+
+func (s UserListResponseData) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+	return
+}
+
 type UserListCommand struct{}
 
 func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	var users []UserListResponseUserData
-
 	flagFilter := thisFlags.Values["Filter"].(flagUserFilters)
 	log.Debugf("get users, filters: %s UserIDs: %s PublicKey: %s", flagFilter.Args, thisFlags.Values["UserIDs"], thisFlags.Values["PublicKey"].(flagPublicKey).Path)
 
+	var users UserListResponseData
 	_, err = runCommand(
 		allFlags[0],
 		UserListFlagsTemplate.ID,
@@ -210,6 +231,12 @@ func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	)
 	if err != nil {
 		return
+	}
+
+	if thisFlags.Values["Reverse"].(bool) {
+		sort.Sort(sort.Reverse(users))
+	} else {
+		sort.Sort(users)
 	}
 
 	fmt.Fprintf(os.Stdout, PrintUsersData(
@@ -235,7 +262,7 @@ func (c *UserListCommand) Response(channel saultssh.Channel, msg saultcommon.Com
 		}
 	}
 
-	result := []UserListResponseUserData{}
+	result := UserListResponseData{}
 	for _, u := range registry.GetUsers(data.Filters, data.UserIDs...) {
 		if parsedPublicKey != nil && !u.HasPublicKey(parsedPublicKey) {
 			continue

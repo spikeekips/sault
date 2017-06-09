@@ -11,6 +11,7 @@ import (
 
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/saultssh"
+	"github.com/stretchr/testify/assert"
 )
 
 func testRegistryGetPublicKey() (publicKey saultssh.PublicKey) {
@@ -22,9 +23,7 @@ func testRegistryGetPublicKey() (publicKey saultssh.PublicKey) {
 
 func TestBasicRegistry(t *testing.T) {
 	_, err := NewTestRegistryFromBytes([]byte{})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 }
 
 func TestRegistryAddUser(t *testing.T) {
@@ -37,39 +36,22 @@ func TestRegistryAddUser(t *testing.T) {
 		encoded, _ := saultcommon.EncodePublicKey(testRegistryGetPublicKey())
 
 		user, err := registry.AddUser(id, encoded)
-		if err != nil {
-			t.Error(err)
-		}
-		if user.ID != id {
-			t.Errorf("user.ID != id; '%s' != '%s'", user.ID, id)
-		}
-		if strings.TrimSpace(string(user.PublicKey)) != strings.TrimSpace(string(encoded)) {
-			t.Errorf("user.PublicKey != publicKey; '%s' != '%s'", user.PublicKey, string(encoded))
-		}
-		if !user.IsActive {
-			t.Errorf("user.IsActive must be true; %v", user.IsActive)
-		}
-
-		if !user.DateAdded.After(now) {
-			t.Errorf("user.DateAdded was not updated")
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, id, user.ID)
+		assert.Equal(t, strings.TrimSpace(string(encoded)), strings.TrimSpace(string(user.PublicKey)))
+		assert.True(t, user.IsActive)
+		assert.True(t, user.DateAdded.After(now))
 	}
 
 	{
 		// with long user ID
 		id := saultcommon.MakeRandomString() + saultcommon.MakeRandomString()
-		if len(id) < saultcommon.MaxLengthUserID {
-			t.Errorf("len(id) < saultcommon.MaxLengthUserID; %d < %d", len(id), saultcommon.MaxLengthUserID)
-		}
+		assert.True(t, len(id) >= saultcommon.MaxLengthUserID)
 
 		encoded, _ := saultcommon.EncodePublicKey(testRegistryGetPublicKey())
 		_, err := registry.AddUser(id, encoded)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidUserIDError); !ok {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured; %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidUserIDError{}, err)
 	}
 
 	{
@@ -78,12 +60,8 @@ func TestRegistryAddUser(t *testing.T) {
 
 		encoded, _ := saultcommon.EncodePublicKey(testRegistryGetPublicKey())
 		_, err := registry.AddUser(id, encoded)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidUserIDError); !ok {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured; %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidUserIDError{}, err)
 	}
 
 	{
@@ -93,21 +71,15 @@ func TestRegistryAddUser(t *testing.T) {
 
 		encoded, _ := saultcommon.EncodePublicKey(testRegistryGetPublicKey())
 		_, err := registry.AddUser(id, encoded)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidUserIDError); !ok {
-			t.Errorf("'saultcommon.InvalidUserIDError' must be occured; %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidUserIDError{}, err)
 	}
 
 	{
 		// with invalid publicKey
 		id := saultcommon.MakeRandomString()
 		_, err := registry.AddUser(id, []byte("findme"))
-		if err == nil {
-			t.Errorf("error must be occured")
-		}
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -119,13 +91,8 @@ func TestRegistryAddUser(t *testing.T) {
 
 		encoded, _ = saultcommon.EncodePublicKey(testRegistryGetPublicKey())
 		_, err := registry.AddUser(user0.ID, encoded)
-		if err == nil {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
-
-		if uerr, ok := err.(*saultcommon.UserExistsError); !ok || uerr.ID == "" {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.UserExistsError{}, err)
 	}
 
 	{
@@ -137,13 +104,8 @@ func TestRegistryAddUser(t *testing.T) {
 
 		id = saultcommon.MakeRandomString()
 		_, err := registry.AddUser(id, encoded)
-		if err == nil {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
-
-		if uerr, ok := err.(*saultcommon.UserExistsError); !ok || len(uerr.PublicKey) == 0 {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.UserExistsError{}, err)
 	}
 }
 
@@ -174,9 +136,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		filter := UserFilterNone
 		users := registry.GetUsers(filter)
 
-		if len(users) != registry.GetUserCount(filter) {
-			t.Errorf("len(users) != registry.GetUserCount(filter); %d != %d", len(users), registry.GetUserCount(filter))
-		}
+		assert.Equal(t, registry.GetUserCount(filter), len(users))
 
 		expectedUserIDs := []string{user.ID, userNotActive.ID, admin.ID}
 		var userIDs []string
@@ -187,10 +147,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		sort.Strings(userIDs)
 		sort.Strings(expectedUserIDs)
 		for i := 0; i < len(users); i++ {
-			if userIDs[i] != expectedUserIDs[i] {
-				t.Errorf("userIDs != expectedUserIDs; %v != %v", userIDs, expectedUserIDs)
-				break
-			}
+			assert.Equal(t, expectedUserIDs[i], userIDs[i])
 		}
 	}
 
@@ -198,9 +155,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		filter := UserFilterIsNotActive
 		users := registry.GetUsers(filter)
 
-		if len(users) != registry.GetUserCount(filter) {
-			t.Errorf("len(users) != registry.GetUserCount(filter); %d != %d", len(users), registry.GetUserCount(filter))
-		}
+		assert.Equal(t, registry.GetUserCount(filter), len(users))
 
 		expectedUserIDs := []string{userNotActive.ID}
 		var userIDs []string
@@ -211,10 +166,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		sort.Strings(userIDs)
 		sort.Strings(expectedUserIDs)
 		for i := 0; i < len(users); i++ {
-			if userIDs[i] != expectedUserIDs[i] {
-				t.Errorf("userIDs != expectedUserIDs; %v != %v", userIDs, expectedUserIDs)
-				break
-			}
+			assert.Equal(t, expectedUserIDs[i], userIDs[i])
 		}
 	}
 
@@ -222,9 +174,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		filter := UserFilterIsActive
 		users := registry.GetUsers(filter)
 
-		if len(users) != registry.GetUserCount(filter) {
-			t.Errorf("len(users) != registry.GetUserCount(filter); %d != %d", len(users), registry.GetUserCount(filter))
-		}
+		assert.Equal(t, registry.GetUserCount(filter), len(users))
 
 		expectedUserIDs := []string{user.ID, admin.ID}
 		var userIDs []string
@@ -235,10 +185,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		sort.Strings(userIDs)
 		sort.Strings(expectedUserIDs)
 		for i := 0; i < len(users); i++ {
-			if userIDs[i] != expectedUserIDs[i] {
-				t.Errorf("userIDs != expectedUserIDs; %v != %v", userIDs, expectedUserIDs)
-				break
-			}
+			assert.Equal(t, expectedUserIDs[i], userIDs[i])
 		}
 	}
 
@@ -246,9 +193,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		filter := UserFilterIsAdmin
 		users := registry.GetUsers(filter)
 
-		if len(users) != registry.GetUserCount(filter) {
-			t.Errorf("len(users) != registry.GetUserCount(filter); %d != %d", len(users), registry.GetUserCount(filter))
-		}
+		assert.Equal(t, registry.GetUserCount(filter), len(users))
 
 		expectedUserIDs := []string{admin.ID}
 		var userIDs []string
@@ -259,10 +204,7 @@ func TestRegistryGetUsers(t *testing.T) {
 		sort.Strings(userIDs)
 		sort.Strings(expectedUserIDs)
 		for i := 0; i < len(users); i++ {
-			if userIDs[i] != expectedUserIDs[i] {
-				t.Errorf("userIDs != expectedUserIDs; %v != %v", userIDs, expectedUserIDs)
-				break
-			}
+			assert.Equal(t, expectedUserIDs[i], userIDs[i])
 		}
 	}
 }
@@ -296,107 +238,64 @@ func TestRegistryGetUser(t *testing.T) {
 	{
 		// by user.ID
 		userFound, err := registry.GetUser(user.ID, nil, UserFilterNone)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if userFound.ID != user.ID {
-			t.Errorf("userFound.ID != user.ID; '%s' != '%s'", userFound.ID, user.ID)
-		}
-		if userFound.GetAuthorizedKey() != user.GetAuthorizedKey() {
-			t.Errorf("userFound.GetAuthorizedKey() != user.GetAuthorizedKey(); '%s' != '%s'", userFound.PublicKey, user.PublicKey)
-		}
-		if userFound.IsActive != user.IsActive {
-			t.Errorf("userFound.IsActive != user.IsActive; '%s' != '%s'", userFound.IsActive, user.IsActive)
-		}
-		if userFound.IsAdmin != user.IsAdmin {
-			t.Errorf("userFound.IsAdmin != user.IsAdmin; '%s' != '%s'", userFound.IsAdmin, user.IsAdmin)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, user.ID, userFound.ID)
+		assert.Equal(t, user.GetAuthorizedKey(), userFound.GetAuthorizedKey())
+		assert.Equal(t, user.IsActive, userFound.IsActive)
+		assert.Equal(t, user.IsAdmin, userFound.IsAdmin)
 	}
 
 	{
 		// by user.PublicKey
 		userFound, err := registry.GetUser("", user.GetPublicKey(), UserFilterNone)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if userFound.ID != user.ID {
-			t.Errorf("userFound.ID != user.ID; '%s' != '%s'", userFound.ID, user.ID)
-		}
-		if userFound.GetAuthorizedKey() != user.GetAuthorizedKey() {
-			t.Errorf("userFound.GetAuthorizedKey() != user.GetAuthorizedKey(); '%s' != '%s'", userFound.PublicKey, user.PublicKey)
-		}
-		if userFound.IsActive != user.IsActive {
-			t.Errorf("userFound.IsActive != user.IsActive; '%s' != '%s'", userFound.IsActive, user.IsActive)
-		}
-		if userFound.IsAdmin != user.IsAdmin {
-			t.Errorf("userFound.IsAdmin != user.IsAdmin; '%s' != '%s'", userFound.IsAdmin, user.IsAdmin)
-		}
+		assert.Equal(t, user.ID, userFound.ID)
+		assert.Equal(t, user.GetAuthorizedKey(), userFound.GetAuthorizedKey())
+		assert.Equal(t, user.IsActive, userFound.IsActive)
+		assert.Equal(t, user.IsAdmin, userFound.IsAdmin)
 	}
 
 	{
 		{
 			// by filter: only active user
 			userFound, err := registry.GetUser(user.ID, nil, UserFilterNone)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.Nil(t, err)
 
-			if userFound.ID != user.ID {
-				t.Errorf("userFound.ID != user.ID; '%s' != '%s'", userFound.ID, user.ID)
-			}
+			assert.Equal(t, user.ID, userFound.ID)
 		}
 
 		{
 			// by filter: only not active user
 			_, err := registry.GetUser(user.ID, nil, UserFilterIsNotActive)
-			if _, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-				t.Errorf("'UserDoesNotExistError' must be occured")
-			}
-			if err == nil {
-				t.Errorf("'UserDoesNotExistError' must be occured")
-			}
+			assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
 		}
 
 		{
 			// by filter: only not active user
 			userFound, err := registry.GetUser(userNotActive.ID, nil, UserFilterIsNotActive)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.Nil(t, err)
 
-			if userFound.ID != userNotActive.ID {
-				t.Errorf("userFound.ID != userNotActive.ID; '%s' != '%s'", userFound.ID, userNotActive.ID)
-			}
+			assert.Equal(t, userNotActive.ID, userFound.ID)
 		}
 
 		{
 			// by filter: only deactivated user
 			_, err := registry.GetUser(user.ID, nil, UserFilterIsNotActive)
-			if _, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-				t.Errorf("'UserDoesNotExistError' must be occured")
-			}
+			assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
 		}
 
 		{
 			// by filter: only admin user
 			_, err := registry.GetUser(user.ID, nil, UserFilterIsAdmin)
-			if _, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-				t.Errorf("'UserDoesNotExistError' must be occured")
-			}
+			assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
 		}
 
 		{
 			// by filter: only admin user
 			userFound, err := registry.GetUser(admin.ID, nil, UserFilterIsAdmin)
-			if err != nil {
-				t.Error(err)
-			}
-
-			if userFound.ID != admin.ID {
-				t.Errorf("userFound.ID != admin.ID; '%s' != '%s'", userFound.ID, admin.ID)
-			}
+			assert.Nil(t, err)
+			assert.Equal(t, admin.ID, userFound.ID)
 		}
 	}
 }
@@ -406,9 +305,7 @@ func TestRegistryRemoveUser(t *testing.T) {
 
 	{
 		err := registry.RemoveUser(saultcommon.MakeRandomString())
-		if err, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-			t.Error(err)
-		}
+		assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
 	}
 
 	var user0 UserRegistry
@@ -421,21 +318,14 @@ func TestRegistryRemoveUser(t *testing.T) {
 	userCount := registry.GetUserCount(UserFilterNone)
 
 	{
-		if err := registry.RemoveUser(user0.ID); err != nil {
-			t.Error(err)
-		}
+		var err error
+		err = registry.RemoveUser(user0.ID)
+		assert.Nil(t, err)
 
-		_, err := registry.GetUser(user0.ID, nil, UserFilterNone)
-		if _, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-			t.Errorf("'UserDoesNotExistError' must be occured")
-		}
-		if err == nil {
-			t.Errorf("'UserDoesNotExistError' must be occured")
-		}
-
-		if registry.GetUserCount(UserFilterNone) != userCount-1 {
-			t.Errorf("registry.GetUserCount() != userCount - 1; '%d' != '%d'", registry.GetUserCount(UserFilterNone), userCount-1)
-		}
+		_, err = registry.GetUser(user0.ID, nil, UserFilterNone)
+		assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
+		assert.NotNil(t, err)
+		assert.Equal(t, userCount-1, registry.GetUserCount(UserFilterNone))
 	}
 }
 
@@ -456,34 +346,22 @@ func TestRegistryUpdateUser(t *testing.T) {
 
 	{
 		_, err := registry.UpdateUser(saultcommon.MakeRandomString(), user0)
-		if _, ok := err.(*saultcommon.UserDoesNotExistError); !ok {
-			t.Error(err)
-		}
+		assert.Error(t, &saultcommon.UserDoesNotExistError{}, err)
 	}
 
 	{
 		// with existing user.ID
 		_, err := registry.UpdateUser(user0.ID, user1)
-		if _, ok := err.(*saultcommon.UserExistsError); !ok {
-			t.Errorf("err must be 'saultcommon.UserExistsError'; %v", err)
-		}
-
-		if err == nil {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
+		assert.Error(t, &saultcommon.UserExistsError{}, err)
+		assert.NotNil(t, err)
 	}
 
 	{
 		// with existing user.PublicKey
 		user0.PublicKey = user1.PublicKey
 		_, err := registry.UpdateUser(user0.ID, user0)
-		if _, ok := err.(*saultcommon.UserExistsError); !ok {
-			t.Errorf("err must be 'saultcommon.UserExistsError'; %v", err)
-		}
-
-		if err == nil {
-			t.Errorf("err must be 'saultcommon.UserExistsError'")
-		}
+		assert.Error(t, &saultcommon.UserExistsError{}, err)
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -492,13 +370,8 @@ func TestRegistryUpdateUser(t *testing.T) {
 		id := saultcommon.MakeRandomString()
 		user0.ID = id[:5] + "*" + id[10:13]
 		_, err := registry.UpdateUser(oldID, user0)
-		if _, ok := err.(*saultcommon.InvalidUserIDError); !ok {
-			t.Errorf("err must be 'saultcommon.InvalidUserIDError'; %v", err)
-		}
-
-		if err == nil {
-			t.Errorf("err must be 'saultcommon.InvalidUserIDError'")
-		}
+		assert.Error(t, &saultcommon.InvalidUserIDError{}, err)
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -507,13 +380,8 @@ func TestRegistryUpdateUser(t *testing.T) {
 		user1.PublicKey = encoded
 
 		updatedUser, err := registry.UpdateUser(user1.ID, user1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if !updatedUser.DateUpdated.After(user1.DateUpdated) {
-			t.Errorf("user.DateUpdated was not updated")
-		}
+		assert.Nil(t, err)
+		assert.True(t, updatedUser.DateUpdated.After(user1.DateUpdated))
 	}
 }
 
@@ -525,16 +393,10 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := "new-server"
 		port := uint64(22)
 		host, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if host.ID != id {
-			t.Errorf("host.ID != id; '%s' != '%s'", host.ID, id)
-		}
-		if host.HostName != hostName {
-			t.Errorf("host.HostName != hostName; '%s' != '%s'", host.HostName, hostName)
-		}
+		assert.Equal(t, id, host.ID)
+		assert.Equal(t, hostName, host.HostName)
 	}
 
 	{
@@ -543,18 +405,11 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := "new-server"
 		port := uint64(0)
 		host, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err != nil {
-			t.Error(err)
-		}
-
-		if host.ID != id {
-			t.Errorf("host.ID != id; '%s' != '%s'", host.ID, id)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, id, host.ID)
 
 		parsedAddress := fmt.Sprintf("%s:22", hostName)
-		if host.GetAddress() != parsedAddress {
-			t.Errorf("host.Address() != parsedAddress; '%s' != '%s'", host.GetAddress(), parsedAddress)
-		}
+		assert.Equal(t, parsedAddress, host.GetAddress())
 	}
 
 	{
@@ -563,9 +418,7 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := "new-server:"
 		port := uint64(0)
 		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err == nil {
-			t.Error("erro must be occured")
-		}
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -574,27 +427,19 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := ":"
 		port := uint64(0)
 		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err == nil {
-			t.Error("erro must be occured")
-		}
+		assert.NotNil(t, err)
 	}
 
 	{
 		// with long id
 		id := saultcommon.MakeRandomString() + saultcommon.MakeRandomString() + saultcommon.MakeRandomString() + saultcommon.MakeRandomString() + saultcommon.MakeRandomString()
-		if len(id) < saultcommon.MaxLengthHostID {
-			t.Errorf("len(id) < saultcommon.MaxLengthHostID; %d < %d", len(id), saultcommon.MaxLengthHostID)
-		}
+		assert.True(t, saultcommon.MaxLengthHostID <= len(id))
 
 		hostName := "new-server"
 		port := uint64(22)
 		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostIDError); !ok {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostIDError{}, err)
 	}
 
 	{
@@ -604,12 +449,8 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := "new-server"
 		port := uint64(22)
 		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostIDError); !ok {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostIDError{}, err)
 	}
 
 	{
@@ -619,12 +460,8 @@ func TestRegistryAddHost(t *testing.T) {
 		hostName := "new-server"
 		port := uint64(22)
 		_, err := registry.AddHost(id, hostName, port, []string{"ubuntu"})
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostIDError); !ok {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostIDError{}, err)
 	}
 
 	{
@@ -634,17 +471,13 @@ func TestRegistryAddHost(t *testing.T) {
 		port := uint64(22)
 		accounts := []string{saultcommon.MakeRandomString(), saultcommon.MakeRandomString()}
 		host, err := registry.AddHost(id, hostName, port, accounts)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
 		hostAccounts := host.Accounts
 		sort.Strings(hostAccounts)
 		sort.Strings(accounts)
 		for i := 0; i < len(hostAccounts); i++ {
-			if hostAccounts[i] != accounts[i] {
-				t.Errorf("hostAccounts[i] != accounts[i]; '%s' != '%s'", hostAccounts[i], accounts[i])
-			}
+			assert.Equal(t, accounts[i], hostAccounts[i])
 		}
 	}
 
@@ -655,12 +488,8 @@ func TestRegistryAddHost(t *testing.T) {
 		port := uint64(22)
 		accounts := []string{"showme-", saultcommon.MakeRandomString()}
 		_, err := registry.AddHost(id, hostName, port, accounts)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidAccountNameError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidAccountNameError); !ok {
-			t.Errorf("'saultcommon.InvalidAccountNameError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidAccountNameError{}, err)
 	}
 }
 
@@ -680,21 +509,12 @@ func TestRegistryUpdateHost(t *testing.T) {
 		oldID := host.ID
 		host.ID = saultcommon.MakeRandomString()
 		newHost, err := registry.UpdateHost(oldID, host)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if newHost.ID != host.ID {
-			t.Errorf("newHost.ID != host.ID; '%s' != '%s'", newHost.ID, host.ID)
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, host.ID, newHost.ID)
 
 		_, err = registry.GetHost(oldID, HostFilterNone)
-		if err == nil {
-			t.Errorf("'HostDoesNotExistError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.HostDoesNotExistError); !ok {
-			t.Errorf("'HostDoesNotExistError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.HostDoesNotExistError{}, err)
 	}
 
 	{
@@ -702,12 +522,8 @@ func TestRegistryUpdateHost(t *testing.T) {
 		oldID := host.ID
 		host.ID = host.ID[:5] + "*"
 		_, err := registry.UpdateHost(oldID, host)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostIDError); !ok {
-			t.Errorf("'saultcommon.InvalidHostIDError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostIDError{}, err)
 
 		host.ID = oldID
 	}
@@ -716,24 +532,16 @@ func TestRegistryUpdateHost(t *testing.T) {
 		// with invalid host.Address
 		host.HostName = "showme:::"
 		_, err := registry.UpdateHost(host.ID, host)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidHostAddressError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostAddressError); !ok {
-			t.Errorf("'saultcommon.InvalidHostAddressError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostAddressError{}, err)
 	}
 
 	{
 		// with invalid host.Accounts
 		host.Accounts = []string{saultcommon.MakeRandomString(), "findme-"}
 		_, err := registry.UpdateHost(host.ID, host)
-		if err == nil {
-			t.Errorf("'saultcommon.InvalidAccountNameError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.InvalidHostAddressError); !ok {
-			t.Errorf("'saultcommon.InvalidAccountNameError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.InvalidHostAddressError{}, err)
 	}
 }
 
@@ -748,19 +556,13 @@ func TestRegistryRemoveHost(t *testing.T) {
 
 	{
 		err := registry.RemoveHost(host.ID)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 	}
 
 	{
 		_, err := registry.GetHost(host.ID, HostFilterNone)
-		if err == nil {
-			t.Errorf("'HostDoesNotExistError' must be occured")
-		}
-		if _, ok := err.(*saultcommon.HostDoesNotExistError); !ok {
-			t.Errorf("'HostDoesNotExistError' must be occured: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &saultcommon.HostDoesNotExistError{}, err)
 	}
 }
 
@@ -775,46 +577,25 @@ func TestRegistryLink(t *testing.T) {
 
 	{
 		err := registry.Link(user.ID, host.ID, accounts[0])
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if !registry.IsLinked(user.ID, host.ID, accounts[0]) {
-			t.Errorf("must be linked")
-		}
-
-		if registry.IsLinked(user.ID, host.ID, accounts[1]) {
-			t.Errorf("must be unlinked")
-		}
+		assert.True(t, registry.IsLinked(user.ID, host.ID, accounts[0]))
+		assert.False(t, registry.IsLinked(user.ID, host.ID, accounts[1]))
 
 		link := registry.GetLinksOfUser(user.ID)[host.ID]
-		if link.Accounts[0] != accounts[0] {
-			t.Errorf("link.Accounts[0] != accounts[0]; '%s' != '%s'", link.Accounts[0], accounts[0])
-		}
+		assert.Equal(t, accounts[0], link.Accounts[0])
 	}
 	{
 		// link again
 		err := registry.Link(user.ID, host.ID, accounts[0])
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if !registry.IsLinked(user.ID, host.ID, accounts[0]) {
-			t.Errorf("must be linked")
-		}
-
-		if registry.IsLinked(user.ID, host.ID, accounts[1]) {
-			t.Errorf("must be unlinked")
-		}
+		assert.True(t, registry.IsLinked(user.ID, host.ID, accounts[0]))
+		assert.False(t, registry.IsLinked(user.ID, host.ID, accounts[1]))
 
 		link := registry.GetLinksOfUser(user.ID)[host.ID]
-		if len(link.Accounts) != 1 {
-			t.Errorf("account size must be 1")
-		}
-
-		if link.Accounts[0] != accounts[0] {
-			t.Errorf("link.Accounts[0] != accounts[0]; '%s' != '%s'", link.Accounts[0], accounts[0])
-		}
+		assert.Equal(t, 1, len(link.Accounts))
+		assert.Equal(t, accounts[0], link.Accounts[0])
 	}
 }
 
@@ -831,9 +612,7 @@ func TestRegistryUnlink(t *testing.T) {
 		registry.Link(user.ID, host.ID, accounts[0])
 		registry.Unlink(user.ID, host.ID, accounts[0])
 
-		if registry.IsLinked(user.ID, host.ID, accounts[0]) {
-			t.Errorf("must be unlinked")
-		}
+		assert.False(t, registry.IsLinked(user.ID, host.ID, accounts[0]))
 	}
 }
 
@@ -859,9 +638,7 @@ func TestRegistryToBytes(t *testing.T) {
 
 	{
 		b := registry.Bytes()
-		if len(b) == 0 {
-			t.Errorf("failed to get Bytes()")
-		}
+		assert.False(t, len(b) == 0)
 	}
 }
 
@@ -871,9 +648,7 @@ func TestRegistryTomlRegistryWithBadSource(t *testing.T) {
 	{
 		// load without source
 		err := registry.Load()
-		if err == nil {
-			t.Errorf("err must be occured")
-		}
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -887,12 +662,8 @@ func TestRegistryTomlRegistryWithBadSource(t *testing.T) {
 
 		source := TomlConfigRegistry{Path: registryFile}
 		err := registry.AddSource(source)
-		if err == nil {
-			t.Errorf("'os.PathError' must be occured")
-		}
-		if _, ok := err.(*os.PathError); !ok {
-			t.Errorf("'os.PathError' must be occured")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &os.PathError{}, err)
 	}
 
 	{
@@ -906,12 +677,8 @@ func TestRegistryTomlRegistryWithBadSource(t *testing.T) {
 
 		source := TomlConfigRegistry{Path: registryFile}
 		err := registry.AddSource(source)
-		if err == nil {
-			t.Errorf("'os.PathError' must be occured")
-		}
-		if _, ok := err.(*os.PathError); !ok {
-			t.Errorf("'os.PathError' must be occured")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &os.PathError{}, err)
 	}
 
 	{
@@ -921,15 +688,8 @@ func TestRegistryTomlRegistryWithBadSource(t *testing.T) {
 
 		source := TomlConfigRegistry{Path: registryFile.Name()}
 		err := registry.AddSource(source)
-		if err == nil {
-			t.Errorf("err must be occured")
-		}
-		if err == nil {
-			t.Errorf("'os.PathError' must be occured")
-		}
-		if _, ok := err.(*os.PathError); !ok {
-			t.Errorf("'os.PathError' must be occured")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &os.PathError{}, err)
 	}
 }
 
@@ -948,9 +708,8 @@ func TestRegistryTomlRegistryWithValidSource(t *testing.T) {
 	ioutil.WriteFile(registryFile, []byte(content), RegistryFileMode)
 
 	source := TomlConfigRegistry{Path: registryFile}
-	if err := registry.AddSource(source); err != nil {
-		t.Error(err)
-	}
+	err := registry.AddSource(source)
+	assert.Nil(t, err)
 }
 
 func TestRegistryLoadRegistryByTimeUpdated(t *testing.T) {
@@ -978,14 +737,10 @@ func TestRegistryLoadRegistryByTimeUpdated(t *testing.T) {
 
 	{
 		err := registry.Load()
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
 		parsed, _ := time.Parse(time.RFC3339Nano, lastTimeUpdated)
-		if !parsed.Equal(registry.Data.TimeUpdated) {
-			t.Errorf("parsed.Equal(registry.Data.TimeUpdated); %s != %s", parsed, registry.Data.TimeUpdated)
-		}
+		assert.True(t, parsed.Equal(registry.Data.TimeUpdated))
 	}
 
 	{
@@ -997,13 +752,9 @@ func TestRegistryLoadRegistryByTimeUpdated(t *testing.T) {
 		ioutil.WriteFile(registryFile, []byte(content), RegistryFileMode)
 
 		err := registry.Load()
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
 		parsed, _ := time.Parse(time.RFC3339Nano, lastTimeUpdated)
-		if !parsed.Equal(registry.Data.TimeUpdated) {
-			t.Errorf("parsed.Equal(registry.Data.TimeUpdated); %s != %s", parsed, registry.Data.TimeUpdated)
-		}
+		assert.True(t, parsed.Equal(registry.Data.TimeUpdated))
 	}
 }

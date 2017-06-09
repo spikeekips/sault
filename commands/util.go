@@ -100,10 +100,12 @@ func PrintUserData(templateName, saultServerAddress string, userdata UserListRes
 }
 
 var PrintHostDataTemplate = `
-{{ define "block-host" }}{{ $maxConnectionString := .maxConnectionString }}{{ $saultServerAddress := splitHostPort .saultServerAddress 22 }}{{ $lenaccounts := len .host.Accounts }}{{ $hostID := .host.ID }}{{ $saultPort := index $saultServerAddress "Port" }}{{ $saultHostName := index $saultServerAddress "HostName" }} host ID: {{ .host.ID | blue }}
-  Active: {{ if .host.IsActive }}{{ print .host.IsActive | green }}{{ else }}{{ print .host.IsActive | dim }}{{ end }}
- Address: {{ .host.HostName }}{{ .host.Port }}
-Accounts: {{ join .host.Accounts " " }}
+{{ define "block-host" }}{{ $maxConnectionString := .maxConnectionString }}{{ $saultServerAddress := splitHostPort .saultServerAddress 22 }}{{ $lenaccounts := len .host.Accounts }}{{ $hostID := .host.ID }}{{ $saultPort := index $saultServerAddress "Port" }}{{ $saultHostName := index $saultServerAddress "HostName" }}           host ID: {{ .host.ID | blue }}
+            Active: {{ if .host.IsActive }}{{ print .host.IsActive | green }}{{ else }}{{ print .host.IsActive | dim }}{{ end }}
+           Address: {{ .host.HostName }}{{ .host.Port }}
+          Accounts: {{ join .host.Accounts " " }}
+   Registered Time: {{ sprintf "%v" .host.DateAdded | dim }}
+ Last Updated Time: {{ sprintf "%v" .host.DateUpdated | dim }}
 {{ range $i, $_ := .host.Accounts }}{{ if lt $i $maxConnectionString }}{{ sprintf "%9s" "" }} {{ print "$ ssh -p " $saultPort " " . "+" $hostID "@" $saultHostName | magenta }}
 {{ end }}{{ end }} {{ if gt $lenaccounts $maxConnectionString }}{{ sprintf "%9s" "" }}... {{ minus $lenaccounts $maxConnectionString }} more{{ end }}{{ end }}
 

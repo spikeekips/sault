@@ -9,6 +9,7 @@ import (
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
 	"github.com/spikeekips/sault/saultssh"
+	"github.com/stretchr/testify/assert"
 )
 
 type testSSHConn struct {
@@ -57,24 +58,17 @@ func TestPublicKeyCallback(t *testing.T) {
 		// with empty connMeta.User()
 		connMeta := &testSSHConn{}
 		_, err := conn.publicKeyCallback(connMeta, publicKey)
-		if err == nil {
-			t.Errorf("'AuthenticationFailedError' must be occurred")
-		}
-		if _, ok := err.(*AuthenticationFailedError); !ok {
-			t.Errorf("'AuthenticationFailedError' must be occurred: %v", err)
-		}
+
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 	{
 		// with invalid connMeta.User()
 		connMeta := &testSSHConn{user: "anonymous+host"}
 		_, err := conn.publicKeyCallback(connMeta, publicKey)
-		if err == nil {
-			t.Errorf("'AuthenticationFailedError' must be occurred")
-		}
-		if _, ok := err.(*AuthenticationFailedError); !ok {
-			t.Errorf("'AuthenticationFailedError' must be occurred: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 	{
@@ -91,12 +85,8 @@ func TestPublicKeyCallback(t *testing.T) {
 		connMeta := &testSSHConn{user: fmt.Sprintf("%s+%s", account, host.ID)}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err == nil {
-			t.Errorf("'AuthenticationFailedError' must be occurred")
-		}
-		if _, ok := err.(*AuthenticationFailedError); !ok {
-			t.Errorf("'AuthenticationFailedError' must be occurred: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 	{
@@ -115,9 +105,7 @@ func TestPublicKeyCallback(t *testing.T) {
 		connMeta := &testSSHConn{user: fmt.Sprintf("%s+%s", account, host.ID)}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 	}
 
 	{
@@ -137,9 +125,8 @@ func TestPublicKeyCallback(t *testing.T) {
 		connMeta := &testSSHConn{user: fmt.Sprintf("%s+%s", account, host.ID)}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 }
@@ -165,12 +152,8 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 		connMeta := &testSSHConn{user: DefaultSaultServerName}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err == nil {
-			t.Errorf("'AuthenticationFailedError' must be occurred")
-		}
-		if _, ok := err.(*AuthenticationFailedError); !ok {
-			t.Errorf("'AuthenticationFailedError' must be occurred: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 	{
@@ -187,12 +170,8 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 		connMeta := &testSSHConn{user: fmt.Sprintf("%s+%s", account, DefaultSaultServerName)}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err == nil {
-			t.Errorf("'AuthenticationFailedError' must be occurred")
-		}
-		if _, ok := err.(*AuthenticationFailedError); !ok {
-			t.Errorf("'AuthenticationFailedError' must be occurred: %v", err)
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &AuthenticationFailedError{}, err)
 	}
 
 	{
@@ -208,9 +187,6 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 		connMeta := &testSSHConn{user: DefaultSaultServerName}
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 	}
-
 }

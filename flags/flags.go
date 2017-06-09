@@ -206,8 +206,6 @@ func (f *Flags) Parse(args []string) (err error) {
 		}
 	}
 
-	f.args = f.FlagSet.Args()
-
 	return
 }
 
@@ -243,6 +241,10 @@ func (f *Flags) RawParse(args []string) (err error) {
 
 	if err = f.FlagSet.Parse(args); err != nil {
 		return
+	}
+
+	if len(f.args) < 1 {
+		f.args = f.FlagSet.Args()
 	}
 
 	f.Values = parseFlagSetValues(f.FlagSetValues)

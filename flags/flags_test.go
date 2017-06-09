@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/spikeekips/sault/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewFlags(t *testing.T) {
@@ -20,15 +21,9 @@ func TestNewFlags(t *testing.T) {
 		}
 
 		flags := NewFlags(mainFlags, nil)
-		if flags.Name != mainFlags.Name {
-			t.Errorf("flags.Name != mainFlags.Name; '%s' != '%s'", flags.Name, mainFlags.Name)
-		}
-		if flags.Help != mainFlags.Help {
-			t.Errorf("flags.Help != mainFlags.Help; '%s' != '%s'", flags.Help, mainFlags.Help)
-		}
-		if flags.Usage != mainFlags.Usage {
-			t.Errorf("flags.Usage != mainFlags.Usage; '%s' != '%s'", flags.Usage, mainFlags.Usage)
-		}
+		assert.Equal(t, flags.Name, mainFlags.Name)
+		assert.Equal(t, flags.Help, mainFlags.Help)
+		assert.Equal(t, flags.Usage, mainFlags.Usage)
 	}
 
 	{
@@ -65,27 +60,22 @@ func TestNewFlags(t *testing.T) {
 		var flags *Flags
 		var err error
 		flags = NewFlags(mainFlags, nil)
-		if err != nil {
-			t.Error(err)
-		}
+
+		assert.Nil(t, err)
 
 		err = flags.Parse(args)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
 		for name, value := range flagValues {
-			if parsedValue, ok := flags.Values[name]; !ok {
-				t.Errorf("flag '%s' was not parsed", name)
-			} else if parsedValue != value[1] {
-				t.Errorf("flag '%s', parsedValue != value; '%v' != '%v'", name, parsedValue, value[1])
-			}
+			parsedValue, ok := flags.Values[name]
+
+			assert.True(t, ok)
+			assert.Equal(t, value[1], parsedValue)
 		}
-		if parsedValue, ok := flags.Values["FBool"]; !ok {
-			t.Errorf("flag 'FBool' was not parsed")
-		} else if parsedValue != true {
-			t.Errorf("flag 'FBool', parsedValue != value; '%v' != true", parsedValue)
-		}
+
+		parsedValue, ok := flags.Values["FBool"]
+		assert.True(t, ok)
+		assert.Equal(t, true, parsedValue)
 	}
 }
 
@@ -122,17 +112,12 @@ func TestCustomFlag(t *testing.T) {
 	origValue := "MAKE-ME-LOWER"
 	expectedValue := strings.ToLower(origValue)
 	err := flags.Parse([]string{"-lower", origValue})
-	if err != nil {
-		t.Error(err)
-	}
 
-	if parsedValue, ok := flags.Values["Lower"]; !ok {
-		t.Errorf("custom flag 'Lower' was not parsed")
-	} else if parsedValue.(lowercaseFlag) != lowercaseFlag(expectedValue) {
-		t.Errorf("custom flag 'Lower', parsedValue != value; '%v(%T)' != '%v(%T)'",
-			parsedValue, parsedValue, expectedValue, expectedValue,
-		)
-	}
+	assert.Nil(t, err)
+
+	parsedValue, ok := flags.Values["Lower"]
+	assert.True(t, ok)
+	assert.Equal(t, lowercaseFlag(expectedValue), parsedValue.(lowercaseFlag))
 }
 
 func TestParseFlag(t *testing.T) {
@@ -156,28 +141,19 @@ func TestParseFlag(t *testing.T) {
 	expectedValue := strings.ToLower(origValue)
 	expectedValue1 := strings.ToLower(origValue) + "1"
 	err := flags.Parse([]string{"-lower", origValue})
-	if err != nil {
-		t.Error(err)
+
+	assert.Nil(t, err)
+
+	{
+		parsedValue, ok := flags.Values["Lower"]
+		assert.True(t, ok)
+		assert.Equal(t, lowercaseFlag(expectedValue), parsedValue.(lowercaseFlag))
 	}
 
 	{
-		if parsedValue, ok := flags.Values["Lower"]; !ok {
-			t.Errorf("custom flag 'Lower' was not parsed")
-		} else if parsedValue.(lowercaseFlag) != lowercaseFlag(expectedValue) {
-			t.Errorf("custom flag 'Lower', parsedValue != value; '%v(%T)' != '%v(%T)'",
-				parsedValue, parsedValue, expectedValue, expectedValue,
-			)
-		}
-	}
-
-	{
-		if parsedValue, ok := flags.Values["Lower1"]; !ok {
-			t.Errorf("custom flag 'Lower' was not parsed")
-		} else if parsedValue.(string) != expectedValue1 {
-			t.Errorf("custom flag 'Lower', parsedValue != value; '%v(%T)' != '%v(%T)'",
-				parsedValue, parsedValue, expectedValue1, expectedValue1,
-			)
-		}
+		parsedValue, ok := flags.Values["Lower1"]
+		assert.True(t, ok)
+		assert.Equal(t, expectedValue1, parsedValue.(string))
 	}
 }
 
@@ -199,9 +175,7 @@ func TestFlagPrintHelp(t *testing.T) {
 			"-name",
 			"My Name",
 		}
-		if err := flags.Parse(args); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, flags.Parse(args))
 	}
 
 	{
@@ -214,12 +188,10 @@ func TestFlagPrintHelp(t *testing.T) {
 			"My Name",
 		}
 		var err error
-		if err = flags.Parse(args); err == nil {
-			t.Error("'flag.ErrHelp' must be returned")
-		}
-		if err, _ := err.(*ErrorOccured); err.Err != flag.ErrHelp {
-			t.Error("err must be flag.ErrHelp")
-		}
+		err = flags.Parse(args)
+		assert.NotNil(t, err)
+		assert.Error(t, &ErrorOccured{}, err)
+		assert.Equal(t, err.(*ErrorOccured).Err, flag.ErrHelp)
 	}
 
 	{
@@ -232,12 +204,10 @@ func TestFlagPrintHelp(t *testing.T) {
 			"-help",
 		}
 		var err error
-		if err = flags.Parse(args); err == nil {
-			t.Error("'flag.ErrHelp' must be returned")
-		}
-		if err, _ := err.(*ErrorOccured); err.Err != flag.ErrHelp {
-			t.Error("err must be flag.ErrHelp")
-		}
+		err = flags.Parse(args)
+		assert.NotNil(t, err)
+		assert.Error(t, &ErrorOccured{}, err)
+		assert.Equal(t, err.(*ErrorOccured).Err, flag.ErrHelp)
 	}
 
 	{
@@ -249,9 +219,7 @@ func TestFlagPrintHelp(t *testing.T) {
 			"-help",
 			"My Name",
 		}
-		if err := flags.Parse(args); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, flags.Parse(args))
 	}
 }
 
@@ -283,26 +251,12 @@ func TestFlagSubcommands(t *testing.T) {
 
 	args := []string{"-name", "killme", "sub0", "-subname", "ok good"}
 	{
-		err := flags.Parse(args)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, flags.Parse(args))
 	}
 
-	if flags.Subcommand == nil {
-		t.Errorf("subcommand must be parsed")
-	}
-	if flags.Subcommand.Name != subCommand.Name {
-		t.Errorf("flags.Subcommand.Name != subCommand.Name; '%s' != '%s'", flags.Subcommand.Name, subCommand.Name)
-	}
-
-	if flags.Subcommand.Values["SubName"].(string) != args[4] {
-		t.Errorf(
-			`flags.Subcommand.Values["SubName"].(string) != args[4]; '%v' != '%v'`,
-			flags.Subcommand.Values["SubName"].(string),
-			args[4],
-		)
-	}
+	assert.NotNil(t, flags.Subcommand)
+	assert.Equal(t, subCommand.Name, flags.Subcommand.Name)
+	assert.Equal(t, args[4], flags.Subcommand.Values["SubName"].(string))
 }
 
 func TestFlagSubcommandsHelp(t *testing.T) {
@@ -332,12 +286,8 @@ func TestFlagSubcommandsHelp(t *testing.T) {
 		flags.SetOutput(ioutil.Discard) // mute help output
 		args := []string{"-name", "killme", "-h", "sub0", "-subName", "ok good"}
 		err := flags.Parse(args)
-		if err == nil {
-			t.Error("err must be flag.ErrHelp")
-		}
-		if flags.Subcommand != nil {
-			t.Error("Zzing???? 'flags.Subcommand' must be nil")
-		}
+		assert.NotNil(t, err)
+		assert.Nil(t, flags.Subcommand)
 	}
 
 	{
@@ -345,12 +295,8 @@ func TestFlagSubcommandsHelp(t *testing.T) {
 		flags.SetOutput(ioutil.Discard) // mute help output
 		args := []string{"-name", "killme", "-help", "sub0", "-subName", "ok good"}
 		err := flags.Parse(args)
-		if err == nil {
-			t.Error("err must be flag.ErrHelp")
-		}
-		if flags.Subcommand != nil {
-			t.Error("Zzing???? 'flags.Subcommand' must be nil")
-		}
+		assert.NotNil(t, err)
+		assert.Nil(t, flags.Subcommand)
 	}
 
 	{
@@ -358,12 +304,8 @@ func TestFlagSubcommandsHelp(t *testing.T) {
 		flags.SetOutput(ioutil.Discard) // mute help output
 		args := []string{"-name", "killme", "sub0", "-subName", "ok good", "--help"}
 		err := flags.Parse(args)
-		if err == nil {
-			t.Error("err must be flag.ErrHelp")
-		}
-		if flags.Subcommand != nil {
-			t.Error("Zzing???? 'flags.Subcommand' must be nil")
-		}
+		assert.NotNil(t, err)
+		assert.Nil(t, flags.Subcommand)
 	}
 }
 
@@ -385,9 +327,7 @@ func TestFlagPrintHelpMessage(t *testing.T) {
 		args := []string{"--help"}
 		flags.Parse(args)
 
-		if len(b.String()) < 1 {
-			t.Errorf("help must be printed")
-		}
+		assert.True(t, len(b.String()) > 0)
 	}
 }
 
@@ -412,11 +352,9 @@ func TestFlagSubcommandsNames(t *testing.T) {
 
 		args := []string{"sub0"}
 		err := flags.Parse(args)
-		if err, ok := err.(*ErrorOccured); !ok {
-			if _, ok = err.Err.(*MissingCommand); !ok {
-				t.Errorf("'MissingCommand' must be occured, %T", err)
-			}
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &ErrorOccured{}, err)
+		assert.Error(t, &MissingCommand{}, err.(*ErrorOccured).Err.(*MissingCommand))
 	}
 
 	{
@@ -424,10 +362,7 @@ func TestFlagSubcommandsNames(t *testing.T) {
 		flags.SetOutput(ioutil.Discard)
 
 		args := []string{"sub0", "sub00"}
-		err := flags.Parse(args)
-		if err != nil {
-			log.Error(err)
-		}
+		flags.Parse(args)
 
 		expectedCommands := []string{"main", "Sub0", "Sub00"}
 		var commands []string
@@ -436,9 +371,7 @@ func TestFlagSubcommandsNames(t *testing.T) {
 		}
 
 		for i := 0; i < len(expectedCommands); i++ {
-			if commands[i] != expectedCommands[i] {
-				t.Errorf("commands[i] != expectedCommands[i]; '%s' != '%s'", commands[i], expectedCommands[i])
-			}
+			assert.Equal(t, expectedCommands[i], commands[i])
 		}
 	}
 
@@ -447,18 +380,13 @@ func TestFlagSubcommandsNames(t *testing.T) {
 		flags.SetOutput(ioutil.Discard)
 
 		args := []string{"sub0", "sub00"}
-		err := flags.Parse(args)
-		if err != nil {
-			log.Error(err)
-		}
+		flags.Parse(args)
 
 		expectedCommands := []string{"main", "Sub0", "Sub00"}
 		subcommands := flags.GetSubcommands()
 		commands := subcommands[len(subcommands)-1].GetParentCommands()
 		for i := 0; i < len(expectedCommands); i++ {
-			if commands[i].Name != expectedCommands[i] {
-				t.Errorf("commands[i].Name != expectedCommands[i]; '%s' != '%s'", commands[i].Name, expectedCommands[i])
-			}
+			assert.Equal(t, expectedCommands[i], commands[i].Name)
 		}
 
 	}
@@ -487,18 +415,11 @@ func TestParseFlagArgs(t *testing.T) {
 		}
 
 		fs := NewFlags(ft, nil)
-		err := fs.Parse(args)
-		if err != nil {
-			t.Error(err)
-		}
+		fs.Parse(args)
 
-		if fs.Values["lower"].(string) != "l" || fs.Values["upper"].(string) != "u" {
-			t.Errorf("flag parsed.")
-		}
-
-		if len(fs.Args()) == 3 {
-			t.Errorf("flag parsed.")
-		}
+		assert.Equal(t, "l", fs.Values["lower"].(string))
+		assert.Equal(t, "u", fs.Values["upper"].(string))
+		assert.Equal(t, 5, len(fs.Args()))
 	}
 
 	{
@@ -510,17 +431,12 @@ func TestParseFlagArgs(t *testing.T) {
 
 		fs := NewFlags(ft, nil)
 		err := fs.Parse(args)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if fs.Values["lower"].(string) != "L" || fs.Values["upper"].(string) != "U" {
-			t.Errorf("flag not parsed.")
-		}
-
-		if len(fs.Args()) != 1 || fs.Args()[0] != "findme" {
-			t.Errorf("flag not parsed.")
-		}
+		assert.Equal(t, "L", fs.Values["lower"].(string))
+		assert.Equal(t, "U", fs.Values["upper"].(string))
+		assert.Equal(t, 1, len(fs.Args()))
+		assert.Equal(t, "findme", fs.Args()[0])
 	}
 
 	{
@@ -532,18 +448,12 @@ func TestParseFlagArgs(t *testing.T) {
 		}
 
 		fs := NewFlags(ft, nil)
+		fs.IsPositioned = true
 		err := fs.ParsePositioned(args)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if fs.Values["lower"].(string) != "L" || fs.Values["upper"].(string) != "U" {
-			t.Errorf("flag not parsed.")
-		}
-
-		if len(fs.Args()) == 3 {
-			t.Errorf("flag not parsed.")
-		}
+		assert.Equal(t, "L", fs.Values["lower"].(string))
+		assert.Equal(t, "U", fs.Values["upper"].(string))
+		assert.Equal(t, 1, len(fs.Args()))
 	}
-
 }

@@ -2,47 +2,40 @@ package saultcommon
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPascalCase(t *testing.T) {
 	{
 		s := "this-is-normal"
 		e := "This-is-normal"
-		if MakePascalCase(s) != e {
-			t.Errorf("MakePascalCase(s) != e; '%s' != '%s'", MakePascalCase(s), e)
-		}
+
+		assert.Equal(t, e, MakePascalCase(s))
 	}
 
 	{
 		s := "ThisIsNormal"
 		e := s
-		if MakePascalCase(s) != e {
-			t.Errorf("MakePascalCase(s) != e; '%s' != '%s'", MakePascalCase(s), e)
-		}
+		assert.Equal(t, e, MakePascalCase(s))
 	}
 
 	{
 		s := "thisIsNormal"
 		e := "ThisIsNormal"
-		if MakePascalCase(s) != e {
-			t.Errorf("MakePascalCase(s) != e; '%s' != '%s'", MakePascalCase(s), e)
-		}
+		assert.Equal(t, e, MakePascalCase(s))
 	}
 
 	{
 		s := "this_is_normal"
 		e := "ThisIsNormal"
-		if MakePascalCase(s) != e {
-			t.Errorf("MakePascalCase(s) != e; '%s' != '%s'", MakePascalCase(s), e)
-		}
+		assert.Equal(t, e, MakePascalCase(s))
 	}
 
 	{
 		s := "This_is_normal"
 		e := "ThisIsNormal"
-		if MakePascalCase(s) != e {
-			t.Errorf("MakePascalCase(s) != e; '%s' != '%s'", MakePascalCase(s), e)
-		}
+		assert.Equal(t, e, MakePascalCase(s))
 	}
 }
 
@@ -51,87 +44,63 @@ func TestParseSaultAccountName(t *testing.T) {
 		// empty
 		s := ""
 		_, _, err := ParseSaultAccountName(s)
-		if err == nil {
-			t.Errorf("error must be occurred")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &InvalidAccountNameError{}, err)
 	}
 
 	{
 		// + empty
 		s := "+"
 		_, _, err := ParseSaultAccountName(s)
-		if err == nil {
-			t.Errorf("error must be occurred")
-		}
+		assert.NotNil(t, err)
+		assert.Error(t, &InvalidAccountNameError{}, err)
 	}
 
 	{
 		// empty hostID
 		s := "account+"
 		account, hostID, err := ParseSaultAccountName(s)
-		if err != nil {
-			t.Error(err)
-		}
-		if account != "account" {
-			t.Errorf(`account != "account"; '%s' != 'account'`, account)
-		}
-		if len(hostID) > 0 {
-			t.Error("hostID must be zero")
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, "account", account)
+		assert.True(t, len(hostID) < 1)
 	}
 
 	{
 		// empty account
 		s := "host"
 		account, hostID, err := ParseSaultAccountName(s)
-		if err != nil {
-			t.Error(err)
-		}
-		if hostID != "host" {
-			t.Errorf(`hostID != "host"; '%s' != 'host'`, hostID)
-		}
-		if len(account) > 0 {
-			t.Error("account must be zero")
-		}
+
+		assert.Nil(t, err)
+		assert.Equal(t, hostID, s)
+		assert.True(t, len(account) < 1)
 	}
 
 	{
 		// ++
 		s := "account++host"
 		_, _, err := ParseSaultAccountName(s)
-		if err == nil {
-			t.Error("'InvalidHostIDError' must be occurred")
-		}
-		if _, ok := err.(*InvalidHostIDError); !ok {
-			t.Error("'InvalidHostIDError' must be occurred: %v", err)
-		}
+
+		assert.NotNil(t, err)
+		assert.Error(t, &InvalidHostIDError{}, err)
 	}
 
 	{
 		// + prefixed
 		s := "+account++host"
 		_, _, err := ParseSaultAccountName(s)
-		if err == nil {
-			t.Error("'InvalidHostIDError' must be occurred")
-		}
-		if _, ok := err.(*InvalidAccountNameError); !ok {
-			t.Error("'InvalidAccountNameError' must be occurred: %v", err)
-		}
+
+		assert.NotNil(t, err)
+		assert.Error(t, &InvalidAccountNameError{}, err)
 	}
 
 	{
 		// valid
 		s := "account+host"
 		account, hostID, err := ParseSaultAccountName(s)
-		if err != nil {
-			t.Error(err)
-		}
-		if account != "account" {
-			t.Errorf(`account != "account"; '%s' != 'account'`, account)
-		}
-		if hostID != "host" {
-			t.Errorf(`hostID != "host"; '%s' != 'host'`, hostID)
-		}
+
+		assert.Nil(t, err)
+		assert.Equal(t, "account", account)
+		assert.Equal(t, "host", hostID)
 	}
 }
 
@@ -139,32 +108,23 @@ func TestParseMinusName(t *testing.T) {
 	{
 		s := "shoem"
 		a, minus := ParseMinusName(s)
-		if a != s {
-			t.Errorf("a != s; '%s' != '%s'", a, s)
-		}
-		if minus {
-			t.Errorf("minus must be false")
-		}
+
+		assert.Equal(t, s, a)
+		assert.False(t, minus)
 	}
 	{
 		s := "shoem"
 		a, minus := ParseMinusName(s + "-")
-		if a != s {
-			t.Errorf("a != s; '%s' != '%s'", a, s)
-		}
-		if !minus {
-			t.Errorf("minus must be true")
-		}
+
+		assert.Equal(t, s, a)
+		assert.True(t, minus)
 	}
 	{
 		// with blank
 		s := "shoem"
 		a, minus := ParseMinusName(s + "- ")
-		if a != s {
-			t.Errorf("a != s; '%s' != '%s'", a, s)
-		}
-		if !minus {
-			t.Errorf("minus must be true")
-		}
+
+		assert.Equal(t, s, a)
+		assert.True(t, minus)
 	}
 }

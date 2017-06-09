@@ -103,7 +103,7 @@ func (c *connection) publicKeyCallback(
 		return
 	}
 
-	if !user.IsAdmin && !c.server.registry.IsLinked(user.ID, host.ID, account) {
+	if !c.server.registry.IsLinked(user.ID, host.ID, account) {
 		err = &AuthenticationFailedError{
 			Err: fmt.Errorf(
 				"user, '%s' host, '%s' and it's account, '%s' is not linked",

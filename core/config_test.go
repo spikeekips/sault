@@ -9,15 +9,27 @@ import (
 
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestBasicConfig(t *testing.T) {
-	env, _ := ioutil.TempDir("/tmp/", "sault-test")
-	defer os.RemoveAll(env)
+type BasicConfigTestSuite struct {
+	suite.Suite
 
-	bind := "192.168.99.101:22"
-	host_key := "./host.key"
-	client_key := "./client.key"
+	env string
+
+	bind       string
+	host_key   string
+	client_key string
+}
+
+func (suite *BasicConfigTestSuite) SetupTest() {
+	// create sault env
+	env, _ := ioutil.TempDir("/tmp/", "sault-test")
+
+	suite.bind = "192.168.99.101:22"
+	suite.host_key = "./host.key"
+	suite.client_key = "./client.key"
 
 	configBody, _ := saultcommon.SimpleTemplating(`
 [server]
@@ -26,35 +38,42 @@ host_key = "{{ .host_key }}"
 client_key = "{{ .client_key }}"
 	`,
 		map[string]interface{}{
-			"bind":       bind,
-			"host_key":   host_key,
-			"client_key": client_key,
+			"bind":       suite.bind,
+			"host_key":   suite.host_key,
+			"client_key": suite.client_key,
 		},
 	)
 	ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
-	config, err := LoadConfigs([]string{env})
-	if err != nil {
-		t.Error(err)
-	}
+	suite.env = env
+}
 
-	if config.Server.Bind != bind {
-		t.Errorf("config.Server.Bind != bind: '%s' != '%s'", config.Server.Bind, bind)
-	}
-	if config.Server.HostKey != host_key {
-		t.Errorf("config.Server.HostKey != host_key: '%s' != '%s'", config.Server.HostKey, host_key)
-	}
-	if config.Server.ClientKey != client_key {
-		t.Errorf("config.Server.ClientKey != client_key: '%s' != '%s'", config.Server.ClientKey, client_key)
-	}
+func (suite *BasicConfigTestSuite) TearDownTest() {
+	os.RemoveAll(suite.env)
+}
+
+func (suite *BasicConfigTestSuite) TestLoadConfigs() {
+	_, err := LoadConfigs([]string{suite.env})
+
+	suite.Nil(err)
+}
+
+func (suite *BasicConfigTestSuite) TestCheckValues() {
+	config, _ := LoadConfigs([]string{suite.env})
+
+	suite.Equal(suite.bind, config.Server.Bind)
+	suite.Equal(suite.host_key, config.Server.HostKey)
+	suite.Equal(suite.client_key, config.Server.ClientKey)
+}
+
+func TestConfig(t *testing.T) {
+	suite.Run(t, new(BasicConfigTestSuite))
 }
 
 func TestConfigEmptyEnvs(t *testing.T) {
 	{
 		_, err := LoadConfigs([]string{})
-		if err == nil {
-			t.Errorf("error must be occured with empty envs")
-		}
+		assert.NotNil(t, err)
 	}
 
 	{
@@ -67,9 +86,7 @@ func TestConfigEmptyEnvs(t *testing.T) {
 		}
 
 		_, err := LoadConfigs(envs)
-		if err == nil {
-			t.Errorf("error must be occured with empty envs")
-		}
+		assert.NotNil(t, err)
 	}
 }
 
@@ -92,12 +109,8 @@ client_key = "client.key"
 	}
 
 	config, err := LoadConfigs(envs)
-	if err != nil {
-		t.Error(err)
-	}
-	if config.baseDirectory != envs[len(envs)-1] {
-		t.Errorf("config.baseDirectory != envs[len(envs) -1]; '%s' != '%s'", config.baseDirectory, envs[len(envs)-1])
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, envs[len(envs)-1], config.baseDirectory)
 }
 
 func TestConfigOverriding(t *testing.T) {
@@ -125,19 +138,12 @@ client_key = "client.key1"
 
 	{
 		config, err := LoadConfigs([]string{env0, env1})
-		if err != nil {
-			t.Error(err)
-		}
 
-		if config.Server.Bind != "hostname1" {
-			t.Errorf("config.Server.Bind != 'hostname1'; '%s'", config.Server.Bind)
-		}
-		if config.Server.HostKey != "host.key1" {
-			t.Errorf("config.Server.HostKey != 'host.key1'; '%s'", config.Server.HostKey)
-		}
-		if config.Server.ClientKey != "client.key1" {
-			t.Errorf("config.Server.ClientKey != 'client.key1'; '%s'", config.Server.ClientKey)
-		}
+		assert.Nil(t, err)
+
+		assert.Equal(t, "hostname1", config.Server.Bind)
+		assert.Equal(t, "host.key1", config.Server.HostKey)
+		assert.Equal(t, "client.key1", config.Server.ClientKey)
 	}
 }
 
@@ -163,19 +169,11 @@ client_key = "client.key1"
 
 	{
 		config, err := LoadConfigs([]string{env0, env1})
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 
-		if config.Server.Bind != "hostname0" {
-			t.Errorf("config.Server.Bind != 'hostname0'; '%s'", config.Server.Bind)
-		}
-		if config.Server.HostKey != "host.key0" {
-			t.Errorf("config.Server.HostKey != 'host.key0'; '%s'", config.Server.HostKey)
-		}
-		if config.Server.ClientKey != "client.key1" {
-			t.Errorf("config.Server.ClientKey != 'client.key1'; '%s'", config.Server.ClientKey)
-		}
+		assert.Equal(t, "hostname0", config.Server.Bind)
+		assert.Equal(t, "host.key0", config.Server.HostKey)
+		assert.Equal(t, "client.key1", config.Server.ClientKey)
 	}
 }
 
@@ -192,9 +190,7 @@ bind = "192.168.99.101:22"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerBind(); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, config.validateServerBind())
 	}
 
 	{
@@ -206,9 +202,7 @@ bind = ":22"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerBind(); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, config.validateServerBind())
 	}
 }
 
@@ -259,9 +253,7 @@ host_key = "{{ . }}"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerHostKey(); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, config.validateServerHostKey())
 	}
 
 	{
@@ -279,9 +271,7 @@ host_key = "{{ . }}"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerHostKey(); err == nil {
-			t.Errorf("error must be occured with empty envs")
-		}
+		assert.NotNil(t, config.validateServerHostKey())
 	}
 }
 
@@ -318,7 +308,7 @@ mcDVxXw9zpsWq/Xxs84OoArVL2mZj6wSnDyGjHCBpQiWRlFJ/j0soGmgLb3cZxGa
 -----END RSA PRIVATE KEY-----`
 
 	{
-		// with valid host key
+		// with valid client key
 		clientKeyFile, _ := ioutil.TempFile(env, "")
 		clientKeyFile.Write([]byte(validClientKey))
 		clientKeyFile.Close()
@@ -332,13 +322,11 @@ client_key = "{{ . }}"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerClientKey(); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, config.validateServerClientKey())
 	}
 
 	{
-		// with invalid host key
+		// with invalid client key
 		clientKeyFile, _ := ioutil.TempFile(env, "")
 		clientKeyFile.Write([]byte(validClientKey[100:]))
 		clientKeyFile.Close()
@@ -352,9 +340,7 @@ client_key = "{{ . }}"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.validateServerClientKey(); err == nil {
-			t.Errorf("error must be occured with empty envs")
-		}
+		assert.NotNil(t, config.validateServerClientKey())
 	}
 }
 
@@ -412,9 +398,7 @@ type = "toml"
 		ioutil.WriteFile(saultcommon.BaseJoin(env, "sample.reg"), []byte{}, 0600)
 
 		config, _ := LoadConfigs([]string{env})
-		if err := config.Validate(); err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, config.Validate())
 	}
 }
 
@@ -437,9 +421,7 @@ client_key = "client.key%d"
 	}
 
 	config, _ := LoadConfigs(envs)
-	if len(config.Bytes()) == 0 {
-		fmt.Errorf("Bytes() must not be empty")
-	}
+	assert.NotEqual(t, len(config.Bytes()), 0)
 }
 
 func TestConfigRegistry(t *testing.T) {
@@ -517,19 +499,12 @@ type = "toml"
 
 	config, _ = LoadConfigs([]string{env})
 
-	{
-		err := config.Validate()
-		if err != nil {
-			t.Error(err)
-		}
-	}
+	assert.Nil(t, config.Validate())
 
 	{
 		cr := config.Registry.GetSources()
 		tomlcr := cr[0].(*saultregistry.TomlConfigRegistry)
-		if tomlcr.Path != registryFile {
-			t.Errorf("tomlcr.Path != registryFile; '%s' != '%s'", tomlcr.Path, registryFile)
-		}
+		assert.Equal(t, registryFile, tomlcr.Path)
 	}
 
 	{
@@ -540,12 +515,9 @@ type = "toml"
 				"BaseDirectory": config.GetBaseDirectory(),
 			},
 		)
-		if err != nil {
-			t.Error(err)
-		}
+
+		assert.Nil(t, err)
 		err = registry.AddSource(rs)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.Nil(t, err)
 	}
 }

@@ -45,6 +45,7 @@ func (e *UserNothingToUpdate) Error() string {
 	return fmt.Sprintf("nothing to be updated for user, '%s'", e.ID)
 }
 
+// TODO move to saultcommon
 type HostNothingToUpdate struct {
 	ID string
 }
@@ -77,7 +78,7 @@ type UserRegistry struct {
 
 	IsAdmin     bool
 	IsActive    bool
-	DateAdded   time.Time
+	DateAdded   time.Time // TODO must be UTC
 	DateUpdated time.Time
 }
 
@@ -378,13 +379,14 @@ func (registry *Registry) AddUser(id string, publicKey []byte) (user UserRegistr
 		return
 	}
 
+	now := time.Now()
 	user = UserRegistry{
 		ID:          id,
 		PublicKey:   []byte(strings.TrimSpace(string(publicKey))),
 		IsActive:    true,
 		IsAdmin:     false,
-		DateAdded:   time.Now(),
-		DateUpdated: time.Now(),
+		DateAdded:   now,
+		DateUpdated: now,
 	}
 	registry.Data.User[id] = user
 	registry.Data.updated()
@@ -437,7 +439,9 @@ func (registry *Registry) UpdateUser(id string, newUser UserRegistry) (user User
 
 	err = nil
 
-	delete(registry.Data.User, id)
+	if id != newUser.ID {
+		delete(registry.Data.User, id)
+	}
 
 	newUser.PublicKey = []byte(strings.TrimSpace(string(newUser.PublicKey)))
 	newUser.DateUpdated = time.Now()
@@ -574,14 +578,15 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 		accounts = newAccounts
 	}
 
+	now := time.Now()
 	host = HostRegistry{
 		ID:          id,
 		HostName:    hostName,
 		Port:        port,
 		Accounts:    accounts,
 		IsActive:    true,
-		DateAdded:   time.Now(),
-		DateUpdated: time.Now(),
+		DateAdded:   now,
+		DateUpdated: now,
 	}
 
 	registry.Data.Host[id] = host
@@ -663,12 +668,15 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 	if !updated {
 		host = oldHost
 		err = &HostNothingToUpdate{ID: id}
+		return
 	}
 
-	registry.Data.Host[newHost.ID] = newHost
 	if id != newHost.ID {
 		delete(registry.Data.Host, id)
 	}
+
+	newHost.DateUpdated = time.Now()
+	registry.Data.Host[newHost.ID] = newHost
 
 	if _, ok := registry.Data.Links[id]; ok {
 		registry.Data.Links[newHost.ID] = registry.Data.Links[id]

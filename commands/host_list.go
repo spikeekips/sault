@@ -3,6 +3,7 @@ package saultcommands
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spikeekips/sault/common"
@@ -68,6 +69,9 @@ The belowed flags help to get the remote hosts from sault server, by default, it
   With filter, you can filter the hosts list, {{ "active" | yellow }}: is only for active hosts. With appending '{{ "-" | yellow }}', you can remove the admin or active host. For examples,
   * {{ "-filter \"active\"" | yellow }}: active hosts
   * {{ "-filter \"active-\"" | yellow }}: not active hosts
+
+{{ "-reverse" | yellow }}:
+By default, sault orders the remote hosts by the updated time, that is, the last updated host will be listed at last. This flag will list them by reverse order.
 		`,
 		nil,
 	)
@@ -80,6 +84,11 @@ The belowed flags help to get the remote hosts from sault server, by default, it
 		Usage:       "[flags] [<host id>...]",
 		Description: description,
 		Flags: []saultflags.FlagTemplate{
+			saultflags.FlagTemplate{
+				Name:  "Reverse",
+				Help:  "list reverse order by the updated time",
+				Value: false,
+			},
 			saultflags.FlagTemplate{
 				Name:  "Filter",
 				Help:  "filter hosts, [ active[-]]",
@@ -112,13 +121,28 @@ type HostListRequestData struct {
 	HostIDs []string
 }
 
+type HostListResponseData []saultregistry.HostRegistry
+
+func (s HostListResponseData) Len() int {
+	return len(s)
+}
+
+func (s HostListResponseData) Less(i, j int) bool {
+	return s[i].DateUpdated.Before(s[j].DateUpdated)
+}
+
+func (s HostListResponseData) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+	return
+}
+
 type HostListCommand struct{}
 
 func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	flagFilter := thisFlags.Values["Filter"].(flagHostFilters)
 	log.Debugf("get hosts, filters: %s HostIDs: %s", flagFilter.Args, thisFlags.Values["HostIDs"])
 
-	var hosts []saultregistry.HostRegistry
+	var hosts HostListResponseData
 	_, err = runCommand(
 		allFlags[0],
 		HostListFlagsTemplate.ID,
@@ -130,6 +154,12 @@ func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	)
 	if err != nil {
 		return
+	}
+
+	if thisFlags.Values["Reverse"].(bool) {
+		sort.Sort(sort.Reverse(hosts))
+	} else {
+		sort.Sort(hosts)
 	}
 
 	fmt.Fprintf(os.Stdout, PrintHostsData(
@@ -149,7 +179,7 @@ func (c *HostListCommand) Response(channel saultssh.Channel, msg saultcommon.Com
 		return err
 	}
 
-	result := []saultregistry.HostRegistry{}
+	result := HostListResponseData{}
 	for _, h := range registry.GetHosts(data.Filters, data.HostIDs...) {
 		result = append(result, h)
 	}
