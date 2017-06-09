@@ -66,6 +66,11 @@ func init() {
 }
 
 func parseServerRunCommandFlags(f *saultflags.Flags, args []string) error {
+	SetupLog(log.Level, log.Out, saultcommon.GetServerLogrusFormatter())
+	sault.SetupLog(log.Level, log.Out, saultcommon.GetServerLogrusFormatter())
+	saultflags.SetupLog(log.Level, log.Out, saultcommon.GetServerLogrusFormatter())
+	saultcommon.SetupLog(log.Level, log.Out, saultcommon.GetServerLogrusFormatter())
+
 	envDirs := f.Values["Env"].(flagEnvDirs)
 	if len(envDirs) < 1 {
 		currentDirectory, _ := filepath.Abs("./")

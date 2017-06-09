@@ -845,6 +845,12 @@ func (d DefaultLogrusFormatter) Format(e *logrus.Entry) ([]byte, error) {
 }
 
 func GetDefaultLogrusFormatter() logrus.Formatter {
+	return &logrus.TextFormatter{
+		DisableTimestamp: true,
+	}
+}
+
+func GetServerLogrusFormatter() logrus.Formatter {
 	return &DefaultLogrusFormatter{
 		&logrus.TextFormatter{
 			FullTimestamp:   true,

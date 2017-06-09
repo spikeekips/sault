@@ -53,13 +53,13 @@ func (e *UserDoesNotExistError) Error() string {
 
 	var v []string
 	if e.ID != "" {
-		v = append(v, fmt.Sprintf("'%s'", e.ID))
+		v = append(v, fmt.Sprintf("id='%s'", e.ID))
 	}
 	if e.PublicKey != nil {
-		v = append(v, fmt.Sprintf("'%s'", FingerprintSHA256PublicKey(e.PublicKey)))
+		v = append(v, fmt.Sprintf("publickey='%s'", FingerprintSHA256PublicKey(e.PublicKey)))
 	}
 
-	return fmt.Sprintf("user, %s does not exist", strings.Join(v, " "))
+	return fmt.Sprintf("user, %s does not exist", strings.Join(v, ", "))
 }
 
 type HostDoesNotExistError struct {
