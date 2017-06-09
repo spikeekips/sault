@@ -1,6 +1,7 @@
 package saultcommands
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -28,15 +29,26 @@ type VersionCommand struct {
 }
 
 func (c *VersionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error {
+	buildEnv, _ := base64.StdEncoding.DecodeString(sault.BuildEnv)
+	tab := strings.Repeat(" ", 15)
+
 	o, err := saultcommon.SimpleTemplating(`
-     version: {{ .version }}
-  build date: {{ .date }}
-build commit: {{ .commit }}
+     version: {{ .buildversion }}
+  build date: {{ .builddate }}
+build commit: {{ .buildcommit }}
+build branch: {{ .buildbranch }}
+  build repo: {{ .buildrepo }}
+   build env:
+{{ .tab }}{{ .buildenv }}
 `,
 		map[string]interface{}{
-			"version": sault.BuildVersion,
-			"date":    sault.BuildDate,
-			"commit":  sault.BuildCommit,
+			"buildversion": sault.BuildVersion,
+			"builddate":    sault.BuildDate,
+			"buildcommit":  sault.BuildCommit,
+			"buildbranch":  sault.BuildBranch,
+			"buildrepo":    sault.BuildRepo,
+			"tab":          tab,
+			"buildenv":     strings.TrimSpace(strings.Replace(string(buildEnv), "\n", "\n"+tab, -1)),
 		},
 	)
 	if err != nil {

@@ -17,6 +17,9 @@ var (
 	BuildVersion = "v0.0"
 	BuildDate    = "0000-00-00T00:00:00+0000"
 	BuildCommit  = "XXXX"
+	BuildBranch  = "XXXX"
+	BuildRepo    = "XXXX"
+	BuildEnv     = "XXXX"
 )
 
 var log *logrus.Logger
