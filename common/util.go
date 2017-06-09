@@ -223,6 +223,9 @@ var flagTempalteFMap = template.FuncMap{
 			return fmt.Sprintf("%s", s)
 		}
 	},
+	"timeToLocal": func(s time.Time) time.Time {
+		return s.In(time.Local)
+	},
 }
 
 func terminalFormat(code, reset int) func(string) string {
@@ -830,4 +833,22 @@ func ParseMinusName(s string) (name string, minus bool) {
 
 	r := []rune(s)
 	return string(r[:len(r)-1]), true
+}
+
+type DefaultLogrusFormatter struct {
+	logrus.Formatter
+}
+
+func (d DefaultLogrusFormatter) Format(e *logrus.Entry) ([]byte, error) {
+	e.Time = e.Time.UTC() // set to UTC by force
+	return d.Formatter.Format(e)
+}
+
+func GetDefaultLogrusFormatter() logrus.Formatter {
+	return &DefaultLogrusFormatter{
+		&logrus.TextFormatter{
+			FullTimestamp:   true,
+			TimestampFormat: "2006-01-02T15:04:05.999999999Z07:00",
+		},
+	}
 }

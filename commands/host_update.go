@@ -302,7 +302,7 @@ func (c *HostUpdateCommand) Response(channel saultssh.Channel, msg saultcommon.C
 	var errString string
 	var notUpdated bool
 	if host, err = registry.UpdateHost(oldID, host); err != nil {
-		if errNothingToUpdate, ok := err.(*saultregistry.HostNothingToUpdate); !ok {
+		if errNothingToUpdate, ok := err.(*saultcommon.HostNothingToUpdate); !ok {
 			return
 		} else {
 			errString = errNothingToUpdate.Error()

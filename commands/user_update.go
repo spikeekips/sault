@@ -256,7 +256,7 @@ func (c *UserUpdateCommand) Response(channel saultssh.Channel, msg saultcommon.C
 	var errString string
 	var notUpdated bool
 	if user, err = registry.UpdateUser(oldID, user); err != nil {
-		if errNothingToUpdate, ok := err.(*saultregistry.UserNothingToUpdate); !ok {
+		if errNothingToUpdate, ok := err.(*saultcommon.UserNothingToUpdate); !ok {
 			return
 		} else {
 			errString = errNothingToUpdate.Error()

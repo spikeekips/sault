@@ -25,8 +25,8 @@ var PrintUsersDataTemplate = `{{ define "block-user" }}{{ $maxConnectionString :
          Public Key: {{ .user.User.PublicKey |stringify | bold }}
  Fingerprint(sha256): {{ publicKeyFingerprintSha256 .user.User.GetPublicKey | dim }}
  Fingerprint(md5)   : {{ publicKeyFingerprintMd5 .user.User.GetPublicKey | dim }}
-     Registered Time: {{ sprintf "%v" .user.User.DateAdded | dim }}
-   Last Updated Time: {{ sprintf "%v" .user.User.DateUpdated | dim }}
+     Registered Time: {{ .user.User.DateAdded | timeToLocal | sprintf "%v" | dim }}
+   Last Updated Time: {{ .user.User.DateUpdated | timeToLocal | sprintf "%v" | dim }}
         Linked Hosts: {{ if eq $lenlinks 0 }}{{ "not yet linked" | yellow }}{{ else }}{{ range .user.Links }}
 {{ .HostID | sprintf "%14s" | colorHostID }}: {{ if .All }}{{ "open to all acocunts" | yellow }}{{ else }}{{ join .Accounts " " }}{{ end }}
 {{ $lenaccounts := len .Accounts }}{{ $hostID := .HostID }}{{ $saultPort := index $saultServerAddress "Port" }}{{ $saultHostName := index $saultServerAddress "HostName" }}{{ range $i, $_ := .Accounts }}{{ if lt $i $maxConnectionString }}{{ sprintf "%15s" "" }}{{ print "$ ssh -p " $saultPort " " . "+" $hostID "@" $saultHostName | magenta }}
@@ -104,8 +104,8 @@ var PrintHostDataTemplate = `
             Active: {{ if .host.IsActive }}{{ print .host.IsActive | green }}{{ else }}{{ print .host.IsActive | dim }}{{ end }}
            Address: {{ .host.HostName }}{{ .host.Port }}
           Accounts: {{ join .host.Accounts " " }}
-   Registered Time: {{ sprintf "%v" .host.DateAdded | dim }}
- Last Updated Time: {{ sprintf "%v" .host.DateUpdated | dim }}
+   Registered Time: {{ .host.DateAdded | timeToLocal | sprintf "%v" | dim }}
+ Last Updated Time: {{ .host.DateUpdated | timeToLocal | sprintf "%v" | dim }}
 {{ range $i, $_ := .host.Accounts }}{{ if lt $i $maxConnectionString }}{{ sprintf "%9s" "" }} {{ print "$ ssh -p " $saultPort " " . "+" $hostID "@" $saultHostName | magenta }}
 {{ end }}{{ end }} {{ if gt $lenaccounts $maxConnectionString }}{{ sprintf "%9s" "" }}... {{ minus $lenaccounts $maxConnectionString }} more{{ end }}{{ end }}
 

@@ -28,32 +28,6 @@ const (
 	HostFilterIsNotActive
 )
 
-type HostAndUserNotLinked struct {
-	UserID string
-	HostID string
-}
-
-func (e *HostAndUserNotLinked) Error() string {
-	return fmt.Sprintf("user, '%s' and host, '%s' was not linked", e.UserID, e.HostID)
-}
-
-type UserNothingToUpdate struct {
-	ID string
-}
-
-func (e *UserNothingToUpdate) Error() string {
-	return fmt.Sprintf("nothing to be updated for user, '%s'", e.ID)
-}
-
-// TODO move to saultcommon
-type HostNothingToUpdate struct {
-	ID string
-}
-
-func (e *HostNothingToUpdate) Error() string {
-	return fmt.Sprintf("nothing to be updated for host, '%s'", e.ID)
-}
-
 type RegistryPublicKey []byte
 
 func (r *RegistryPublicKey) UnmarshalText(data []byte) (err error) {
@@ -78,7 +52,7 @@ type UserRegistry struct {
 
 	IsAdmin     bool
 	IsActive    bool
-	DateAdded   time.Time // TODO must be UTC
+	DateAdded   time.Time
 	DateUpdated time.Time
 }
 
@@ -160,7 +134,7 @@ type RegistryData struct {
 }
 
 func (d *RegistryData) updated() {
-	d.TimeUpdated = time.Now()
+	d.TimeUpdated = time.Now().UTC()
 }
 
 func NewRegistryDataFromSource(source RegistrySource) (data *RegistryData, err error) {
@@ -379,7 +353,7 @@ func (registry *Registry) AddUser(id string, publicKey []byte) (user UserRegistr
 		return
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	user = UserRegistry{
 		ID:          id,
 		PublicKey:   []byte(strings.TrimSpace(string(publicKey))),
@@ -433,7 +407,7 @@ func (registry *Registry) UpdateUser(id string, newUser UserRegistry) (user User
 
 	if !updated {
 		user = oldUser
-		err = &UserNothingToUpdate{ID: id}
+		err = &saultcommon.UserNothingToUpdate{ID: id}
 		return
 	}
 
@@ -444,7 +418,7 @@ func (registry *Registry) UpdateUser(id string, newUser UserRegistry) (user User
 	}
 
 	newUser.PublicKey = []byte(strings.TrimSpace(string(newUser.PublicKey)))
-	newUser.DateUpdated = time.Now()
+	newUser.DateUpdated = time.Now().UTC()
 	registry.Data.User[newUser.ID] = newUser
 
 	for hostID, link := range registry.Data.Links {
@@ -578,7 +552,7 @@ func (registry *Registry) AddHost(id, hostName string, port uint64, accounts []s
 		accounts = newAccounts
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	host = HostRegistry{
 		ID:          id,
 		HostName:    hostName,
@@ -665,9 +639,13 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		}
 	}
 
+	if oldHost.IsActive != newHost.IsActive {
+		updated = true
+	}
+
 	if !updated {
 		host = oldHost
-		err = &HostNothingToUpdate{ID: id}
+		err = &saultcommon.HostNothingToUpdate{ID: id}
 		return
 	}
 
@@ -675,7 +653,7 @@ func (registry *Registry) UpdateHost(id string, newHost HostRegistry) (host Host
 		delete(registry.Data.Host, id)
 	}
 
-	newHost.DateUpdated = time.Now()
+	newHost.DateUpdated = time.Now().UTC()
 	registry.Data.Host[newHost.ID] = newHost
 
 	if _, ok := registry.Data.Links[id]; ok {
@@ -840,12 +818,12 @@ func (registry *Registry) Unlink(userID, hostID string, accounts ...string) (err
 	}
 
 	if _, ok := registry.Data.Links[host.ID]; !ok {
-		err = &HostAndUserNotLinked{UserID: userID, HostID: hostID}
+		err = &saultcommon.HostAndUserNotLinked{UserID: userID, HostID: hostID}
 		return
 	}
 
 	if _, ok := registry.Data.Links[host.ID][userID]; !ok {
-		err = &HostAndUserNotLinked{UserID: userID, HostID: hostID}
+		err = &saultcommon.HostAndUserNotLinked{UserID: userID, HostID: hostID}
 		return
 	}
 

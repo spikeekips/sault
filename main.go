@@ -20,10 +20,6 @@ import (
 
 var log *logrus.Logger
 
-var defaultLogFormatter = &logrus.TextFormatter{
-	DisableTimestamp: true,
-}
-
 var mainFlags *saultflags.Flags
 
 type flagLogLevel logrus.Level
@@ -93,7 +89,7 @@ Commands:{{ end }}
 func init() {
 	log = logrus.New()
 	log.Level = logrus.FatalLevel
-	log.Formatter = defaultLogFormatter
+	log.Formatter = saultcommon.GetDefaultLogrusFormatter()
 	log.Out = os.Stdout
 
 	identityFlag := saultcommon.FlagPrivateKey{}

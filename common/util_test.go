@@ -2,6 +2,7 @@ package saultcommon
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -126,5 +127,14 @@ func TestParseMinusName(t *testing.T) {
 
 		assert.Equal(t, s, a)
 		assert.True(t, minus)
+	}
+}
+
+func TestUTCToLocal(t *testing.T) {
+	{
+		a := time.Now()
+		u := a.In(time.UTC)
+
+		assert.Equal(t, a, u.In(time.Local))
 	}
 }

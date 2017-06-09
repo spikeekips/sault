@@ -106,3 +106,28 @@ type LinkedAllError struct {
 func (e *LinkedAllError) Error() string {
 	return "Linked all"
 }
+
+type UserNothingToUpdate struct {
+	ID string
+}
+
+func (e *UserNothingToUpdate) Error() string {
+	return fmt.Sprintf("nothing to be updated for user, '%s'", e.ID)
+}
+
+type HostNothingToUpdate struct {
+	ID string
+}
+
+func (e *HostNothingToUpdate) Error() string {
+	return fmt.Sprintf("nothing to be updated for host, '%s'", e.ID)
+}
+
+type HostAndUserNotLinked struct {
+	UserID string
+	HostID string
+}
+
+func (e *HostAndUserNotLinked) Error() string {
+	return fmt.Sprintf("user, '%s' and host, '%s' was not linked", e.UserID, e.HostID)
+}

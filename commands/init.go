@@ -23,9 +23,7 @@ func SetupLog(level logrus.Level, out io.Writer, formatter logrus.Formatter) {
 	log.Level = level
 
 	if formatter == nil {
-		formatter = &logrus.TextFormatter{
-			DisableTimestamp: true,
-		}
+		formatter = saultcommon.GetDefaultLogrusFormatter()
 	}
 	log.Formatter = formatter
 	log.Out = out
