@@ -23,7 +23,7 @@ func init() {
 	HostRemoveFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host remove",
 		Name:         "remove",
-		Help:         "remove the sault hosts",
+		Help:         "remove the remote hosts",
 		Usage:        "<host id> [<host id>...] [flags]",
 		Description:  description,
 		IsPositioned: true,

@@ -36,7 +36,7 @@ Such like appending '-' at the end of account name, this will disallow the user 
 	UserLinkFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user link",
 		Name:         "link",
-		Help:         "link to the sault host",
+		Help:         "link to the remote host",
 		Usage:        "<user id> <host id> [<account>...] [flags]",
 		Description:  description,
 		IsPositioned: true,

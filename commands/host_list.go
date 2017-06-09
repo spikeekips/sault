@@ -61,9 +61,9 @@ func (f *flagHostFilters) Set(v string) (err error) {
 }
 
 func init() {
-	description, _ := saultcommon.SimpleTemplating(`{{ "host list" | yellow }} gets the registered sault hosts information from sault server.
+	description, _ := saultcommon.SimpleTemplating(`{{ "host list" | yellow }} gets the registered remote hosts information from sault server.
 
-The belowed flags help to get the sault hosts from sault server, by default, it shows all registered sault hosts.
+The belowed flags help to get the remote hosts from sault server, by default, it shows all registered remote hosts.
 {{ "-filter <mode>" | yellow }}:
   With filter, you can filter the hosts list, {{ "active" | yellow }}: is only for active hosts. With appending '{{ "-" | yellow }}', you can remove the admin or active host. For examples,
   * {{ "-filter \"active\"" | yellow }}: active hosts

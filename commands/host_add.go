@@ -25,7 +25,7 @@ By default, the sault server tries to check the connection to your host. If fail
 	HostAddFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host add",
 		Name:         "add",
-		Help:         "add new sault host",
+		Help:         "add new remote host",
 		Usage:        "<host id> <account>@<host address, hostname:port> [additional accounts...] [flags]",
 		Description:  description,
 		IsPositioned: true,

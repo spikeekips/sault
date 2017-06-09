@@ -107,14 +107,14 @@ func init() {
 	HostUpdateFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host update",
 		Name:         "update",
-		Help:         "update the sault host",
+		Help:         "update the remote host",
 		Usage:        "<host id> [flags]",
 		Description:  description,
 		IsPositioned: true,
 		Flags: []saultflags.FlagTemplate{
 			saultflags.FlagTemplate{
 				Name:  "ID",
-				Help:  "set new sault host id",
+				Help:  "set new remote host id",
 				Value: &hostUpdateNewIDFlag,
 			},
 			saultflags.FlagTemplate{
