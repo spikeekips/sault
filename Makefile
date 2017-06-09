@@ -18,6 +18,7 @@ LDFLAGS = -ldflags "-X $(PACKAGEPATH)/core.BuildVersion=${BUILD_BRANCH} -X $(PAC
 
 $(BASE):
 	@mkdir -p $(dir $@)
+	@rm -f $@
 	@ln -sf $(CURDIR) $@
 	@cd $(BASE) && $(GO) get .
 
@@ -33,7 +34,7 @@ distclean:
 	@rm -rf $(GOPATH)
 
 .PHONY: clean all $(BASE)
-all: | $(BASE)
+build: | $(BASE)
 	cd $(BASE) && $(GO) get && $(GO) build $(LDFLAGS) -o $(GOPATH)/bin/$(PACKAGE) main.go
 
 .PHONY: lint
