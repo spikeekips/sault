@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type SSHClient struct {
-	Client       *sssh.Client
-	clientConfig *sssh.ClientConfig
+	Client       *saultssh.Client
+	clientConfig *saultssh.ClientConfig
 	address      string
 }
 
 func NewSSHClient(account, address string) *SSHClient {
-	clientConfig := &sssh.ClientConfig{
+	clientConfig := &saultssh.ClientConfig{
 		User:            account,
-		HostKeyCallback: sssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: saultssh.InsecureIgnoreHostKey(),
 	}
 
 	return &SSHClient{
@@ -41,7 +41,7 @@ func (s *SSHClient) SetTimeout(t time.Duration) {
 	s.clientConfig.Timeout = t
 }
 
-func (s *SSHClient) AddAuthMethod(auths ...sssh.AuthMethod) {
+func (s *SSHClient) AddAuthMethod(auths ...saultssh.AuthMethod) {
 	s.clientConfig.Auth = append(
 		s.clientConfig.Auth,
 		auths...,
@@ -49,7 +49,7 @@ func (s *SSHClient) AddAuthMethod(auths ...sssh.AuthMethod) {
 }
 
 func (s *SSHClient) Connect() error {
-	client, err := sssh.Dial("tcp", s.address, s.clientConfig)
+	client, err := saultssh.Dial("tcp", s.address, s.clientConfig)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (s *SSHClient) Connect() error {
 	return nil
 }
 
-func (s *SSHClient) newSession() (*sssh.Session, error) {
+func (s *SSHClient) newSession() (*saultssh.Session, error) {
 	session, err := s.Client.NewSession()
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (s *SSHClient) newSession() (*sssh.Session, error) {
 }
 
 func (s *SSHClient) Run(cmd string) (output []byte, err error) {
-	var session *sssh.Session
+	var session *saultssh.Session
 	session, err = s.newSession()
 	if err != nil {
 		return
@@ -116,7 +116,7 @@ func (s *SSHClient) PutFile(content string, dest string, perm os.FileMode) error
 }
 
 func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
-	var session *sssh.Session
+	var session *saultssh.Session
 	session, err = s.newSession()
 	if err != nil {
 		return
@@ -153,7 +153,7 @@ func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
 }
 
 func (s *SSHClient) Remove(dest string) error {
-	var session *sssh.Session
+	var session *saultssh.Session
 	{
 		var err error
 		session, err = s.newSession()

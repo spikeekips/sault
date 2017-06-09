@@ -11,7 +11,7 @@ import (
 	"github.com/naoina/toml"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 // Config contains configurations
@@ -47,12 +47,12 @@ type configServer struct {
 
 	// HostKey is the ssh host key path
 	HostKey       string
-	hostKeySigner sssh.Signer
+	hostKeySigner saultssh.Signer
 
 	// ClientKey is the ssh client key path
 	ClientKey       string
 	clientKey       []byte
-	clientKeySigner sssh.Signer
+	clientKeySigner saultssh.Signer
 }
 
 type configRegistry struct {
@@ -154,11 +154,11 @@ func (c *Config) Bytes() []byte {
 	return b.Bytes()
 }
 
-func (c configServer) GetHostKeySigner() sssh.Signer {
+func (c configServer) GetHostKeySigner() saultssh.Signer {
 	return c.hostKeySigner
 }
 
-func (c configServer) GetClientKeySigner() sssh.Signer {
+func (c configServer) GetClientKeySigner() saultssh.Signer {
 	return c.clientKeySigner
 }
 

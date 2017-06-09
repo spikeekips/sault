@@ -4,22 +4,22 @@ import (
 	"net"
 
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type Server struct {
 	saultServerName string
 	registry        *saultregistry.Registry
 	config          *Config
-	hostKeySigner   sssh.Signer
-	clientKeySigner sssh.Signer
+	hostKeySigner   saultssh.Signer
+	clientKeySigner saultssh.Signer
 }
 
 func NewServer(
 	registry *saultregistry.Registry,
 	config *Config,
-	hostKeySigner sssh.Signer,
-	clientKeySigner sssh.Signer,
+	hostKeySigner saultssh.Signer,
+	clientKeySigner saultssh.Signer,
 	saultServerName string,
 ) (*Server, error) {
 	return &Server{

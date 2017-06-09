@@ -15,7 +15,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var ServerInitFlagsTemplate *saultflags.FlagsTemplate
@@ -267,7 +267,7 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	return nil
 }
 
-func (c *ServerInitCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *ServerInitCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }
 
@@ -289,7 +289,7 @@ func checkSSHService(address string) bool {
 	}
 
 	client := saultcommon.NewSSHClient("killme", address)
-	client.AddAuthMethod(sssh.Password(""))
+	client.AddAuthMethod(saultssh.Password(""))
 	client.SetTimeout(time.Second * 2)
 
 	err := client.Connect()

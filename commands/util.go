@@ -14,7 +14,7 @@ import (
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var maxConnectionString = 3
@@ -201,7 +201,7 @@ func printServerKind(templateName, key string, value string) string {
 	return strings.TrimSpace(t) + "\n"
 }
 
-func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey sssh.PublicKey) (err error) {
+func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicKey) (err error) {
 	log.Debugf("trying to inject client public key to host")
 
 	checkCmd := fmt.Sprintf("sh -c '[ -d %s ] && echo 1 || echo 0'", sault.SSHDirectory)
@@ -334,7 +334,7 @@ func passphraseChallenge(run func(passphrase string) error, firstMessage, nextMe
 	return nil
 }
 
-func checkConnectivity(account, address string, signer sssh.Signer, timeout time.Duration) (err error) {
+func checkConnectivity(account, address string, signer saultssh.Signer, timeout time.Duration) (err error) {
 	slog := log.WithFields(logrus.Fields{
 		"Address": fmt.Sprintf("%s@%s", account, address),
 	})
@@ -342,7 +342,7 @@ func checkConnectivity(account, address string, signer sssh.Signer, timeout time
 	slog.Debugf("trying to connect")
 
 	sc := saultcommon.NewSSHClient(account, address)
-	sc.AddAuthMethod(sssh.PublicKeys(signer))
+	sc.AddAuthMethod(saultssh.PublicKeys(signer))
 	sc.SetTimeout(timeout)
 	defer sc.Close()
 

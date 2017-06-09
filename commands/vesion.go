@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var VersionFlagsTemplate *saultflags.FlagsTemplate
@@ -47,6 +47,6 @@ build commit: {{ .commit }}
 	return nil
 }
 
-func (c *VersionCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *VersionCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }

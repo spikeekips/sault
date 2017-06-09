@@ -5,12 +5,12 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type FlagPrivateKey struct {
 	Path   string
-	Signer sssh.Signer
+	Signer saultssh.Signer
 }
 
 func (f *FlagPrivateKey) String() string {
@@ -22,7 +22,7 @@ func (f *FlagPrivateKey) Set(file string) (err error) {
 
 	{
 		// trying to find signer from ssh agent with private key file name
-		var signer sssh.Signer
+		var signer saultssh.Signer
 		signer, err = FindSignerInSSHAgentFromFile(file)
 		if err == nil {
 			*f = FlagPrivateKey{Path: file, Signer: signer}
@@ -38,8 +38,8 @@ func (f *FlagPrivateKey) Set(file string) (err error) {
 			return
 		}
 
-		var signer sssh.Signer
-		var tmpSigner sssh.Signer
+		var signer saultssh.Signer
+		var tmpSigner saultssh.Signer
 		tmpSigner, err = GetSignerFromPrivateKey(b)
 		if err != nil {
 			log.Debugf("failed to load signer from '%s' without passpharase", file)
@@ -56,7 +56,7 @@ func (f *FlagPrivateKey) Set(file string) (err error) {
 
 	{
 		// passpharase trial
-		var signer sssh.Signer
+		var signer saultssh.Signer
 		signer, err = LoadPrivateKeySignerWithPasspharaseTrial(file)
 		if err != nil {
 			log.Error(err)

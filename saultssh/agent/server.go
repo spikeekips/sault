@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssshAgent
+package saultsshAgent
 
 import (
 	"crypto/dsa"
@@ -16,7 +16,7 @@ import (
 	"log"
 	"math/big"
 
-	ssh "github.com/spikeekips/sault/sssh"
+	ssh "github.com/spikeekips/sault/saultssh"
 	"golang.org/x/crypto/ed25519"
 )
 

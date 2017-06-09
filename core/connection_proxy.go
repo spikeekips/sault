@@ -5,14 +5,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 func (c *connection) openProxyConnection(
-	channels <-chan sssh.NewChannel,
+	channels <-chan saultssh.NewChannel,
 ) error {
 	innerclient := saultcommon.NewSSHClient(c.account, c.host.GetAddress())
-	innerclient.AddAuthMethod(sssh.PublicKeys(c.server.clientKeySigner))
+	innerclient.AddAuthMethod(saultssh.PublicKeys(c.server.clientKeySigner))
 	innerclient.SetTimeout(DefaultTimeoutProxyClient)
 
 	if err := innerclient.Connect(); err != nil {
@@ -33,7 +33,7 @@ func (c *connection) openProxyConnection(
 	return nil
 }
 
-func (c *connection) openProxyChannel(innerclient *saultcommon.SSHClient, channel sssh.NewChannel) error {
+func (c *connection) openProxyChannel(innerclient *saultcommon.SSHClient, channel saultssh.NewChannel) error {
 	proxyChannel, proxyRequests, err := channel.Accept()
 	if err != nil {
 		c.log.Error(err)
@@ -58,8 +58,8 @@ func (c *connection) openProxyChannel(innerclient *saultcommon.SSHClient, channe
 
 	var requestOrigin string
 	for {
-		var request *sssh.Request
-		var toChannel sssh.Channel
+		var request *saultssh.Request
+		var toChannel saultssh.Channel
 
 		select {
 		case request = <-proxyRequests:

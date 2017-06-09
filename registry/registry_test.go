@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/spikeekips/sault/common"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
-// TODO remove tmpfile garbages
-func testRegistryGetPublicKey() (publicKey sssh.PublicKey) {
+func testRegistryGetPublicKey() (publicKey saultssh.PublicKey) {
 	privateKey, _ := saultcommon.CreateRSAPrivateKey(256)
-	publicKey, _ = sssh.NewPublicKey(privateKey.Public())
+	publicKey, _ = saultssh.NewPublicKey(privateKey.Public())
 
 	return
 }
@@ -943,6 +942,7 @@ func TestRegistryTomlRegistryWithValidSource(t *testing.T) {
 	registryFile := saultcommon.BaseJoin(
 		fmt.Sprintf("%s%s", tmpFile.Name(), RegistryFileExt),
 	)
+	defer os.Remove(registryFile)
 
 	content := ``
 	ioutil.WriteFile(registryFile, []byte(content), RegistryFileMode)
@@ -965,6 +965,7 @@ func TestRegistryLoadRegistryByTimeUpdated(t *testing.T) {
 		registryFile := saultcommon.BaseJoin(
 			fmt.Sprintf("%s%s", tmpFile.Name(), RegistryFileExt),
 		)
+		defer os.Remove(registryFile)
 
 		lastTimeUpdated = fmt.Sprintf("0001-0%d-01T00:00:00Z", i)
 		content := fmt.Sprintf("time_updated = %s", lastTimeUpdated)

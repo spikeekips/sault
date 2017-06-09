@@ -7,7 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type AuthenticationFailedError struct {
@@ -53,8 +53,8 @@ func newConnection(server *Server, conn net.Conn) (*connection, error) {
 	return pconn, nil
 }
 
-func (c *connection) getServerConfig() *sssh.ServerConfig {
-	serverConfig := &sssh.ServerConfig{
+func (c *connection) getServerConfig() *saultssh.ServerConfig {
+	serverConfig := &saultssh.ServerConfig{
 		PublicKeyCallback: c.publicKeyCallback,
 	}
 
@@ -68,9 +68,9 @@ func (c *connection) close() {
 }
 
 func (c *connection) publicKeyCallback(
-	conn sssh.ConnMetadata,
-	publicKey sssh.PublicKey,
-) (perm *sssh.Permissions, err error) {
+	conn saultssh.ConnMetadata,
+	publicKey saultssh.PublicKey,
+) (perm *saultssh.Permissions, err error) {
 	account, hostID, err := saultcommon.ParseSaultAccountName(conn.User())
 	if err != nil {
 		err = &AuthenticationFailedError{Err: err}
@@ -126,11 +126,11 @@ func (c *connection) publicKeyCallback(
 }
 
 func (c *connection) publicKeyCallbackInsideSault(
-	conn sssh.ConnMetadata,
-	publicKey sssh.PublicKey,
+	conn saultssh.ConnMetadata,
+	publicKey saultssh.PublicKey,
 	user saultregistry.UserRegistry,
 	account, hostID string,
-) (perm *sssh.Permissions, err error) {
+) (perm *saultssh.Permissions, err error) {
 	c.insideSault = true
 
 	if len(account) > 0 {
@@ -157,7 +157,7 @@ func (c *connection) publicKeyCallbackInsideSault(
 }
 
 func (c *connection) openConnection() error {
-	conn, channels, requests, err := sssh.NewServerConn(c, c.getServerConfig())
+	conn, channels, requests, err := saultssh.NewServerConn(c, c.getServerConfig())
 	if err != nil {
 		c.log.Error(err)
 		return err
@@ -165,7 +165,7 @@ func (c *connection) openConnection() error {
 
 	defer conn.Close()
 
-	go sssh.DiscardRequests(requests)
+	go saultssh.DiscardRequests(requests)
 
 	{
 		var err error

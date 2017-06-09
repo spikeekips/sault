@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var (
@@ -35,13 +35,13 @@ var MaxPassphraseChallenge = 3
 
 type Command interface {
 	Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error
-	Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *Config) error
+	Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *Config) error
 }
 
 var Commands = map[string]Command{}
 
 func init() {
-	sssh.PackageVersion = fmt.Sprintf("%s-sault-%s", sssh.PackageVersion, BuildVersion)
+	saultssh.PackageVersion = fmt.Sprintf("%s-sault-%s", saultssh.PackageVersion, BuildVersion)
 
 	log = logrus.New()
 

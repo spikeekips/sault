@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var HostUpdateFlagsTemplate *saultflags.FlagsTemplate
@@ -247,7 +247,7 @@ failed to update host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostUpdateCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostUpdateCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data HostUpdateRequestData
 	err = msg.GetData(&data)
 	if err != nil {

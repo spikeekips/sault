@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type InvalidAccountNameError struct {
@@ -42,7 +42,7 @@ func (e *InvalidHostAddressError) Error() string {
 
 type UserDoesNotExistError struct {
 	ID        string
-	PublicKey sssh.PublicKey
+	PublicKey saultssh.PublicKey
 	Message   string
 }
 

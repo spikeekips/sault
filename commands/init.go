@@ -9,7 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/flags"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var log *logrus.Logger
@@ -31,11 +31,11 @@ func SetupLog(level logrus.Level, out io.Writer, formatter logrus.Formatter) {
 	log.Out = out
 }
 
-func sshAgentAuthMethod(signer sssh.Signer) ([]sssh.AuthMethod, error) {
-	var signerCallback func() ([]sssh.Signer, error)
+func sshAgentAuthMethod(signer saultssh.Signer) ([]saultssh.AuthMethod, error) {
+	var signerCallback func() ([]saultssh.Signer, error)
 	if signer != nil {
-		signerCallback = func() ([]sssh.Signer, error) {
-			return []sssh.Signer{signer}, nil
+		signerCallback = func() ([]saultssh.Signer, error) {
+			return []saultssh.Signer{signer}, nil
 		}
 	} else {
 		agent, err := saultcommon.GetSSHAgent()
@@ -45,26 +45,26 @@ func sshAgentAuthMethod(signer sssh.Signer) ([]sssh.AuthMethod, error) {
 		signerCallback = agent.Signers
 	}
 
-	return []sssh.AuthMethod{
-		sssh.PublicKeysCallback(signerCallback),
+	return []saultssh.AuthMethod{
+		saultssh.PublicKeysCallback(signerCallback),
 	}, nil
 }
 
-func connectSaultServer(serverName, address string, signer sssh.Signer) (*sssh.Client, error) {
+func connectSaultServer(serverName, address string, signer saultssh.Signer) (*saultssh.Client, error) {
 	authMethods, err := sshAgentAuthMethod(signer)
 	if err != nil {
 		return nil, err
 	}
 
-	clientConfig := &sssh.ClientConfig{
+	clientConfig := &saultssh.ClientConfig{
 		User:            serverName,
 		Auth:            authMethods,
-		HostKeyCallback: sssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: saultssh.InsecureIgnoreHostKey(),
 	}
 
 	log.Debugf("trying to connect to sault server, '%s'", address)
 
-	connection, err := sssh.Dial("tcp", address, clientConfig)
+	connection, err := saultssh.Dial("tcp", address, clientConfig)
 	if err != nil {
 		return nil, saultcommon.NewCommandError(
 			saultcommon.CommandErrorAuthFailed,
@@ -107,7 +107,7 @@ func runCommand(
 	saultServer := mainFlags.Values["Sault"].(saultcommon.FlagSaultServer)
 	identity := mainFlags.Values["Identity"].(saultcommon.FlagPrivateKey).Signer
 
-	var connection *sssh.Client
+	var connection *saultssh.Client
 	connection, err = connectSaultServer(saultServer.SaultServerName, saultServer.Address, identity)
 	if err != nil {
 		return
@@ -130,9 +130,9 @@ func runCommand(
 
 	// marshal command
 	log.Debugf("run command: %v", msg)
-	output, err = session.Output(string(sssh.Marshal(msg)))
+	output, err = session.Output(string(saultssh.Marshal(msg)))
 	if err != nil {
-		if exitError, ok := err.(*sssh.ExitError); ok {
+		if exitError, ok := err.(*saultssh.ExitError); ok {
 			err = fmt.Errorf("ExitError: %v", exitError)
 			return
 		}

@@ -21,4 +21,4 @@ References:
 This package does not fall under the stability promise of the Go language itself,
 so its API may be changed when pressing needs arise.
 */
-package sssh // import "github.com/spikeekips/sault/sssh"
+package saultssh // import "github.com/spikeekips/sault/saultssh"

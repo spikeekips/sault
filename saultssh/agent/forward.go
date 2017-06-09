@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssshAgent
+package saultsshAgent
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"net"
 	"sync"
 
-	ssh "github.com/spikeekips/sault/sssh"
+	ssh "github.com/spikeekips/sault/saultssh"
 )
 
 // RequestAgentForwarding sets up agent forwarding for the session.

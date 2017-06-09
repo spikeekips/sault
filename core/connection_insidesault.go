@@ -5,7 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var exitStatusNotAllowed uint32 = 254
@@ -16,7 +16,7 @@ type exitStatusMsg struct {
 }
 
 func (c *connection) openInsideSaultConnection(
-	channels <-chan sssh.NewChannel,
+	channels <-chan saultssh.NewChannel,
 ) error {
 	for channel := range channels {
 		go func() {
@@ -30,15 +30,15 @@ func (c *connection) openInsideSaultConnection(
 	return nil
 }
 
-func sendExitStatusThruChannel(channel sssh.Channel, status uint32) {
+func sendExitStatusThruChannel(channel saultssh.Channel, status uint32) {
 	channel.SendRequest(
 		"exit-status",
 		true,
-		sssh.Marshal(exitStatusMsg{Status: status}),
+		saultssh.Marshal(exitStatusMsg{Status: status}),
 	)
 }
 
-func (c *connection) openInsideSaultChannel(channel sssh.NewChannel) error {
+func (c *connection) openInsideSaultChannel(channel saultssh.NewChannel) error {
 	newChannel, requests, err := channel.Accept()
 	if err != nil {
 		c.log.Error(err)
@@ -72,7 +72,7 @@ L:
 		}
 
 		var msg saultcommon.CommandMsg
-		if err := sssh.Unmarshal(request.Payload[4:], &msg); err != nil {
+		if err := saultssh.Unmarshal(request.Payload[4:], &msg); err != nil {
 			sendExitStatusThruChannel(newChannel, exitStatusInvalidRequest)
 			return err
 		}
@@ -94,7 +94,7 @@ L:
 	return nil
 }
 
-func (c *connection) handleCommandMsg(channel sssh.Channel, msg saultcommon.CommandMsg) (err error) {
+func (c *connection) handleCommandMsg(channel saultssh.Channel, msg saultcommon.CommandMsg) (err error) {
 	var command Command
 	{
 		var ok bool

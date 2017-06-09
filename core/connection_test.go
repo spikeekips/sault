@@ -8,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type testSSHConn struct {
@@ -51,7 +51,7 @@ func TestPublicKeyCallback(t *testing.T) {
 	conn := &connection{server: server, log: log.WithFields(logrus.Fields{})}
 
 	privateKey, _ := saultcommon.CreateRSAPrivateKey(256)
-	publicKey, _ := sssh.NewPublicKey(privateKey.Public())
+	publicKey, _ := saultssh.NewPublicKey(privateKey.Public())
 
 	{
 		// with empty connMeta.User()
@@ -152,7 +152,7 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 	conn := &connection{server: server, log: log.WithFields(logrus.Fields{})}
 
 	privateKey, _ := saultcommon.CreateRSAPrivateKey(256)
-	publicKey, _ := sssh.NewPublicKey(privateKey.Public())
+	publicKey, _ := saultssh.NewPublicKey(privateKey.Public())
 
 	{
 		// not admin

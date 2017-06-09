@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var UserLinkFlagsTemplate *saultflags.FlagsTemplate
@@ -140,7 +140,7 @@ func (c *UserLinkCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *UserLinkCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *UserLinkCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data UserLinkRequestData
 	err = msg.GetData(&data)
 	if err != nil {

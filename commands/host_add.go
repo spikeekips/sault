@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var HostAddFlagsTemplate *saultflags.FlagsTemplate
@@ -145,7 +145,7 @@ failed to add host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostAddCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostAddCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data HostAddRequestData
 	err = msg.GetData(&data)
 	if err != nil {

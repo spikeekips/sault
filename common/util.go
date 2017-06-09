@@ -28,8 +28,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
 	uuid "github.com/nu7hatch/gouuid"
-	"github.com/spikeekips/sault/sssh"
-	"github.com/spikeekips/sault/sssh/agent"
+	"github.com/spikeekips/sault/saultssh"
+	"github.com/spikeekips/sault/saultssh/agent"
 )
 
 // TermSize contains the terminal dimension information
@@ -207,10 +207,10 @@ var flagTempalteFMap = template.FuncMap{
 			"Port":     port,
 		}
 	},
-	"publicKeyFingerprintMd5": func(s sssh.PublicKey) string {
+	"publicKeyFingerprintMd5": func(s saultssh.PublicKey) string {
 		return FingerprintMD5PublicKey(s)
 	},
-	"publicKeyFingerprintSha256": func(s sssh.PublicKey) string {
+	"publicKeyFingerprintSha256": func(s saultssh.PublicKey) string {
 		return FingerprintSHA256PublicKey(s)
 	},
 	"stringify": func(s interface{}) string {
@@ -279,8 +279,8 @@ func StringFilter(vs []string, f func(string) bool) []string {
 }
 
 // GetSignerFromPrivateKey loads private key signer from string
-func GetSignerFromPrivateKey(s []byte) (sssh.Signer, error) {
-	signer, err := sssh.ParsePrivateKey(s)
+func GetSignerFromPrivateKey(s []byte) (saultssh.Signer, error) {
+	signer, err := saultssh.ParsePrivateKey(s)
 	if err != nil {
 		return nil, err
 	}
@@ -349,26 +349,26 @@ func EncodePrivateKey(privateKey *rsa.PrivateKey) ([]byte, error) {
 
 // EncodePublicKey generates public key string
 func EncodePublicKey(publicKey interface{}) (b []byte, err error) {
-	var converted sssh.PublicKey
-	if _, ok := publicKey.(sssh.PublicKey); ok {
-		converted = publicKey.(sssh.PublicKey)
+	var converted saultssh.PublicKey
+	if _, ok := publicKey.(saultssh.PublicKey); ok {
+		converted = publicKey.(saultssh.PublicKey)
 	} else {
-		converted, err = sssh.NewPublicKey(publicKey)
+		converted, err = saultssh.NewPublicKey(publicKey)
 		if err != nil {
 			return
 		}
 	}
 
-	return sssh.MarshalAuthorizedKey(converted), nil
+	return saultssh.MarshalAuthorizedKey(converted), nil
 }
 
 // GetAuthorizedKey strips the public key string
-func GetAuthorizedKey(publicKey sssh.PublicKey) string {
-	return strings.TrimSpace(string(sssh.MarshalAuthorizedKey(publicKey)))
+func GetAuthorizedKey(publicKey saultssh.PublicKey) string {
+	return strings.TrimSpace(string(saultssh.MarshalAuthorizedKey(publicKey)))
 }
 
 // ParsePublicKey parses string and makes PublicKey
-func ParsePublicKey(b []byte) (sssh.PublicKey, error) {
+func ParsePublicKey(b []byte) (saultssh.PublicKey, error) {
 	body := string(b)
 	f := strings.Fields(body)
 	if len(f) < 1 {
@@ -384,7 +384,7 @@ func ParsePublicKey(b []byte) (sssh.PublicKey, error) {
 		return nil, fmt.Errorf("invalid ssh publicKey: %v", err)
 	}
 
-	return sssh.ParsePublicKey([]byte(key))
+	return saultssh.ParsePublicKey([]byte(key))
 }
 
 var reUserID = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
@@ -472,7 +472,7 @@ func parseSaultAccountName(s string) (account, hostID string, err error) {
 
 // FingerprintSHA256PublicKey makes the sha256 fingerprint string of ssh public
 // key; from https://github.com/golang/go/issues/12292#issuecomment-255588529
-func FingerprintSHA256PublicKey(key sssh.PublicKey) string {
+func FingerprintSHA256PublicKey(key saultssh.PublicKey) string {
 	hash := sha256.Sum256(key.Marshal())
 	b64hash := base64.StdEncoding.EncodeToString(hash[:])
 
@@ -480,7 +480,7 @@ func FingerprintSHA256PublicKey(key sssh.PublicKey) string {
 }
 
 // FingerprintMD5PublicKey makes md5 finterprint string of ssh public key; from https://github.com/golang/go/issues/12292#issuecomment-255588529 //
-func FingerprintMD5PublicKey(key sssh.PublicKey) string {
+func FingerprintMD5PublicKey(key saultssh.PublicKey) string {
 	hash := md5.Sum(key.Marshal())
 	out := ""
 	for i := 0; i < 16; i++ {
@@ -540,7 +540,7 @@ func (e *SSHAgentNotRunning) PrintWarning() {
 
 var EnvSSHAuthSock = "SSH_AUTH_SOCK"
 
-func GetSSHAgent() (ssshAgent.Agent, error) {
+func GetSSHAgent() (saultsshAgent.Agent, error) {
 	sock := os.Getenv(EnvSSHAuthSock)
 	if sock == "" {
 		return nil, &SSHAgentNotRunning{}
@@ -551,10 +551,10 @@ func GetSSHAgent() (ssshAgent.Agent, error) {
 		return nil, &SSHAgentNotRunning{E: err}
 	}
 
-	return ssshAgent.NewClient(sa), nil
+	return saultsshAgent.NewClient(sa), nil
 }
 
-func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey sssh.PublicKey, err error) {
+func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey saultssh.PublicKey, err error) {
 	e := filepath.Ext(f)
 
 	var base = f
@@ -574,18 +574,18 @@ func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey sssh.PublicKey, err er
 	return
 }
 
-func FindSignerInSSHAgentFromPublicKey(publicKey sssh.PublicKey) (
-	signer sssh.Signer, err error,
+func FindSignerInSSHAgentFromPublicKey(publicKey saultssh.PublicKey) (
+	signer saultssh.Signer, err error,
 ) {
 	authorizedKey := GetAuthorizedKey(publicKey)
 
-	var agent ssshAgent.Agent
+	var agent saultsshAgent.Agent
 	agent, err = GetSSHAgent()
 	if err != nil {
 		return
 	}
 
-	var signers []sssh.Signer
+	var signers []saultssh.Signer
 	signers, err = agent.Signers()
 	if err != nil {
 		return
@@ -602,16 +602,16 @@ func FindSignerInSSHAgentFromPublicKey(publicKey sssh.PublicKey) (
 	return
 }
 
-func FindSignerInSSHAgentFromFile(file string) (signer sssh.Signer, err error) {
+func FindSignerInSSHAgentFromFile(file string) (signer saultssh.Signer, err error) {
 	file, _ = filepath.Abs(file)
 
-	var agent ssshAgent.Agent
+	var agent saultsshAgent.Agent
 	agent, err = GetSSHAgent()
 	if err != nil {
 		return
 	}
 
-	var keys []*ssshAgent.Key
+	var keys []*saultsshAgent.Key
 	keys, err = agent.List()
 	if err != nil {
 		return
@@ -638,7 +638,7 @@ func FindSignerInSSHAgentFromFile(file string) (signer sssh.Signer, err error) {
 		}
 	}
 
-	var signers []sssh.Signer
+	var signers []saultssh.Signer
 	signers, err = agent.Signers()
 	if err != nil {
 		return
@@ -657,7 +657,7 @@ func FindSignerInSSHAgentFromFile(file string) (signer sssh.Signer, err error) {
 
 var MaxAuthTries int = 3
 
-func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sssh.Signer, err error) {
+func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer saultssh.Signer, err error) {
 	b, err := ioutil.ReadFile(privateKeyFile)
 	if err != nil {
 		return
@@ -699,7 +699,7 @@ func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sss
 		var key interface{}
 		key, err = sshkeys.ParseEncryptedRawPrivateKey(b, []byte(passphrase))
 		if err == nil {
-			signer, err = sssh.NewSignerFromKey(key)
+			signer, err = saultssh.NewSignerFromKey(key)
 			if err == nil {
 				break
 			} else {

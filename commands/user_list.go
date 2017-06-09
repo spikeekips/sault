@@ -10,7 +10,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var UserListFlagsTemplate *saultflags.FlagsTemplate
@@ -220,14 +220,14 @@ func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *UserListCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *UserListCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data UserListRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
 	}
 
-	var parsedPublicKey sssh.PublicKey
+	var parsedPublicKey saultssh.PublicKey
 	if len(data.PublicKey) > 0 {
 		parsedPublicKey, err = saultcommon.ParsePublicKey(data.PublicKey)
 		if err != nil {

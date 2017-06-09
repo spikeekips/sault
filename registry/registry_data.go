@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spikeekips/sault/common"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 type UserFilter byte
@@ -73,7 +73,7 @@ type UserRegistry struct {
 	ID string
 
 	PublicKey RegistryPublicKey
-	publicKey sssh.PublicKey
+	publicKey saultssh.PublicKey
 
 	IsAdmin     bool
 	IsActive    bool
@@ -89,11 +89,11 @@ func (r UserRegistry) String() string {
 	)
 }
 
-func (r UserRegistry) HasPublicKey(publicKey sssh.PublicKey) bool {
+func (r UserRegistry) HasPublicKey(publicKey saultssh.PublicKey) bool {
 	return r.GetAuthorizedKey() == saultcommon.GetAuthorizedKey(publicKey)
 }
 
-func (r UserRegistry) GetPublicKey() sssh.PublicKey {
+func (r UserRegistry) GetPublicKey() saultssh.PublicKey {
 	p, _ := saultcommon.ParsePublicKey([]byte(r.PublicKey))
 
 	return p
@@ -202,7 +202,7 @@ func (registry *Registry) GetUserCount(f UserFilter) (c int) {
 	return c
 }
 
-func (registry *Registry) GetUser(id string, publicKey sssh.PublicKey, f UserFilter) (user UserRegistry, err error) {
+func (registry *Registry) GetUser(id string, publicKey saultssh.PublicKey, f UserFilter) (user UserRegistry, err error) {
 	user, err = registry.getUser(id, publicKey)
 	if err != nil {
 		return
@@ -258,7 +258,7 @@ func (registry *Registry) getUserByID(id string) (user UserRegistry, err error) 
 	return
 }
 
-func (registry *Registry) getUserByPublicKey(publicKey sssh.PublicKey) (user UserRegistry, err error) {
+func (registry *Registry) getUserByPublicKey(publicKey saultssh.PublicKey) (user UserRegistry, err error) {
 	for _, u := range registry.Data.User {
 		if u.HasPublicKey(publicKey) {
 			user = u
@@ -270,7 +270,7 @@ func (registry *Registry) getUserByPublicKey(publicKey sssh.PublicKey) (user Use
 	return
 }
 
-func (registry *Registry) getUser(id string, publicKey sssh.PublicKey) (user UserRegistry, err error) {
+func (registry *Registry) getUser(id string, publicKey saultssh.PublicKey) (user UserRegistry, err error) {
 	if id == "" && publicKey == nil {
 		err = &saultcommon.UserDoesNotExistError{Message: "id and publicKey is empty"}
 		return
@@ -358,7 +358,7 @@ func (registry *Registry) AddUser(id string, publicKey []byte) (user UserRegistr
 		return
 	}
 
-	var parsedPublicKey sssh.PublicKey
+	var parsedPublicKey saultssh.PublicKey
 	parsedPublicKey, err = saultcommon.ParsePublicKey(publicKey)
 	if err != nil {
 		return

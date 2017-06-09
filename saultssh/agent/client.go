@@ -12,7 +12,7 @@
 //
 // References:
 //  [PROTOCOL.agent]:    http://cvsweb.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL.agent?rev=HEAD
-package ssshAgent
+package saultsshAgent
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ import (
 	"math/big"
 	"sync"
 
-	ssh "github.com/spikeekips/sault/sssh"
+	ssh "github.com/spikeekips/sault/saultssh"
 	"golang.org/x/crypto/ed25519"
 )
 

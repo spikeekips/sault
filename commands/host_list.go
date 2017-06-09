@@ -9,7 +9,7 @@ import (
 	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/flags"
 	"github.com/spikeekips/sault/registry"
-	"github.com/spikeekips/sault/sssh"
+	"github.com/spikeekips/sault/saultssh"
 )
 
 var HostListFlagsTemplate *saultflags.FlagsTemplate
@@ -142,7 +142,7 @@ func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *HostListCommand) Response(channel sssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostListCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data HostListRequestData
 	err = msg.GetData(&data)
 	if err != nil {
