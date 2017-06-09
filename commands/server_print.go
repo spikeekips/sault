@@ -15,6 +15,7 @@ import (
 var ServerPrintFlagsTemplate *saultflags.FlagsTemplate
 
 var availableServerPrintKinds = []string{
+	"saultbuildinfo",
 	"clientkey",
 	"config",
 	"registry",
@@ -27,6 +28,7 @@ func init() {
 		Help:  "prints the sault server informations",
 		Usage: fmt.Sprintf("[ %s ] [flags]", strings.Join(availableServerPrintKinds, " ")),
 		Description: `{{ "server print" | yellow }} prints the sault server informations.
+* {{ "saultbuildinfo" | yellow }}: prints the server build informations, build date, build environment, etc.
 * {{ "cilentkey" | yellow }}: prints the private and public key to connect the host
 * {{ "config" | yellow }}: prints the current running sault configurations
 * {{ "registry" | yellow }}: prints the current running sault registry
@@ -64,9 +66,10 @@ func parseServerPrintCommandFlags(f *saultflags.Flags, args []string) (err error
 }
 
 type serverPrintResponseData struct {
-	ClientKey [][]byte
-	Config    []byte
-	Registry  []byte
+	SaultBuildInfo string
+	ClientKey      [][]byte
+	Config         []byte
+	Registry       []byte
 }
 
 type ServerPrintCommand struct{}
@@ -84,8 +87,16 @@ func (c *ServerPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *sa
 		return
 	}
 
+	line, _ := saultcommon.SimpleTemplating(`{{ line "=" }}`, nil)
+	fmt.Fprintf(os.Stdout, "%s", line)
 	for _, kind := range kinds {
 		switch kind {
+		case "saultbuildinfo":
+			fmt.Fprintf(
+				os.Stdout,
+				"%s",
+				printServerKind("default", "sault info", data.SaultBuildInfo),
+			)
 		case "clientkey":
 			fmt.Fprintf(
 				os.Stdout,
@@ -107,6 +118,7 @@ func (c *ServerPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *sa
 			)
 		}
 	}
+	fmt.Fprintf(os.Stdout, "%s", line)
 
 	return nil
 }
@@ -121,6 +133,8 @@ func (c *ServerPrintCommand) Response(channel saultssh.Channel, msg saultcommon.
 	result := serverPrintResponseData{}
 	for _, kind := range data {
 		switch kind {
+		case "saultbuildinfo":
+			result.SaultBuildInfo = getSaultVersion()
 		case "registry":
 			result.Registry = registry.Bytes()
 		case "config":

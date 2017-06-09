@@ -181,9 +181,9 @@ func PrintHostsData(templateName, saultServerAddress string, hosts []saultregist
 
 var printServerKindTemplate = `
 {{ define "default" }}
-{{ .key | yellow }}:
+{{ $key := print "- " .key " " }}{{ line $key "-" | yellow }}
 {{ .value }}
-{{ end }}
+{{ line "-" | yellow }}{{ end }}
 `
 
 func printServerKind(templateName, key string, value string) string {

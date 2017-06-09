@@ -29,10 +29,19 @@ type VersionCommand struct {
 }
 
 func (c *VersionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error {
+	fmt.Fprintf(os.Stdout, getSaultVersion())
+	return nil
+}
+
+func (c *VersionCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+	return nil
+}
+
+func getSaultVersion() string {
 	buildEnv, _ := base64.StdEncoding.DecodeString(sault.BuildEnv)
 	tab := strings.Repeat(" ", 15)
 
-	o, err := saultcommon.SimpleTemplating(`
+	o, _ := saultcommon.SimpleTemplating(`
      version: {{ .buildversion }}
   build date: {{ .builddate }}
 build commit: {{ .buildcommit }}
@@ -51,14 +60,6 @@ build branch: {{ .buildbranch }}
 			"buildenv":     strings.TrimSpace(strings.Replace(string(buildEnv), "\n", "\n"+tab, -1)),
 		},
 	)
-	if err != nil {
-		return err
-	}
 
-	fmt.Fprintf(os.Stdout, strings.TrimLeft(o, "\n"))
-	return nil
-}
-
-func (c *VersionCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
-	return nil
+	return strings.TrimLeft(o, "\n")
 }
