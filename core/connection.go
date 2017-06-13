@@ -24,10 +24,11 @@ type connection struct {
 
 	log *logrus.Entry
 
-	account     string
-	user        saultregistry.UserRegistry
-	host        saultregistry.HostRegistry
-	insideSault bool
+	account      string
+	user         saultregistry.UserRegistry
+	host         saultregistry.HostRegistry
+	insideSault  bool
+	openChannels []func()
 }
 
 func newConnection(server *Server, conn net.Conn) (*connection, error) {
@@ -62,7 +63,14 @@ func (c *connection) getServerConfig() *saultssh.ServerConfig {
 	return serverConfig
 }
 
+func (c *connection) addOpenChannel(f func()) {
+	c.openChannels = append(c.openChannels, f)
+}
+
 func (c *connection) close() {
+	for _, closeFunc := range c.openChannels {
+		closeFunc()
+	}
 	c.Conn.Close()
 	c.log.Debugf("cilent connection closed")
 }
@@ -166,6 +174,20 @@ func (c *connection) openConnection() error {
 	defer conn.Close()
 
 	go saultssh.DiscardRequests(requests)
+	/*
+		go func(in <-chan *saultssh.Request) {
+			for request := range in {
+				c.log.WithFields(logrus.Fields{
+					"requestType":    request.Type,
+					"requestPayload": len(request.Payload),
+				}).Debugf("got channel request")
+
+				if request.WantReply {
+					request.Reply(true, nil)
+				}
+			}
+		}(requests)
+	*/
 
 	{
 		var err error

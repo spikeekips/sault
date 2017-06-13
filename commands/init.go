@@ -89,6 +89,7 @@ func responseMsgFromJson(b []byte, data interface{}) (*saultcommon.ResponseMsg, 
 	if jsoned, err := json.Marshal(rm.Data); err != nil {
 		return nil, err
 	} else {
+		// TODO use saultssh.Unmarsal
 		json.Unmarshal(jsoned, data)
 		rm.Data = data
 	}

@@ -229,12 +229,26 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 		return nil
 	}
 
-	log.Debugf("check file exists, '%s'", sault.AuthorizedKeyFile)
 	authorizedPublicKey := saultcommon.GetAuthorizedKey(publicKey)
+	makeAuthorizedKeyContent := func(output []byte) string {
+		var existing string
+		if len(output) > 0 {
+			existing = strings.TrimSpace(string(output)) + "\n"
+		}
+		return fmt.Sprintf(`%s# from sault ###################################################################
+%s
+################################################################################
+`,
+			existing,
+			authorizedPublicKey,
+		)
+	}
+
+	log.Debugf("check file exists, '%s'", sault.AuthorizedKeyFile)
 	output, err = sc.GetFile(sault.AuthorizedKeyFile)
 	if err != nil {
 		log.Debugf("'%s' does not exist, create new", sault.AuthorizedKeyFile)
-		err = sc.PutFile(authorizedPublicKey+"\n", sault.AuthorizedKeyFile, 0600)
+		err = sc.PutFile(makeAuthorizedKeyContent([]byte{}), sault.AuthorizedKeyFile, 0600)
 		if err != nil {
 			return
 		}
@@ -250,9 +264,12 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 		c, err := r.ReadString(10)
 		if err == io.EOF {
 			break
-		} else if err != nil {
+		}
+
+		if err != nil {
 			break
 		}
+
 		if len(strings.TrimSpace(c)) < 1 {
 			continue
 		}
@@ -267,23 +284,15 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 		}
 	}
 
-	if foundSame {
+	if !foundSame {
+		log.Debugf("not found same record in '%s'", sault.AuthorizedKeyFile)
+	} else {
 		log.Debugf("found same record in '%s', client public key already added.", sault.AuthorizedKeyFile)
 		err = nil
 		return
 	}
 
-	content := fmt.Sprintf(`%s
-
-# from sault ###################################################################
-%s
-################################################################################
-`,
-		strings.TrimSpace(string(output)),
-		authorizedPublicKey,
-	)
-
-	err = sc.PutFile(content, sault.AuthorizedKeyFile, 0600)
+	err = sc.PutFile(makeAuthorizedKeyContent(output), sault.AuthorizedKeyFile, 0600)
 	if err != nil {
 		return
 	}
@@ -364,7 +373,8 @@ func checkConnectivity(account, address string, signer saultssh.Signer, timeout 
 			return
 		}
 
-		err = nil
+		slog.Debug(err)
+		return nil
 	}
 
 	slog.Debugf("successfully connected")

@@ -48,6 +48,7 @@ Mange hosts of sault server.
 			HostUpdateFlagsTemplate,
 			HostRemoveFlagsTemplate,
 			HostAddFlagsTemplate,
+			HostInjectFlagsTemplate,
 		},
 	}
 }

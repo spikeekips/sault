@@ -2,6 +2,9 @@ package sault
 
 import (
 	"fmt"
+	"io"
+	"net"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
@@ -19,12 +22,23 @@ func (c *connection) openInsideSaultConnection(
 	channels <-chan saultssh.NewChannel,
 ) error {
 	for channel := range channels {
-		go func() {
-			if err := c.openInsideSaultChannel(channel); err != nil {
-				c.log.Error(err)
-				return
-			}
-		}()
+		c.log.Debugf("got new channel: %v(%d)", channel.ChannelType(), len(channel.ExtraData()))
+		switch channel.ChannelType() {
+		case "direct-tcpip":
+			go func() {
+				if err := c.openInsideSaultDirectTCPIPChannel(channel); err != nil {
+					c.log.Error(err)
+					return
+				}
+			}()
+		case "session":
+			go func() {
+				if err := c.openInsideSaultSessionChannel(channel); err != nil {
+					c.log.Error(err)
+					return
+				}
+			}()
+		}
 	}
 
 	return nil
@@ -38,7 +52,65 @@ func sendExitStatusThruChannel(channel saultssh.Channel, status uint32) {
 	)
 }
 
-func (c *connection) openInsideSaultChannel(channel saultssh.NewChannel) error {
+type channelOpenDirectMsg struct {
+	Raddr string
+	Rport uint32
+	Laddr string
+	Lport uint32
+}
+
+func (c *connection) openInsideSaultDirectTCPIPChannel(channel saultssh.NewChannel) (err error) {
+	var msg channelOpenDirectMsg
+	if err = saultssh.Unmarshal(channel.ExtraData(), &msg); err != nil {
+		return
+	}
+
+	var newChannel saultssh.Channel
+	newChannel, _, err = channel.Accept()
+	if err != nil {
+		c.log.Error(err)
+		return
+	}
+	defer newChannel.Close()
+	newChannel.SetProxy(false)
+
+	remoteAddress := fmt.Sprintf("%s:%d", msg.Raddr, msg.Rport)
+
+	var remoetListener net.Conn
+	remoetListener, err = net.Dial("tcp", remoteAddress)
+	if err != nil {
+		c.log.Error(err)
+		return err
+	}
+	defer remoetListener.Close()
+
+	c.addOpenChannel(func() {
+		remoetListener.Close()
+		newChannel.Close()
+	})
+	c.log.Debugf("open host listener: %s", remoteAddress)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if _, err := io.Copy(newChannel, remoetListener); err != nil {
+			c.log.Error(err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if _, err := io.Copy(remoetListener, newChannel); err != nil {
+			c.log.Error(err)
+		}
+	}()
+	wg.Wait()
+
+	return nil
+}
+
+func (c *connection) openInsideSaultSessionChannel(channel saultssh.NewChannel) error {
 	newChannel, requests, err := channel.Accept()
 	if err != nil {
 		c.log.Error(err)
@@ -50,14 +122,23 @@ func (c *connection) openInsideSaultChannel(channel saultssh.NewChannel) error {
 L:
 	for request := range requests {
 		rlog := c.log.WithFields(logrus.Fields{
-			"insideSault": c.insideSault,
-			"requestType": request.Type,
+			"insideSault":    c.insideSault,
+			"requestType":    request.Type,
+			"requestPayload": len(request.Payload),
 		})
+
+		rlog.Debugf("got request")
 
 		switch t := request.Type; t {
 		case "exec":
-			rlog.Debugf("request.Type: %v", t)
+			if err := c.handleCommandMsg(newChannel, request, rlog); err != nil {
+				rlog.Debugf("error: %v", err)
+				return err
+			}
+
+			break L
 		default:
+			// TODO updating public key and printing whoami by native ssh client
 			rlog.Debugf("request.Type: %v, but not allowed", t)
 
 			rendered, _ := saultcommon.SimpleTemplating(
@@ -70,31 +151,22 @@ L:
 
 			break L
 		}
-
-		var msg saultcommon.CommandMsg
-		if err := saultssh.Unmarshal(request.Payload[4:], &msg); err != nil {
-			sendExitStatusThruChannel(newChannel, exitStatusInvalidRequest)
-			return err
-		}
-		rlog.Debugf("CommandMsg: %v", msg)
-
-		request.Reply(true, nil)
-
-		if err := c.handleCommandMsg(newChannel, msg); err != nil {
-			rlog.Debugf("error: %v", err)
-		}
-
-		sendExitStatusThruChannel(newChannel, 0)
-		rlog.Debugf("request end")
-
-		break L
-
 	}
 
 	return nil
 }
 
-func (c *connection) handleCommandMsg(channel saultssh.Channel, msg saultcommon.CommandMsg) (err error) {
+func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultssh.Request, rlog *logrus.Entry) (err error) {
+	var msg saultcommon.CommandMsg
+	if err = saultssh.Unmarshal(request.Payload[4:], &msg); err != nil {
+		sendExitStatusThruChannel(channel, exitStatusInvalidRequest)
+		return
+	}
+
+	rlog.Debugf("CommandMsg: %v", msg)
+
+	request.Reply(true, nil)
+
 	var command Command
 	{
 		var ok bool
@@ -124,6 +196,9 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, msg saultcommon.
 		).ToJSON()
 		channel.Write(response)
 	}
+
+	sendExitStatusThruChannel(channel, 0)
+	rlog.Debugf("request end")
 
 	return err
 }
