@@ -144,7 +144,7 @@ failed to inject the internal client key, because something wrong to inject it t
 	return
 }
 
-func (c *HostInjectCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostInjectCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	err = c.response(channel, msg, registry, config)
 	if err != nil {
 		if responseMsgErr, ok := err.(*saultcommon.ResponseMsgError); ok {

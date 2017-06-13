@@ -127,6 +127,6 @@ func (c *ServerRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saul
 	return nil
 }
 
-func (c *ServerRunCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *ServerRunCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }

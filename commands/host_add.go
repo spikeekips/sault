@@ -145,7 +145,7 @@ failed to add host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostAddCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostAddCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data HostAddRequestData
 	err = msg.GetData(&data)
 	if err != nil {

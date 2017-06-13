@@ -1,9 +1,11 @@
 package sault
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -156,9 +158,24 @@ L:
 	return nil
 }
 
+func parseSaultCommandMsg(payload []byte) (saultcommon.CommandMsg, error) {
+	{
+		var msg saultcommon.CommandMsg
+		if err := saultssh.Unmarshal(payload, &msg); err == nil {
+			return msg, nil
+		}
+	}
+
+	args := strings.Fields(string(payload))
+	msg, err := saultcommon.NewCommandMsg(args[0], args[1:])
+	msg.IsSaultClient = true
+
+	return *msg, err
+}
+
 func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultssh.Request, rlog *logrus.Entry) (err error) {
 	var msg saultcommon.CommandMsg
-	if err = saultssh.Unmarshal(request.Payload[4:], &msg); err != nil {
+	if msg, err = parseSaultCommandMsg(request.Payload[4:]); err != nil {
 		sendExitStatusThruChannel(channel, exitStatusInvalidRequest)
 		return
 	}
@@ -172,6 +189,11 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 		var ok bool
 		if command, ok = Commands[msg.Name]; !ok {
 			err = fmt.Errorf("unknown command name, '%s'", msg.Name)
+			if msg.IsSaultClient {
+				t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} {{ . }}\r\n", err)
+				channel.Write([]byte(t))
+				return
+			}
 			response, _ := saultcommon.NewResponseMsg(
 				nil,
 				saultcommon.CommandErrorCommon,
@@ -181,20 +203,40 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 
 			return
 		}
+
+		switch msg.Name {
+		case "whoami":
+			//
+		case "publickey":
+			//
+		default:
+			if !c.user.IsAdmin {
+				t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} Prohibited\r\n", nil)
+				channel.Write([]byte(t))
+				err = errors.New("")
+				return
+			}
+		}
 	}
 
-	err = command.Response(channel, msg, c.server.registry, c.server.config)
+	err = command.Response(c.user, channel, msg, c.server.registry, c.server.config)
 	if err != nil {
-		if responseErr, ok := err.(*saultcommon.ResponseMsgError); ok {
-			return responseErr
-		}
+		if msg.IsSaultClient {
+			t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} {{ . }}\r\n", err)
+			channel.Write([]byte(t))
+			return
+		} else {
+			if responseErr, ok := err.(*saultcommon.ResponseMsgError); ok {
+				return responseErr
+			}
 
-		response, _ := saultcommon.NewResponseMsg(
-			nil,
-			saultcommon.CommandErrorCommon,
-			err,
-		).ToJSON()
-		channel.Write(response)
+			response, _ := saultcommon.NewResponseMsg(
+				nil,
+				saultcommon.CommandErrorCommon,
+				err,
+			).ToJSON()
+			channel.Write(response)
+		}
 	}
 
 	sendExitStatusThruChannel(channel, 0)

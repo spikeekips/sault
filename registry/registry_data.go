@@ -48,7 +48,6 @@ type UserRegistry struct {
 	ID string
 
 	PublicKey RegistryPublicKey
-	publicKey saultssh.PublicKey
 
 	IsAdmin     bool
 	IsActive    bool

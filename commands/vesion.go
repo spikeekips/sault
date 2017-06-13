@@ -33,7 +33,7 @@ func (c *VersionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 	return nil
 }
 
-func (c *VersionCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *VersionCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }
 

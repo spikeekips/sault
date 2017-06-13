@@ -149,13 +149,15 @@ func (c *connection) publicKeyCallbackInsideSault(
 		return
 	}
 
-	if !user.IsAdmin {
-		err = &AuthenticationFailedError{
-			Err: fmt.Errorf("trying to enter sault server, but user, '%s' is not admin", user),
+	/*
+		if !user.IsAdmin {
+			err = &AuthenticationFailedError{
+				Err: fmt.Errorf("trying to enter sault server, but user, '%s' is not admin", user),
+			}
+			c.log.Error(err)
+			return
 		}
-		c.log.Error(err)
-		return
-	}
+	*/
 
 	c.user = user
 

@@ -123,7 +123,7 @@ func (c *ServerPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *sa
 	return nil
 }
 
-func (c *ServerPrintCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *ServerPrintCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data []string
 	err = msg.GetData(&data)
 	if err != nil {

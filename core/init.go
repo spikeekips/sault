@@ -38,7 +38,7 @@ var MaxPassphraseChallenge = 3
 
 type Command interface {
 	Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error
-	Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *Config) error
+	Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *Config) error
 }
 
 var Commands = map[string]Command{}

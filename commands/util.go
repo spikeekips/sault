@@ -51,6 +51,12 @@ var PrintUsersDataTemplate = `{{ define "block-user" }}{{ $maxConnectionString :
 {{ line "=" }}{{ end }}
 
 
+{{ define "whoami" }}
+You are in sault.
+{{ line "=" }}{{ template "block-user" dict "user" .user "saultServerAddress" .saultServerAddress "maxConnectionString" .maxConnectionString }}
+{{ line "=" }}{{ end }}
+
+
 {{ define "one-user-updated" }}
 {{ line "=" }}{{ template "block-user" dict "user" .user "saultServerAddress" .saultServerAddress "maxConnectionString" .maxConnectionString }}
 {{line "- " }}

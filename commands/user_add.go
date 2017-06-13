@@ -112,7 +112,7 @@ func (c *UserAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 	return nil
 }
 
-func (c *UserAddCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *UserAddCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data UserAddRequestData
 	err = msg.GetData(&data)
 	if err != nil {

@@ -247,7 +247,7 @@ failed to update host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostUpdateCommand) Response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *HostUpdateCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data HostUpdateRequestData
 	err = msg.GetData(&data)
 	if err != nil {
