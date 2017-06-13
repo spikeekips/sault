@@ -20,6 +20,8 @@ var HostInjectFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host inject" | yellow }} will inject the internal client key to the remote host.
+
+{{ "host inject" | yellow }} will authenticate to the remote host by your ssh agent, if failed, will ask your passphrase. This is the same process of {{ "ssh-copy-id" | yellow }}. If you can connect to the remote host in local by public key or passphrase, you can inject the sault internal client key.
 		`,
 		nil,
 	)
