@@ -141,20 +141,22 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 	privateKey, _ := saultcommon.CreateRSAPrivateKey(256)
 	publicKey, _ := saultssh.NewPublicKey(privateKey.Public())
 
-	{
-		// not admin
-		var err error
+	/*
+		{
+			// not admin
+			var err error
 
-		userID := saultcommon.MakeRandomString()
-		encoded, _ := saultcommon.EncodePublicKey(publicKey)
-		_, _ = registry.AddUser(userID, encoded)
+			userID := saultcommon.MakeRandomString()
+			encoded, _ := saultcommon.EncodePublicKey(publicKey)
+			_, _ = registry.AddUser(userID, encoded)
 
-		connMeta := &testSSHConn{user: DefaultSaultServerName}
+			connMeta := &testSSHConn{user: DefaultSaultServerName}
 
-		_, err = conn.publicKeyCallback(connMeta, publicKey)
-		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
-	}
+			_, err = conn.publicKeyCallback(connMeta, publicKey)
+			assert.NotNil(t, err)
+			assert.Error(t, &AuthenticationFailedError{}, err)
+		}
+	*/
 
 	{
 		// admin, but with account name
