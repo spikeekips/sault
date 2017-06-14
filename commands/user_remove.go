@@ -12,7 +12,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var UserRemoveFlagsTemplate *saultflags.FlagsTemplate
+var userRemoveFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "user remove" | yellow }} will remove the existing sault user in the registry of sault server.
@@ -20,7 +20,7 @@ func init() {
 		nil,
 	)
 
-	UserRemoveFlagsTemplate = &saultflags.FlagsTemplate{
+	userRemoveFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user remove",
 		Name:         "remove",
 		Help:         "remove the existing sault user",
@@ -31,7 +31,7 @@ func init() {
 		ParseFunc:    parseUserRemoveCommandFlags,
 	}
 
-	sault.Commands[UserRemoveFlagsTemplate.ID] = &UserRemoveCommand{}
+	sault.Commands[userRemoveFlagsTemplate.ID] = &userRemoveCommand{}
 }
 
 func parseUserRemoveCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -53,13 +53,13 @@ func parseUserRemoveCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type UserRemoveCommand struct{}
+type userRemoveCommand struct{}
 
-func (c *UserRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *userRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	ids := thisFlags.Values["UserIDs"].([]string)
 	_, err = runCommand(
 		allFlags[0],
-		UserRemoveFlagsTemplate.ID,
+		userRemoveFlagsTemplate.ID,
 		ids,
 		nil,
 	)
@@ -78,7 +78,7 @@ func (c *UserRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	return nil
 }
 
-func (c *UserRemoveCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *userRemoveCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data []string
 	err = msg.GetData(&data)
 	if err != nil {
@@ -86,7 +86,7 @@ func (c *UserRemoveCommand) Response(user saultregistry.UserRegistry, channel sa
 	}
 
 	if len(data) < 1 {
-		err = fmt.Errorf("nothing to remove!")
+		err = fmt.Errorf("nothing to remove")
 		return
 	}
 

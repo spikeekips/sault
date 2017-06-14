@@ -11,7 +11,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var UserUpdateFlagsTemplate *saultflags.FlagsTemplate
+var userUpdateFlagsTemplate *saultflags.FlagsTemplate
 
 type flagUserUpdateNewID struct {
 	IsSet bool
@@ -90,7 +90,7 @@ func init() {
 	var userUpdateNewIsActiveflag flagUserUpdateNewIsActive
 	var userUpdateNewPublicKey flagUserUpdateNewPublicKey
 
-	UserUpdateFlagsTemplate = &saultflags.FlagsTemplate{
+	userUpdateFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user update",
 		Name:         "update",
 		Help:         "update the sault user",
@@ -122,7 +122,7 @@ func init() {
 		ParseFunc: parseUserUpdateCommandFlags,
 	}
 
-	sault.Commands[UserUpdateFlagsTemplate.ID] = &UserUpdateCommand{}
+	sault.Commands[userUpdateFlagsTemplate.ID] = &userUpdateCommand{}
 }
 
 func parseUserUpdateCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -140,7 +140,7 @@ func parseUserUpdateCommandFlags(f *saultflags.Flags, args []string) (err error)
 		return
 	}
 
-	newUser := UserUpdateRequestData{}
+	newUser := userUpdateRequestData{}
 
 	var hasValue bool
 	{
@@ -182,7 +182,7 @@ func parseUserUpdateCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type UserUpdateRequestData struct {
+type userUpdateRequestData struct {
 	ID           string
 	NewID        flagUserUpdateNewID
 	NewPublicKey flagUserUpdateNewPublicKey
@@ -190,20 +190,20 @@ type UserUpdateRequestData struct {
 	NewIsActive  flagUserUpdateNewIsActive
 }
 
-type UserUpdateResponseData struct {
+type userUpdateResponseData struct {
 	User saultregistry.UserRegistry
 	Err  string
 }
 
-type UserUpdateCommand struct{}
+type userUpdateCommand struct{}
 
-func (c *UserUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	data := thisFlags.Values["NewUser"].(UserUpdateRequestData)
+func (c *userUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	data := thisFlags.Values["NewUser"].(userUpdateRequestData)
 
-	var result UserUpdateResponseData
+	var result userUpdateResponseData
 	_, err = runCommand(
 		allFlags[0],
-		UserUpdateFlagsTemplate.ID,
+		userUpdateFlagsTemplate.ID,
 		data,
 		&result,
 	)
@@ -217,18 +217,18 @@ func (c *UserUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 		resultErr = fmt.Errorf(result.Err)
 	}
 
-	fmt.Fprintf(os.Stdout, PrintUserData(
+	fmt.Fprintf(os.Stdout, printUserData(
 		"one-user-updated",
 		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
-		UserListResponseUserData{User: result.User},
+		userListResponseUserData{User: result.User},
 		resultErr,
 	))
 
 	return nil
 }
 
-func (c *UserUpdateCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data UserUpdateRequestData
+func (c *userUpdateCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data userUpdateRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
@@ -256,12 +256,12 @@ func (c *UserUpdateCommand) Response(u saultregistry.UserRegistry, channel sault
 	var errString string
 	var notUpdated bool
 	if user, err = registry.UpdateUser(oldID, user); err != nil {
-		if errNothingToUpdate, ok := err.(*saultcommon.UserNothingToUpdate); !ok {
+		errNothingToUpdate, ok := err.(*saultcommon.UserNothingToUpdate)
+		if !ok {
 			return
-		} else {
-			errString = errNothingToUpdate.Error()
-			notUpdated = true
 		}
+		errString = errNothingToUpdate.Error()
+		notUpdated = true
 	}
 
 	if !notUpdated {
@@ -270,7 +270,7 @@ func (c *UserUpdateCommand) Response(u saultregistry.UserRegistry, channel sault
 
 	var response []byte
 	response, err = saultcommon.NewResponseMsg(
-		UserUpdateResponseData{
+		userUpdateResponseData{
 			User: user,
 			Err:  errString,
 		},

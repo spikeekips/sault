@@ -8,6 +8,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
+// FlagPrivateKey is for public key
 type FlagPrivateKey struct {
 	Path   string
 	Signer saultssh.Signer
@@ -17,6 +18,7 @@ func (f *FlagPrivateKey) String() string {
 	return f.Path
 }
 
+// Set is method for flagSet flag
 func (f *FlagPrivateKey) Set(file string) (err error) {
 	file = filepath.Clean(file)
 
@@ -71,6 +73,7 @@ func (f *FlagPrivateKey) Set(file string) (err error) {
 	return
 }
 
+// FlagSaultServer is for sault server address
 type FlagSaultServer struct {
 	SaultServerName string
 	Address         string
@@ -80,6 +83,7 @@ func (f *FlagSaultServer) String() string {
 	return fmt.Sprintf("%s@%s", f.SaultServerName, f.Address)
 }
 
+// Set is method for flagSet flag
 func (f *FlagSaultServer) Set(v string) error {
 	account, address, err := ParseHostAccount(v)
 	if err != nil {

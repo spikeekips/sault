@@ -11,7 +11,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var UserAddFlagsTemplate *saultflags.FlagsTemplate
+var userAddFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "user add" | yellow }} will add the new sault user in the registry of sault server.
@@ -20,7 +20,7 @@ func init() {
 		nil,
 	)
 
-	UserAddFlagsTemplate = &saultflags.FlagsTemplate{
+	userAddFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user add",
 		Name:         "add",
 		Help:         "add new sault user",
@@ -42,7 +42,7 @@ func init() {
 		ParseFunc: parseUserAddCommandFlags,
 	}
 
-	sault.Commands[UserAddFlagsTemplate.ID] = &UserAddCommand{}
+	sault.Commands[userAddFlagsTemplate.ID] = &userAddCommand{}
 }
 
 func parseUserAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -74,17 +74,17 @@ func parseUserAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 	return nil
 }
 
-type UserAddRequestData struct {
+type userAddRequestData struct {
 	ID        string
 	PublicKey []byte
 	IsAdmin   bool
 	IsActive  bool
 }
 
-type UserAddCommand struct{}
+type userAddCommand struct{}
 
-func (c *UserAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	data := UserAddRequestData{
+func (c *userAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	data := userAddRequestData{
 		ID:        thisFlags.Values["ID"].(string),
 		PublicKey: thisFlags.Values["PublicKey"].([]byte),
 		IsActive:  thisFlags.Values["IsActive"].(bool),
@@ -94,7 +94,7 @@ func (c *UserAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 	var user saultregistry.UserRegistry
 	_, err = runCommand(
 		allFlags[0],
-		UserAddFlagsTemplate.ID,
+		userAddFlagsTemplate.ID,
 		data,
 		&user,
 	)
@@ -102,18 +102,18 @@ func (c *UserAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultf
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, PrintUserData(
+	fmt.Fprintf(os.Stdout, printUserData(
 		"one-user",
 		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
-		UserListResponseUserData{User: user},
+		userListResponseUserData{User: user},
 		nil,
 	))
 
 	return nil
 }
 
-func (c *UserAddCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data UserAddRequestData
+func (c *userAddCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data userAddRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err

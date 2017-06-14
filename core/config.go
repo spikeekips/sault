@@ -22,11 +22,12 @@ type Config struct {
 	baseDirectory string
 }
 
+// NewConfig makes config
 func NewConfig() *Config {
 	c := &Config{}
 
 	// set default
-	c.Server.Bind = DefaultServerBind
+	c.Server.Bind = defaultServerBind
 	c.Server.SaultServerName = DefaultSaultServerName
 	c.Server.HostKey = DefaultHostKey
 	c.Server.ClientKey = DefaultClientKey
@@ -65,6 +66,7 @@ func (c configRegistry) GetSources() []saultregistry.RegistrySource {
 	return c.source
 }
 
+// LoadConfigs loads configs
 func LoadConfigs(envDirs []string) (config *Config, err error) {
 	if len(envDirs) < 1 {
 		err = fmt.Errorf("envDirs is empty")
@@ -140,32 +142,39 @@ func loadConfigFromFile(configFile string, config *Config) (*Config, error) {
 	return config, nil
 }
 
+// GetBaseDirectory returns base directory
 func (c *Config) GetBaseDirectory() string {
 	return c.baseDirectory
 }
 
+// SetBaseDirectory set the base directory
 func (c *Config) SetBaseDirectory(p string) {
 	c.baseDirectory = p
 }
 
+// Bytes makes the config to []byte
 func (c *Config) Bytes() []byte {
 	var b bytes.Buffer
 	toml.NewEncoder(&b).Encode(c)
 	return b.Bytes()
 }
 
+// GetHostKeySigner returns signer of host key
 func (c configServer) GetHostKeySigner() saultssh.Signer {
 	return c.hostKeySigner
 }
 
+// GetClientKeySigner returns signer of internal client key
 func (c configServer) GetClientKeySigner() saultssh.Signer {
 	return c.clientKeySigner
 }
 
+// GetClientKey returns []byte of client key
 func (c configServer) GetClientKey() []byte {
 	return c.clientKey
 }
 
+// Validate validates config
 func (c *Config) Validate() (err error) {
 	funcs := [](func() error){
 		c.validateServerBind,
@@ -186,7 +195,7 @@ func (c *Config) Validate() (err error) {
 
 func (c *Config) validateServerBind() (err error) {
 	if len(c.Server.Bind) < 1 {
-		c.Server.Bind = DefaultServerBind
+		c.Server.Bind = defaultServerBind
 		return
 	}
 

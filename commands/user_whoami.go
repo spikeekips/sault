@@ -9,17 +9,17 @@ import (
 )
 
 func init() {
-	sault.Commands["whoami"] = &UserWhoAmICommand{}
+	sault.Commands["whoami"] = &userWhoAmICommand{}
 }
 
-type UserWhoAmICommand struct{}
+type userWhoAmICommand struct{}
 
-func (c *UserWhoAmICommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *userWhoAmICommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	return nil
 }
 
-func (c *UserWhoAmICommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var links []UserLinkAccountData
+func (c *userWhoAmICommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var links []userLinkAccountData
 	for hostID, link := range registry.GetLinksOfUser(user.ID) {
 		_, err := registry.GetHost(hostID, saultregistry.HostFilterNone)
 		if err != nil {
@@ -28,7 +28,7 @@ func (c *UserWhoAmICommand) Response(user saultregistry.UserRegistry, channel sa
 		}
 		links = append(
 			links,
-			UserLinkAccountData{
+			userLinkAccountData{
 				Accounts: link.Accounts,
 				All:      link.All,
 				HostID:   hostID,
@@ -36,10 +36,10 @@ func (c *UserWhoAmICommand) Response(user saultregistry.UserRegistry, channel sa
 		)
 	}
 
-	printed := PrintUserData(
+	printed := printUserData(
 		"whoami",
 		"<sault server>",
-		UserListResponseUserData{
+		userListResponseUserData{
 			User:  user,
 			Links: links,
 		},

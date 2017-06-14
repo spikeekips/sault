@@ -19,6 +19,7 @@ var log *logrus.Logger
 
 var termSize *TermSize
 
+// DefaultTOML is the default toml config
 var DefaultTOML toml.Config
 var terminalStateFD = 0
 
@@ -61,6 +62,7 @@ func init() {
 	}()
 }
 
+// SetupLog will set up the logging
 func SetupLog(level logrus.Level, out io.Writer, formatter logrus.Formatter) {
 	log.Level = level
 

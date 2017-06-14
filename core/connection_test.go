@@ -60,7 +60,7 @@ func TestPublicKeyCallback(t *testing.T) {
 		_, err := conn.publicKeyCallback(connMeta, publicKey)
 
 		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
+		assert.Error(t, &authenticationFailedError{}, err)
 	}
 
 	{
@@ -68,7 +68,7 @@ func TestPublicKeyCallback(t *testing.T) {
 		connMeta := &testSSHConn{user: "anonymous+host"}
 		_, err := conn.publicKeyCallback(connMeta, publicKey)
 		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
+		assert.Error(t, &authenticationFailedError{}, err)
 	}
 
 	{
@@ -86,7 +86,7 @@ func TestPublicKeyCallback(t *testing.T) {
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
 		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
+		assert.Error(t, &authenticationFailedError{}, err)
 	}
 
 	{
@@ -126,7 +126,7 @@ func TestPublicKeyCallback(t *testing.T) {
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
 		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
+		assert.Error(t, &authenticationFailedError{}, err)
 	}
 
 }
@@ -173,7 +173,7 @@ func TestPublicKeyCallbackInSaultServer(t *testing.T) {
 
 		_, err = conn.publicKeyCallback(connMeta, publicKey)
 		assert.NotNil(t, err)
-		assert.Error(t, &AuthenticationFailedError{}, err)
+		assert.Error(t, &authenticationFailedError{}, err)
 	}
 
 	{

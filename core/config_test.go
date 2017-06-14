@@ -18,9 +18,9 @@ type BasicConfigTestSuite struct {
 
 	env string
 
-	bind       string
-	host_key   string
-	client_key string
+	bind      string
+	hostKey   string
+	clientKey string
 }
 
 func (suite *BasicConfigTestSuite) SetupTest() {
@@ -28,8 +28,8 @@ func (suite *BasicConfigTestSuite) SetupTest() {
 	env, _ := ioutil.TempDir("/tmp/", "sault-test")
 
 	suite.bind = "192.168.99.101:22"
-	suite.host_key = "./host.key"
-	suite.client_key = "./client.key"
+	suite.hostKey = "./host.key"
+	suite.clientKey = "./client.key"
 
 	configBody, _ := saultcommon.SimpleTemplating(`
 [server]
@@ -39,8 +39,8 @@ client_key = "{{ .client_key }}"
 	`,
 		map[string]interface{}{
 			"bind":       suite.bind,
-			"host_key":   suite.host_key,
-			"client_key": suite.client_key,
+			"host_key":   suite.hostKey,
+			"client_key": suite.clientKey,
 		},
 	)
 	ioutil.WriteFile(saultcommon.BaseJoin(env, "sault.conf"), []byte(configBody), 0600)
@@ -62,8 +62,8 @@ func (suite *BasicConfigTestSuite) TestCheckValues() {
 	config, _ := LoadConfigs([]string{suite.env})
 
 	suite.Equal(suite.bind, config.Server.Bind)
-	suite.Equal(suite.host_key, config.Server.HostKey)
-	suite.Equal(suite.client_key, config.Server.ClientKey)
+	suite.Equal(suite.hostKey, config.Server.HostKey)
+	suite.Equal(suite.clientKey, config.Server.ClientKey)
 }
 
 func TestConfig(t *testing.T) {

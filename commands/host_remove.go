@@ -12,7 +12,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var HostRemoveFlagsTemplate *saultflags.FlagsTemplate
+var hostRemoveFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host remove" | yellow }} will remove the hosts in the registry of sault server.
@@ -20,7 +20,7 @@ func init() {
 		nil,
 	)
 
-	HostRemoveFlagsTemplate = &saultflags.FlagsTemplate{
+	hostRemoveFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host remove",
 		Name:         "remove",
 		Help:         "remove the remote hosts",
@@ -31,7 +31,7 @@ func init() {
 		ParseFunc:    parseHostRemoveCommandFlags,
 	}
 
-	sault.Commands[HostRemoveFlagsTemplate.ID] = &HostRemoveCommand{}
+	sault.Commands[hostRemoveFlagsTemplate.ID] = &hostRemoveCommand{}
 }
 
 func parseHostRemoveCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -53,13 +53,13 @@ func parseHostRemoveCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type HostRemoveCommand struct{}
+type hostRemoveCommand struct{}
 
-func (c *HostRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *hostRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	ids := thisFlags.Values["IDs"].([]string)
 	_, err = runCommand(
 		allFlags[0],
-		HostRemoveFlagsTemplate.ID,
+		hostRemoveFlagsTemplate.ID,
 		ids,
 		nil,
 	)
@@ -78,7 +78,7 @@ func (c *HostRemoveCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	return nil
 }
 
-func (c *HostRemoveCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *hostRemoveCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data []string
 	err = msg.GetData(&data)
 	if err != nil {

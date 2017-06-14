@@ -237,18 +237,17 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 			t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} {{ . }}\r\n", err)
 			channel.Write([]byte(t))
 			return
-		} else {
-			if responseErr, ok := err.(*saultcommon.ResponseMsgError); ok {
-				return responseErr
-			}
-
-			response, _ := saultcommon.NewResponseMsg(
-				nil,
-				saultcommon.CommandErrorCommon,
-				err,
-			).ToJSON()
-			channel.Write(response)
 		}
+		if responseErr, ok := err.(*saultcommon.ResponseMsgError); ok {
+			return responseErr
+		}
+
+		response, _ := saultcommon.NewResponseMsg(
+			nil,
+			saultcommon.CommandErrorCommon,
+			err,
+		).ToJSON()
+		channel.Write(response)
 	}
 
 	sendExitStatusThruChannel(channel, 0)

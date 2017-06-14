@@ -7,6 +7,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
+// Server is the main server of sault
 type Server struct {
 	saultServerName string
 	registry        *saultregistry.Registry
@@ -15,6 +16,7 @@ type Server struct {
 	clientKeySigner saultssh.Signer
 }
 
+// NewServer makes server
 func NewServer(
 	registry *saultregistry.Registry,
 	config *Config,
@@ -31,6 +33,7 @@ func NewServer(
 	}, nil
 }
 
+// Run runs sault server
 func (p *Server) Run(bind string) (err error) {
 	var listener net.Listener
 	listener, err = net.Listen("tcp", bind)

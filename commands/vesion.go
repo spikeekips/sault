@@ -13,8 +13,6 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var VersionFlagsTemplate *saultflags.FlagsTemplate
-
 func init() {
 	VersionFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:   "version",
@@ -22,18 +20,18 @@ func init() {
 		Help: "print build informations",
 	}
 
-	sault.Commands[VersionFlagsTemplate.ID] = &VersionCommand{}
+	sault.Commands[VersionFlagsTemplate.ID] = &versionCommand{}
 }
 
-type VersionCommand struct {
+type versionCommand struct {
 }
 
-func (c *VersionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error {
+func (c *versionCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) error {
 	fmt.Fprintf(os.Stdout, getSaultVersion())
 	return nil
 }
 
-func (c *VersionCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *versionCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }
 

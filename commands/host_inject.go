@@ -16,7 +16,7 @@ import (
 	"github.com/spikeekips/sault/saultssh/agent"
 )
 
-var HostInjectFlagsTemplate *saultflags.FlagsTemplate
+var hostInjectFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host inject" | yellow }} will inject the internal client key to the remote host.
@@ -26,7 +26,7 @@ func init() {
 		nil,
 	)
 
-	HostInjectFlagsTemplate = &saultflags.FlagsTemplate{
+	hostInjectFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host inject",
 		Name:         "inject",
 		Help:         "inject the internal client key to the remote host",
@@ -36,7 +36,7 @@ func init() {
 		ParseFunc:    parseHostInjectCommandFlags,
 	}
 
-	sault.Commands[HostInjectFlagsTemplate.ID] = &HostInjectCommand{}
+	sault.Commands[hostInjectFlagsTemplate.ID] = &hostInjectCommand{}
 }
 
 func parseHostInjectCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -64,7 +64,7 @@ func parseHostInjectCommandFlags(f *saultflags.Flags, args []string) (err error)
 		return
 	}
 
-	f.Values["Host"] = HostInjectRequestData{
+	f.Values["Host"] = hostInjectRequestData{
 		HostName: hostName,
 		Port:     port,
 		Account:  account,
@@ -73,21 +73,21 @@ func parseHostInjectCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type HostInjectRequestData struct {
+type hostInjectRequestData struct {
 	HostName string
 	Port     uint64
 	Account  string
 }
 
-type HostInjectCommand struct{}
+type hostInjectCommand struct{}
 
-func (c *HostInjectCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	data := thisFlags.Values["Host"].(HostInjectRequestData)
+func (c *hostInjectCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	data := thisFlags.Values["Host"].(hostInjectRequestData)
 
 	var host saultregistry.HostRegistry
 	_, err = runCommand(
 		allFlags[0],
-		HostInjectFlagsTemplate.ID,
+		hostInjectFlagsTemplate.ID,
 		data,
 		&host,
 	)
@@ -144,7 +144,7 @@ failed to inject the internal client key, because something wrong to inject it t
 	return
 }
 
-func (c *HostInjectCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *hostInjectCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	err = c.response(channel, msg, registry, config)
 	if err != nil {
 		if responseMsgErr, ok := err.(*saultcommon.ResponseMsgError); ok {
@@ -174,8 +174,8 @@ func (c *HostInjectCommand) Response(user saultregistry.UserRegistry, channel sa
 	return nil
 }
 
-func (c *HostInjectCommand) response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data HostInjectRequestData
+func (c *hostInjectCommand) response(channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data hostInjectRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
@@ -230,13 +230,13 @@ func (c *HostInjectCommand) response(channel saultssh.Channel, msg saultcommon.C
 
 func injectClientKeyToHostThruSault(
 	mainFlags *saultflags.Flags,
-	data HostInjectRequestData,
+	data hostInjectRequestData,
 ) (err error) {
 	log.Debugf("trying to retrieve the client public key from sault server")
 	var clientKeyData serverPrintResponseData
 	_, err = runCommand(
 		mainFlags,
-		ServerPrintFlagsTemplate.ID,
+		serverPrintFlagsTemplate.ID,
 		[]string{"clientkey"},
 		&clientKeyData,
 	)

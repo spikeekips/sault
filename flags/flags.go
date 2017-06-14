@@ -178,6 +178,7 @@ func (f *Flags) SetOutput(out io.Writer) {
 	}
 }
 
+// Args returns the arguments
 func (f *Flags) Args() []string {
 	return f.args
 }
@@ -209,8 +210,9 @@ func (f *Flags) Parse(args []string) (err error) {
 	return
 }
 
+// ParsePositioned parse the positioned arguments
 func (f *Flags) ParsePositioned(args []string) (err error) {
-	var positioned, none_positioned []string
+	var positioned, nonePositioned []string
 
 	var foundFlag bool
 	for _, a := range args {
@@ -219,14 +221,14 @@ func (f *Flags) ParsePositioned(args []string) (err error) {
 		}
 
 		if foundFlag {
-			none_positioned = append(none_positioned, a)
+			nonePositioned = append(nonePositioned, a)
 		} else {
 			positioned = append(positioned, a)
 		}
 	}
 
 	f.args = positioned
-	err = f.Parse(none_positioned)
+	err = f.Parse(nonePositioned)
 
 	return
 }
@@ -274,26 +276,25 @@ func (f *Flags) RawParse(args []string) (err error) {
 			if len(commandArgs) < 1 {
 				err = &MissingCommand{}
 				return
-			} else {
-				for _, s := range f.Subcommands {
-					if saultcommon.MakeFirstLowerCase(s.Name) == commandArgs[0] {
-						subCommand = s
-						break
-					}
+			}
+			for _, s := range f.Subcommands {
+				if saultcommon.MakeFirstLowerCase(s.Name) == commandArgs[0] {
+					subCommand = s
+					break
 				}
-				if subCommand == nil {
-					err = &UnknownCommand{Command: commandArgs[0]}
-					return
-				}
+			}
+			if subCommand == nil {
+				err = &UnknownCommand{Command: commandArgs[0]}
+				return
+			}
 
-				if subCommand.IsPositioned {
-					err = subCommand.ParsePositioned(commandArgs[1:])
-				} else {
-					err = subCommand.Parse(commandArgs[1:])
-				}
-				if err != nil {
-					return err
-				}
+			if subCommand.IsPositioned {
+				err = subCommand.ParsePositioned(commandArgs[1:])
+			} else {
+				err = subCommand.Parse(commandArgs[1:])
+			}
+			if err != nil {
+				return err
 			}
 		}
 		f.Subcommand = subCommand

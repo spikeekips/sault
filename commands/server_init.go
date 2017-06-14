@@ -18,7 +18,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var ServerInitFlagsTemplate *saultflags.FlagsTemplate
+var serverInitFlagsTemplate *saultflags.FlagsTemplate
 var currentDirectory string
 var currentUser *user.User
 
@@ -44,7 +44,7 @@ After initializing sault server,
 		},
 	)
 
-	ServerInitFlagsTemplate = &saultflags.FlagsTemplate{
+	serverInitFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "server init",
 		Name:         "init",
 		Help:         "initialize sault server environment",
@@ -66,7 +66,7 @@ After initializing sault server,
 		ParseFunc: parseServerInitCommandFlags,
 	}
 
-	sault.Commands[ServerInitFlagsTemplate.ID] = &ServerInitCommand{}
+	sault.Commands[serverInitFlagsTemplate.ID] = &serverInitCommand{}
 }
 
 func parseServerInitCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -104,9 +104,9 @@ func parseServerInitCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type ServerInitCommand struct{}
+type serverInitCommand struct{}
 
-func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *serverInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	envDir := thisFlags.Values["Env"].(string)
 	log.Debugf("initializing sault environment at %s", envDir)
 
@@ -267,7 +267,7 @@ func (c *ServerInitCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 	return nil
 }
 
-func (c *ServerInitCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *serverInitCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }
 

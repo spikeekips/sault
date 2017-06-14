@@ -12,7 +12,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var ServerPrintFlagsTemplate *saultflags.FlagsTemplate
+var serverPrintFlagsTemplate *saultflags.FlagsTemplate
 
 var availableServerPrintKinds = []string{
 	"saultbuildinfo",
@@ -22,7 +22,7 @@ var availableServerPrintKinds = []string{
 }
 
 func init() {
-	ServerPrintFlagsTemplate = &saultflags.FlagsTemplate{
+	serverPrintFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:    "server print",
 		Name:  "print",
 		Help:  "prints the sault server informations",
@@ -37,7 +37,7 @@ func init() {
 		ParseFunc:    parseServerPrintCommandFlags,
 	}
 
-	sault.Commands[ServerPrintFlagsTemplate.ID] = &ServerPrintCommand{}
+	sault.Commands[serverPrintFlagsTemplate.ID] = &serverPrintCommand{}
 }
 
 func parseServerPrintCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -72,14 +72,14 @@ type serverPrintResponseData struct {
 	Registry       []byte
 }
 
-type ServerPrintCommand struct{}
+type serverPrintCommand struct{}
 
-func (c *ServerPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *serverPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	kinds := thisFlags.Values["Kinds"].([]string)
 	var data serverPrintResponseData
 	_, err = runCommand(
 		allFlags[0],
-		ServerPrintFlagsTemplate.ID,
+		serverPrintFlagsTemplate.ID,
 		kinds,
 		&data,
 	)
@@ -123,7 +123,7 @@ func (c *ServerPrintCommand) Request(allFlags []*saultflags.Flags, thisFlags *sa
 	return nil
 }
 
-func (c *ServerPrintCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *serverPrintCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 	var data []string
 	err = msg.GetData(&data)
 	if err != nil {

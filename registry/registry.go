@@ -10,6 +10,7 @@ import (
 	"github.com/spikeekips/sault/common"
 )
 
+// RegistrySource is the source of registry
 type RegistrySource interface {
 	GetType() string
 	Bytes() ([]byte, error)
@@ -17,6 +18,7 @@ type RegistrySource interface {
 	Validate() (err error)
 }
 
+// LoadRegistrySourceFromConfig load registry from config
 func LoadRegistrySourceFromConfig(data map[string]interface{}, config map[string]interface{}) (rs RegistrySource, err error) {
 	var sourceType string
 	var ok bool
@@ -44,6 +46,7 @@ func LoadRegistrySourceFromConfig(data map[string]interface{}, config map[string
 	return
 }
 
+// Registry is the registry
 type Registry struct {
 	Data *RegistryData
 
@@ -51,6 +54,7 @@ type Registry struct {
 	Source []RegistrySource
 }
 
+// NewRegistry makes registry
 func NewRegistry() (registry *Registry) {
 	registry = &Registry{}
 	registry.Source = []RegistrySource{}
@@ -58,6 +62,7 @@ func NewRegistry() (registry *Registry) {
 	return registry
 }
 
+// RegistryDataCmpByTimeUpdated helps to compare the registry sources
 type RegistryDataCmpByTimeUpdated []*RegistryData
 
 func (s RegistryDataCmpByTimeUpdated) Len() int {
@@ -73,6 +78,7 @@ func (s RegistryDataCmpByTimeUpdated) Swap(i, j int) {
 	return
 }
 
+// AddSource add registry source to registry
 func (registry *Registry) AddSource(source ...RegistrySource) (err error) {
 	for _, s := range source {
 		if err = s.Validate(); err != nil {
@@ -84,6 +90,7 @@ func (registry *Registry) AddSource(source ...RegistrySource) (err error) {
 	return
 }
 
+// Load loads registry from sources
 func (registry *Registry) Load() (err error) {
 	if len(registry.Source) < 1 {
 		err = fmt.Errorf("sources are empty")
@@ -113,6 +120,7 @@ func (registry *Registry) Load() (err error) {
 	return
 }
 
+// Bytes returns []byte of registry
 func (registry *Registry) Bytes() []byte {
 	var b bytes.Buffer
 	toml.NewEncoder(&b).Encode(registry.Data)
@@ -120,6 +128,7 @@ func (registry *Registry) Bytes() []byte {
 	return b.Bytes()
 }
 
+// Save will save registry to sources
 func (registry *Registry) Save() (err error) {
 	if len(registry.Source) < 1 {
 		err = fmt.Errorf("sources are empty")

@@ -16,6 +16,7 @@ func init() {
 	SetupLog(logrus.ErrorLevel, os.Stdout, nil)
 }
 
+// SetupLog will set up the logging
 func SetupLog(level logrus.Level, out io.Writer, formatter logrus.Formatter) {
 	log.Level = level
 

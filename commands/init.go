@@ -14,11 +14,15 @@ import (
 
 var log *logrus.Logger
 
+var sshDirectory = "~/.ssh"
+var authorizedKeyFile = "~/.ssh/authorized_keys"
+
 func init() {
 	log = logrus.New()
 	SetupLog(logrus.ErrorLevel, os.Stdout, nil)
 }
 
+// SetupLog will set up the logging
 func SetupLog(level logrus.Level, out io.Writer, formatter logrus.Formatter) {
 	log.Level = level
 
@@ -75,7 +79,7 @@ func connectSaultServer(serverName, address string, signer saultssh.Signer) (*sa
 	return connection, nil
 }
 
-func responseMsgFromJson(b []byte, data interface{}) (*saultcommon.ResponseMsg, error) {
+func responseMsgFromJSON(b []byte, data interface{}) (*saultcommon.ResponseMsg, error) {
 	var rm saultcommon.ResponseMsg
 	err := json.Unmarshal(b, &rm)
 	if err != nil {
@@ -86,12 +90,12 @@ func responseMsgFromJson(b []byte, data interface{}) (*saultcommon.ResponseMsg, 
 		return &rm, nil
 	}
 
-	if jsoned, err := json.Marshal(rm.Data); err != nil {
+	jsoned, err := json.Marshal(rm.Data)
+	if err != nil {
 		return nil, err
-	} else {
-		json.Unmarshal(jsoned, data)
-		rm.Data = data
 	}
+	json.Unmarshal(jsoned, data)
+	rm.Data = data
 
 	return &rm, nil
 }
@@ -137,7 +141,7 @@ func runCommand(
 		return
 	}
 
-	response, err = responseMsgFromJson(output, out)
+	response, err = responseMsgFromJSON(output, out)
 	if err != nil {
 		return
 	}

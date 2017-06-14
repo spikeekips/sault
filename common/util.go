@@ -97,6 +97,7 @@ func MakePascalCase(s string) string {
 	return strings.Join(new, "")
 }
 
+// MakeOutputString makes output string for sault client
 func MakeOutputString(log *logrus.Logger, s string, level logrus.Level) string {
 	entry := logrus.NewEntry(log)
 	entry.Level = level
@@ -240,12 +241,14 @@ func terminalFormat(code, reset int) func(string) string {
 	}
 }
 
+// ColorFunc is the wrapper for colorizing string
 func ColorFunc(attr ...color.Attribute) func(string) string {
 	return func(s string) string {
 		return color.New(attr...).SprintFunc()(s)
 	}
 }
 
+// SimpleTemplating help to apply string to template
 func SimpleTemplating(t string, values interface{}) (string, error) {
 	tmpl, err := template.New(MakeRandomString()).Funcs(flagTempalteFMap).Parse(t)
 	if err != nil {
@@ -258,6 +261,7 @@ func SimpleTemplating(t string, values interface{}) (string, error) {
 	return b.String(), nil
 }
 
+// Templating help to apply string to template
 func Templating(t, name string, values interface{}) (string, error) {
 	tmpl, err := template.New(MakeRandomString()).Funcs(flagTempalteFMap).Parse(t)
 	if err != nil {
@@ -392,6 +396,8 @@ func ParsePublicKey(b []byte) (saultssh.PublicKey, error) {
 
 var reUserID = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
 var reUserIDOneChar = `^(?i)[0-9a-z]$`
+
+// MaxLengthUserID is the maximum length of user id
 var MaxLengthUserID = 32
 
 // CheckUserID checkes whether UserRegistry.ID is valid or not
@@ -414,6 +420,8 @@ func CheckAccountName(s string) bool {
 
 var reHostID = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
 var reHostIDOneChar = `^(?i)[0-9a-z]$`
+
+// MaxLengthHostID is the maximum length of host id
 var MaxLengthHostID = 64
 
 // CheckHostID checkes whether HostRegistry.ID is valid or not
@@ -497,6 +505,7 @@ func FingerprintMD5PublicKey(key saultssh.PublicKey) string {
 
 var warnSSHAgentNotRunning bool
 
+// CheckSSHAgent checkes ssh agent is running
 func CheckSSHAgent() {
 	if warnSSHAgentNotRunning {
 		return
@@ -511,6 +520,7 @@ func CheckSSHAgent() {
 	warnSSHAgentNotRunning = true
 }
 
+// SSHAgentNotRunning means ssh agent is not running
 type SSHAgentNotRunning struct {
 	E error
 }
@@ -523,6 +533,7 @@ func (e *SSHAgentNotRunning) Error() string {
 	return fmt.Sprintf("'ssh-agent' has some problem: %v", e.Error)
 }
 
+// PrintWarning prints warning message
 func (e *SSHAgentNotRunning) PrintWarning() {
 	if e.E != nil {
 		return
@@ -541,10 +552,11 @@ func (e *SSHAgentNotRunning) PrintWarning() {
 	fmt.Fprintf(os.Stdout, errString)
 }
 
-var EnvSSHAuthSock = "SSH_AUTH_SOCK"
+var envSSHAuthSock = "SSH_AUTH_SOCK"
 
+// GetSSHAgent returns ssh agent
 func GetSSHAgent() (saultsshAgent.Agent, error) {
-	sock := os.Getenv(EnvSSHAuthSock)
+	sock := os.Getenv(envSSHAuthSock)
 	if sock == "" {
 		return nil, &SSHAgentNotRunning{}
 	}
@@ -557,6 +569,8 @@ func GetSSHAgent() (saultsshAgent.Agent, error) {
 	return saultsshAgent.NewClient(sa), nil
 }
 
+// LoadPublicKeyFromPrivateKeyFile loads public key from private key with
+// passpharase
 func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey saultssh.PublicKey, err error) {
 	e := filepath.Ext(f)
 
@@ -577,6 +591,8 @@ func LoadPublicKeyFromPrivateKeyFile(f string) (publicKey saultssh.PublicKey, er
 	return
 }
 
+// FindSignerInSSHAgentFromPublicKey will find signer from ssh agent with public
+// key
 func FindSignerInSSHAgentFromPublicKey(publicKey saultssh.PublicKey) (
 	signer saultssh.Signer, err error,
 ) {
@@ -605,6 +621,8 @@ func FindSignerInSSHAgentFromPublicKey(publicKey saultssh.PublicKey) (
 	return
 }
 
+// FindSignerInSSHAgentFromFile will find signer from ssh agent with public key
+// file
 func FindSignerInSSHAgentFromFile(file string) (signer saultssh.Signer, err error) {
 	file, _ = filepath.Abs(file)
 
@@ -658,8 +676,9 @@ func FindSignerInSSHAgentFromFile(file string) (signer saultssh.Signer, err erro
 	return
 }
 
-var MaxAuthTries int = 3
+var maxAuthTries = 3
 
+// LoadPrivateKeySignerWithPasspharaseTrial load private key with passphrase
 func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer saultssh.Signer, err error) {
 	b, err := ioutil.ReadFile(privateKeyFile)
 	if err != nil {
@@ -686,7 +705,7 @@ func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sau
 		}
 
 		var passphrase string
-		passphrase, err = ReadPassword(MaxAuthTries)
+		passphrase, err = ReadPassword(maxAuthTries)
 		if err != nil {
 			log.Error(err)
 			return
@@ -728,6 +747,7 @@ func LoadPrivateKeySignerWithPasspharaseTrial(privateKeyFile string) (signer sau
 	return
 }
 
+// ReadPassword read password from terminal
 func ReadPassword(maxTries int) (password string, err error) {
 	if maxTries < 1 {
 		maxTries = 1
@@ -791,15 +811,18 @@ func ParseHostAccount(s string) (userName, hostName string, err error) {
 	return
 }
 
+// SprintInstance will make instance to string
 func SprintInstance(data interface{}) string {
 	jsoned, _ := json.MarshalIndent(data, "", "  ")
 	return fmt.Sprintf("%s", jsoned)
 }
 
+// PrintInstance prints instance
 func PrintInstance(data interface{}) {
 	fmt.Println(SprintInstance(data))
 }
 
+// SprintfInstance will format instance
 func SprintfInstance(format string, data ...interface{}) string {
 	var datum []interface{}
 	for _, d := range data {
@@ -809,10 +832,12 @@ func SprintfInstance(format string, data ...interface{}) string {
 	return fmt.Sprintf(format, datum...)
 }
 
+// PrintfInstance will format and print instance
 func PrintfInstance(format string, data ...interface{}) {
 	fmt.Println(SprintfInstance(format, data...))
 }
 
+// ParseBooleanString parse the boolean string to bool
 func ParseBooleanString(s string) (v bool, err error) {
 	if s == "true" {
 		return true, nil
@@ -825,6 +850,7 @@ func ParseBooleanString(s string) (v bool, err error) {
 	return
 }
 
+// ParseMinusName parse the minus string to bool
 func ParseMinusName(s string) (name string, minus bool) {
 	s = strings.TrimSpace(s)
 	if !strings.HasSuffix(s, "-") {
@@ -835,21 +861,25 @@ func ParseMinusName(s string) (name string, minus bool) {
 	return string(r[:len(r)-1]), true
 }
 
+// DefaultLogrusFormatter is the default logrus formatter
 type DefaultLogrusFormatter struct {
 	logrus.Formatter
 }
 
+// Format is the method for logrus formatter
 func (d DefaultLogrusFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	e.Time = e.Time.UTC() // set to UTC by force
 	return d.Formatter.Format(e)
 }
 
+// GetDefaultLogrusFormatter return the default logrus formatter
 func GetDefaultLogrusFormatter() logrus.Formatter {
 	return &logrus.TextFormatter{
 		DisableTimestamp: true,
 	}
 }
 
+// GetServerLogrusFormatter return the server logrus formatter
 func GetServerLogrusFormatter() logrus.Formatter {
 	return &DefaultLogrusFormatter{
 		&logrus.TextFormatter{

@@ -11,25 +11,38 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
+// UserFilter is the filter of users
 type UserFilter byte
+
+// HostFilter is the filter of hosts
 type HostFilter byte
 
 const (
+	// UserFilterNone will not filter anything
 	UserFilterNone UserFilter = 1 << iota
+	// UserFilterIsActive is for active users
 	UserFilterIsActive
+	// UserFilterIsNotActive is for deactivated users
 	UserFilterIsNotActive
+	// UserFilterIsAdmin is for admin
 	UserFilterIsAdmin
+	// UserFilterIsNotAdmin is for none admin
 	UserFilterIsNotAdmin
 )
 
 const (
+	// HostFilterNone will not filter anything
 	HostFilterNone HostFilter = 1 << iota
+	// HostFilterIsActive is for active hosts
 	HostFilterIsActive
+	// HostFilterIsNotActive is for deactivated hosts
 	HostFilterIsNotActive
 )
 
+// RegistryPublicKey is for public key field
 type RegistryPublicKey []byte
 
+// UnmarshalText is for toml custom field
 func (r *RegistryPublicKey) UnmarshalText(data []byte) (err error) {
 	if _, err = saultcommon.ParsePublicKey(data); err != nil {
 		return

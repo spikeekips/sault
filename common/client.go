@@ -12,12 +12,14 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
+// SSHClient is the wrapper of ssh.Cilent
 type SSHClient struct {
 	Client       *saultssh.Client
 	clientConfig *saultssh.ClientConfig
 	address      string
 }
 
+// NewSSHClient creates SSHClient
 func NewSSHClient(account, address string) *SSHClient {
 	clientConfig := &saultssh.ClientConfig{
 		User:            account,
@@ -30,6 +32,7 @@ func NewSSHClient(account, address string) *SSHClient {
 	}
 }
 
+// Close will close connection
 func (s *SSHClient) Close() {
 	if s.Client == nil {
 		return
@@ -37,10 +40,12 @@ func (s *SSHClient) Close() {
 	s.Client.Close()
 }
 
+// SetTimeout set timeout
 func (s *SSHClient) SetTimeout(t time.Duration) {
 	s.clientConfig.Timeout = t
 }
 
+// AddAuthMethod add AuthMethod
 func (s *SSHClient) AddAuthMethod(auths ...saultssh.AuthMethod) {
 	s.clientConfig.Auth = append(
 		s.clientConfig.Auth,
@@ -48,6 +53,7 @@ func (s *SSHClient) AddAuthMethod(auths ...saultssh.AuthMethod) {
 	)
 }
 
+// Connect will connect
 func (s *SSHClient) Connect() error {
 	client, err := saultssh.Dial("tcp", s.address, s.clientConfig)
 	if err != nil {
@@ -68,6 +74,7 @@ func (s *SSHClient) newSession() (*saultssh.Session, error) {
 	return session, nil
 }
 
+// Run runs command to the remote host
 func (s *SSHClient) Run(cmd string) (output []byte, err error) {
 	var session *saultssh.Session
 	session, err = s.newSession()
@@ -87,6 +94,7 @@ func (s *SSHClient) Run(cmd string) (output []byte, err error) {
 	return
 }
 
+// PutFile uploads file
 func (s *SSHClient) PutFile(content string, dest string, perm os.FileMode) error {
 	dest = s.expandUserDir(dest)
 	base, name := s.splitPath(dest)
@@ -115,6 +123,7 @@ func (s *SSHClient) PutFile(content string, dest string, perm os.FileMode) error
 	return nil
 }
 
+// GetFile downloads file
 func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
 	var session *saultssh.Session
 	session, err = s.newSession()
@@ -152,6 +161,7 @@ func (s *SSHClient) GetFile(dest string) (content []byte, err error) {
 	return
 }
 
+// Remove removes file
 func (s *SSHClient) Remove(dest string) error {
 	var session *saultssh.Session
 	{
@@ -189,6 +199,7 @@ func (s *SSHClient) splitPath(d string) (string, string) {
 	return base, name
 }
 
+// MakeDir makes directory
 func (s *SSHClient) MakeDir(dest string, perm os.FileMode, recursive bool) error {
 	dest = s.expandUserDir(dest)
 
@@ -199,7 +210,7 @@ func (s *SSHClient) MakeDir(dest string, perm os.FileMode, recursive bool) error
 				return len(strings.TrimSpace(n)) > 0
 			},
 		)
-		for i, _ := range paths {
+		for i := range paths {
 			var parent string
 			if strings.HasPrefix(dest, "/") {
 				parent = fmt.Sprintf("/%s", strings.Join(paths[:i+1], "/"))

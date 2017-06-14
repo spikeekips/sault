@@ -12,16 +12,16 @@ import (
 )
 
 func init() {
-	sault.Commands["publickey"] = &UserPublicKeyCommand{}
+	sault.Commands["publickey"] = &userPublicKeyCommand{}
 }
 
-type UserPublicKeyCommand struct{}
+type userPublicKeyCommand struct{}
 
-func (c *UserPublicKeyCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *userPublicKeyCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	return nil
 }
 
-func (c *UserPublicKeyCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+func (c *userPublicKeyCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
 
 	var args []string
 	err = msg.GetData(&args)
@@ -51,7 +51,7 @@ Usage: publickey <user id> <public key string>`, err)
 	}
 
 	if user.HasPublicKey(publicKey) {
-		err = fmt.Errorf("this public key is already registered.")
+		err = fmt.Errorf("this public key is already registered")
 		return
 	}
 
@@ -65,7 +65,7 @@ Usage: publickey <user id> <public key string>`, err)
 
 	registry.Save()
 
-	var links []UserLinkAccountData
+	var links []userLinkAccountData
 	for hostID, link := range registry.GetLinksOfUser(newUser.ID) {
 		_, err := registry.GetHost(hostID, saultregistry.HostFilterNone)
 		if err != nil {
@@ -74,7 +74,7 @@ Usage: publickey <user id> <public key string>`, err)
 		}
 		links = append(
 			links,
-			UserLinkAccountData{
+			userLinkAccountData{
 				Accounts: link.Accounts,
 				All:      link.All,
 				HostID:   hostID,
@@ -82,10 +82,10 @@ Usage: publickey <user id> <public key string>`, err)
 		)
 	}
 
-	printed := PrintUserData(
+	printed := printUserData(
 		"one-user-updated",
 		"<sault server>",
-		UserListResponseUserData{
+		userListResponseUserData{
 			User:  newUser,
 			Links: links,
 		},

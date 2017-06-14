@@ -10,11 +10,11 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-type AuthenticationFailedError struct {
+type authenticationFailedError struct {
 	Err error
 }
 
-func (e *AuthenticationFailedError) Error() string {
+func (e *authenticationFailedError) Error() string {
 	return fmt.Sprintf("failed to be authenticated: %v", e.Err)
 }
 
@@ -81,7 +81,7 @@ func (c *connection) publicKeyCallback(
 ) (perm *saultssh.Permissions, err error) {
 	account, hostID, err := saultcommon.ParseSaultAccountName(conn.User())
 	if err != nil {
-		err = &AuthenticationFailedError{Err: err}
+		err = &authenticationFailedError{Err: err}
 		c.log.Error(err)
 		return
 	}
@@ -89,7 +89,7 @@ func (c *connection) publicKeyCallback(
 	var user saultregistry.UserRegistry
 	user, err = c.server.registry.GetUser("", publicKey, saultregistry.UserFilterIsActive)
 	if err != nil {
-		err = &AuthenticationFailedError{Err: err}
+		err = &authenticationFailedError{Err: err}
 		c.log.Error(err)
 		return
 	}
@@ -101,18 +101,18 @@ func (c *connection) publicKeyCallback(
 	var host saultregistry.HostRegistry
 	host, err = c.server.registry.GetHost(hostID, saultregistry.HostFilterIsActive)
 	if err != nil {
-		err = &AuthenticationFailedError{Err: err}
+		err = &authenticationFailedError{Err: err}
 		c.log.Error(err)
 		return
 	}
 	if !host.HasAccount(account) {
-		err = &AuthenticationFailedError{Err: fmt.Errorf("unknown account, '%s'", account)}
+		err = &authenticationFailedError{Err: fmt.Errorf("unknown account, '%s'", account)}
 		c.log.Error(err)
 		return
 	}
 
 	if !c.server.registry.IsLinked(user.ID, host.ID, account) {
-		err = &AuthenticationFailedError{
+		err = &authenticationFailedError{
 			Err: fmt.Errorf(
 				"user, '%s' host, '%s' and it's account, '%s' is not linked",
 				user.ID,
@@ -142,7 +142,7 @@ func (c *connection) publicKeyCallbackInsideSault(
 	c.insideSault = true
 
 	if len(account) > 0 {
-		err = &AuthenticationFailedError{
+		err = &authenticationFailedError{
 			Err: &saultcommon.InvalidAccountNameError{Name: account},
 		}
 		c.log.Errorf("in 'inSaultServer', account name is prohibited")

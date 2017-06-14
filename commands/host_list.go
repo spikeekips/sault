@@ -13,7 +13,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var HostListFlagsTemplate *saultflags.FlagsTemplate
+var hostListFlagsTemplate *saultflags.FlagsTemplate
 
 type flagHostFilters struct {
 	Combined saultregistry.HostFilter
@@ -77,7 +77,7 @@ By default, sault orders the remote hosts by the updated time, that is, the last
 	)
 
 	hostFilters := new(flagHostFilters)
-	HostListFlagsTemplate = &saultflags.FlagsTemplate{
+	hostListFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:          "host list",
 		Name:        "list",
 		Help:        "get hosts information",
@@ -99,7 +99,7 @@ By default, sault orders the remote hosts by the updated time, that is, the last
 		IsPositioned: true,
 	}
 
-	sault.Commands[HostListFlagsTemplate.ID] = &HostListCommand{}
+	sault.Commands[hostListFlagsTemplate.ID] = &hostListCommand{}
 }
 
 func parseHostListCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -116,37 +116,37 @@ func parseHostListCommandFlags(f *saultflags.Flags, args []string) (err error) {
 	return nil
 }
 
-type HostListRequestData struct {
+type hostListRequestData struct {
 	Filters saultregistry.HostFilter
 	HostIDs []string
 }
 
-type HostListResponseData []saultregistry.HostRegistry
+type hostListResponseData []saultregistry.HostRegistry
 
-func (s HostListResponseData) Len() int {
+func (s hostListResponseData) Len() int {
 	return len(s)
 }
 
-func (s HostListResponseData) Less(i, j int) bool {
+func (s hostListResponseData) Less(i, j int) bool {
 	return s[i].DateUpdated.Before(s[j].DateUpdated)
 }
 
-func (s HostListResponseData) Swap(i, j int) {
+func (s hostListResponseData) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 	return
 }
 
-type HostListCommand struct{}
+type hostListCommand struct{}
 
-func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *hostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	flagFilter := thisFlags.Values["Filter"].(flagHostFilters)
 	log.Debugf("get hosts, filters: %s HostIDs: %s", flagFilter.Args, thisFlags.Values["HostIDs"])
 
-	var hosts HostListResponseData
+	var hosts hostListResponseData
 	_, err = runCommand(
 		allFlags[0],
-		HostListFlagsTemplate.ID,
-		HostListRequestData{
+		hostListFlagsTemplate.ID,
+		hostListRequestData{
 			Filters: saultregistry.HostFilter(flagFilter.Combined),
 			HostIDs: thisFlags.Values["HostIDs"].([]string),
 		},
@@ -162,7 +162,7 @@ func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 		sort.Sort(hosts)
 	}
 
-	fmt.Fprintf(os.Stdout, PrintHostsData(
+	fmt.Fprintf(os.Stdout, printHostsData(
 		"host-list",
 		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 		hosts,
@@ -172,14 +172,14 @@ func (c *HostListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *HostListCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data HostListRequestData
+func (c *hostListCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data hostListRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
 	}
 
-	result := HostListResponseData{}
+	result := hostListResponseData{}
 	for _, h := range registry.GetHosts(data.Filters, data.HostIDs...) {
 		result = append(result, h)
 	}

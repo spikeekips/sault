@@ -13,7 +13,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var HostUpdateFlagsTemplate *saultflags.FlagsTemplate
+var hostUpdateFlagsTemplate *saultflags.FlagsTemplate
 
 type flagHostUpdateNewID struct {
 	IsSet bool
@@ -104,7 +104,7 @@ func init() {
 	var hostUpdateNewIsActiveFlag flagHostUpdateNewIsActive
 	var hostUpdateNewAddress flagHostUpdateNewAddress
 	var hostUpdateNewAccounts flagHostUpdateNewAccounts
-	HostUpdateFlagsTemplate = &saultflags.FlagsTemplate{
+	hostUpdateFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host update",
 		Name:         "update",
 		Help:         "update the remote host",
@@ -141,7 +141,7 @@ func init() {
 		ParseFunc: parseHostUpdateCommandFlags,
 	}
 
-	sault.Commands[HostUpdateFlagsTemplate.ID] = &HostUpdateCommand{}
+	sault.Commands[hostUpdateFlagsTemplate.ID] = &hostUpdateCommand{}
 }
 
 func parseHostUpdateCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -156,7 +156,7 @@ func parseHostUpdateCommandFlags(f *saultflags.Flags, args []string) (err error)
 		return
 	}
 
-	newHost := HostUpdateRequestData{
+	newHost := hostUpdateRequestData{
 		ID:       subArgs[0],
 		SkipTest: f.Values["SkipTest"].(bool),
 	}
@@ -190,7 +190,7 @@ func parseHostUpdateCommandFlags(f *saultflags.Flags, args []string) (err error)
 	return nil
 }
 
-type HostUpdateRequestData struct {
+type hostUpdateRequestData struct {
 	ID          string
 	NewID       flagHostUpdateNewID
 	NewAddress  flagHostUpdateNewAddress
@@ -199,20 +199,20 @@ type HostUpdateRequestData struct {
 	SkipTest    bool
 }
 
-type HostUpdateResponsetData struct {
+type hostUpdateResponsetData struct {
 	Host saultregistry.HostRegistry
 	Err  string
 }
 
-type HostUpdateCommand struct{}
+type hostUpdateCommand struct{}
 
-func (c *HostUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *hostUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	data := thisFlags.Values["NewHost"]
 
-	var result HostUpdateResponsetData
+	var result hostUpdateResponsetData
 	_, err = runCommand(
 		allFlags[0],
-		HostUpdateFlagsTemplate.ID,
+		hostUpdateFlagsTemplate.ID,
 		data,
 		&result,
 	)
@@ -222,7 +222,7 @@ func (c *HostUpdateCommand) Request(allFlags []*saultflags.Flags, thisFlags *sau
 			resultErr = fmt.Errorf(result.Err)
 		}
 
-		fmt.Fprintf(os.Stdout, PrintHostData(
+		fmt.Fprintf(os.Stdout, printHostData(
 			"host-updated",
 			allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 			result.Host,
@@ -247,8 +247,8 @@ failed to update host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostUpdateCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data HostUpdateRequestData
+func (c *hostUpdateCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data hostUpdateRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
@@ -302,12 +302,12 @@ func (c *HostUpdateCommand) Response(user saultregistry.UserRegistry, channel sa
 	var errString string
 	var notUpdated bool
 	if host, err = registry.UpdateHost(oldID, host); err != nil {
-		if errNothingToUpdate, ok := err.(*saultcommon.HostNothingToUpdate); !ok {
+		errNothingToUpdate, ok := err.(*saultcommon.HostNothingToUpdate)
+		if !ok {
 			return
-		} else {
-			errString = errNothingToUpdate.Error()
-			notUpdated = true
 		}
+		errString = errNothingToUpdate.Error()
+		notUpdated = true
 	}
 
 	if !notUpdated {
@@ -316,7 +316,7 @@ func (c *HostUpdateCommand) Response(user saultregistry.UserRegistry, channel sa
 
 	var response []byte
 	response, err = saultcommon.NewResponseMsg(
-		HostUpdateResponsetData{
+		hostUpdateResponsetData{
 			Host: host,
 			Err:  errString,
 		},

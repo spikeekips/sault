@@ -13,7 +13,7 @@ func (c *connection) openProxyConnection(
 ) error {
 	innerclient := saultcommon.NewSSHClient(c.account, c.host.GetAddress())
 	innerclient.AddAuthMethod(saultssh.PublicKeys(c.server.clientKeySigner))
-	innerclient.SetTimeout(DefaultTimeoutProxyClient)
+	innerclient.SetTimeout(defaultTimeoutProxyClient)
 
 	if err := innerclient.Connect(); err != nil {
 		c.log.Error(err)

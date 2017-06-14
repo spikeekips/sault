@@ -12,14 +12,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spikeekips/sault/common"
-	"github.com/spikeekips/sault/core"
 	"github.com/spikeekips/sault/registry"
 	"github.com/spikeekips/sault/saultssh"
 )
 
 var maxConnectionString = 3
 
-var PrintUsersDataTemplate = `{{ define "block-user" }}{{ $maxConnectionString := .maxConnectionString }}{{ $saultServerAddress := splitHostPort .saultServerAddress 22 }}{{ $lenlinks := len .user.Links }}            User ID: {{ .user.User.ID | colorUserID }}
+var printUsersDataTemplate = `{{ define "block-user" }}{{ $maxConnectionString := .maxConnectionString }}{{ $saultServerAddress := splitHostPort .saultServerAddress 22 }}{{ $lenlinks := len .user.Links }}            User ID: {{ .user.User.ID | colorUserID }}
               Admin: {{ if .user.User.IsAdmin }}{{ print .user.User.IsAdmin | green }}{{ else }}{{ print .user.User.IsAdmin | dim }}{{ end }}
              Active: {{ if .user.User.IsActive }}{{ print .user.User.IsActive | green }}{{ else }}{{ print .user.User.IsActive | dim }}{{ end }}
          Public Key: {{ .user.User.PublicKey |stringify | bold }}
@@ -64,13 +63,13 @@ You are in sault.
 {{ line "=" }}{{ end }}
 	`
 
-func PrintUsersData(saultServerAddress string, usersdata []UserListResponseUserData) string {
+func printUsersData(saultServerAddress string, usersdata []userListResponseUserData) string {
 	if len(usersdata) < 1 {
 		return "no users found\n"
 	}
 
 	t, err := saultcommon.Templating(
-		PrintUsersDataTemplate,
+		printUsersDataTemplate,
 		"user-list",
 		map[string]interface{}{
 			"maxConnectionString": maxConnectionString,
@@ -86,9 +85,9 @@ func PrintUsersData(saultServerAddress string, usersdata []UserListResponseUserD
 	return strings.TrimSpace(t) + "\n"
 }
 
-func PrintUserData(templateName, saultServerAddress string, userdata UserListResponseUserData, err error) string {
+func printUserData(templateName, saultServerAddress string, userdata userListResponseUserData, err error) string {
 	t, err := saultcommon.Templating(
-		PrintUsersDataTemplate,
+		printUsersDataTemplate,
 		templateName,
 		map[string]interface{}{
 			"maxConnectionString": maxConnectionString,
@@ -105,7 +104,7 @@ func PrintUserData(templateName, saultServerAddress string, userdata UserListRes
 	return strings.TrimSpace(t) + "\n"
 }
 
-var PrintHostDataTemplate = `
+var printHostDataTemplate = `
 {{ define "block-host" }}{{ $maxConnectionString := .maxConnectionString }}{{ $saultServerAddress := splitHostPort .saultServerAddress 22 }}{{ $lenaccounts := len .host.Accounts }}{{ $hostID := .host.ID }}{{ $saultPort := index $saultServerAddress "Port" }}{{ $saultHostName := index $saultServerAddress "HostName" }}           host ID: {{ .host.ID | blue }}
             Active: {{ if .host.IsActive }}{{ print .host.IsActive | green }}{{ else }}{{ print .host.IsActive | dim }}{{ end }}
            Address: {{ .host.HostName }}{{ .host.Port }}
@@ -143,9 +142,9 @@ host was successfully added
 
 `
 
-func PrintHostData(templateName, saultServerAddress string, host saultregistry.HostRegistry, err error) string {
+func printHostData(templateName, saultServerAddress string, host saultregistry.HostRegistry, err error) string {
 	t, err := saultcommon.Templating(
-		PrintHostDataTemplate,
+		printHostDataTemplate,
 		templateName,
 		map[string]interface{}{
 			"maxConnectionString": maxConnectionString,
@@ -162,13 +161,13 @@ func PrintHostData(templateName, saultServerAddress string, host saultregistry.H
 	return strings.TrimSpace(t) + "\n"
 }
 
-func PrintHostsData(templateName, saultServerAddress string, hosts []saultregistry.HostRegistry, err error) string {
+func printHostsData(templateName, saultServerAddress string, hosts []saultregistry.HostRegistry, err error) string {
 	if len(hosts) < 1 {
 		return "no hosts found\n"
 	}
 
 	t, err := saultcommon.Templating(
-		PrintHostDataTemplate,
+		printHostDataTemplate,
 		templateName,
 		map[string]interface{}{
 			"maxConnectionString": maxConnectionString,
@@ -212,25 +211,25 @@ func printServerKind(templateName, key string, value string) string {
 func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicKey) (err error) {
 	log.Debugf("trying to inject client public key to host")
 
-	checkCmd := fmt.Sprintf("sh -c '[ -d %s ] && echo 1 || echo 0'", sault.SSHDirectory)
+	checkCmd := fmt.Sprintf("sh -c '[ -d %s ] && echo 1 || echo 0'", sshDirectory)
 	output, err := sc.Run(checkCmd)
 	if err != nil {
-		log.Errorf("failed to check ssh directory, %s: %v", sault.SSHDirectory, err)
+		log.Errorf("failed to check ssh directory, %s: %v", sshDirectory, err)
 		return
 	}
 
 	if strings.TrimSpace(string(output)) == "0" {
-		log.Debugf("ssh directory, '%s' does not exist, create new", sault.SSHDirectory)
-		if err = sc.MakeDir(sault.SSHDirectory, 0700, true); err != nil {
-			log.Debugf("failed to create ssh directory, '%s': %v", sault.SSHDirectory, err)
+		log.Debugf("ssh directory, '%s' does not exist, create new", sshDirectory)
+		if err = sc.MakeDir(sshDirectory, 0700, true); err != nil {
+			log.Debugf("failed to create ssh directory, '%s': %v", sshDirectory, err)
 			return
 		}
-		err = sc.PutFile(saultcommon.GetAuthorizedKey(publicKey)+"\n", sault.AuthorizedKeyFile, 0600)
+		err = sc.PutFile(saultcommon.GetAuthorizedKey(publicKey)+"\n", authorizedKeyFile, 0600)
 		if err != nil {
-			log.Debugf("failed to create new authorized_keys file, '%s': %v", sault.AuthorizedKeyFile, err)
+			log.Debugf("failed to create new authorized_keys file, '%s': %v", authorizedKeyFile, err)
 			return
 		}
-		log.Debugf("created new authorized_keys file, '%s'", sault.AuthorizedKeyFile)
+		log.Debugf("created new authorized_keys file, '%s'", authorizedKeyFile)
 
 		return nil
 	}
@@ -250,11 +249,11 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 		)
 	}
 
-	log.Debugf("check file exists, '%s'", sault.AuthorizedKeyFile)
-	output, err = sc.GetFile(sault.AuthorizedKeyFile)
+	log.Debugf("check file exists, '%s'", authorizedKeyFile)
+	output, err = sc.GetFile(authorizedKeyFile)
 	if err != nil {
-		log.Debugf("'%s' does not exist, create new", sault.AuthorizedKeyFile)
-		err = sc.PutFile(makeAuthorizedKeyContent([]byte{}), sault.AuthorizedKeyFile, 0600)
+		log.Debugf("'%s' does not exist, create new", authorizedKeyFile)
+		err = sc.PutFile(makeAuthorizedKeyContent([]byte{}), authorizedKeyFile, 0600)
 		if err != nil {
 			return
 		}
@@ -262,7 +261,7 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 		return
 	}
 
-	log.Debugf("found '%s', check the same record", sault.AuthorizedKeyFile)
+	log.Debugf("found '%s', check the same record", authorizedKeyFile)
 
 	var foundSame bool
 	r := bufio.NewReader(bytes.NewBuffer(output))
@@ -291,14 +290,14 @@ func injectClientKeyToHost(sc *saultcommon.SSHClient, publicKey saultssh.PublicK
 	}
 
 	if !foundSame {
-		log.Debugf("not found same record in '%s'", sault.AuthorizedKeyFile)
+		log.Debugf("not found same record in '%s'", authorizedKeyFile)
 	} else {
-		log.Debugf("found same record in '%s', client public key already added.", sault.AuthorizedKeyFile)
+		log.Debugf("found same record in '%s', client public key already added.", authorizedKeyFile)
 		err = nil
 		return
 	}
 
-	err = sc.PutFile(makeAuthorizedKeyContent(output), sault.AuthorizedKeyFile, 0600)
+	err = sc.PutFile(makeAuthorizedKeyContent(output), authorizedKeyFile, 0600)
 	if err != nil {
 		return
 	}

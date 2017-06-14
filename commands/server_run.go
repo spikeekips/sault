@@ -12,7 +12,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var ServerRunFlagsTemplate *saultflags.FlagsTemplate
+var serverRunFlagsTemplate *saultflags.FlagsTemplate
 
 type flagEnvDirs []string
 
@@ -31,9 +31,8 @@ func (f *flagEnvDirs) Set(v string) error {
 		if os.IsNotExist(err) {
 			log.Error(err)
 			return fmt.Errorf("envDir, '%s' does not exists, skipped", v)
-		} else {
-			return fmt.Errorf("failed to check the envDir, '%s': %v", v, err)
 		}
+		return fmt.Errorf("failed to check the envDir, '%s': %v", v, err)
 	} else if !fi.IsDir() {
 		return fmt.Errorf("envDir, '%s' not directory, skipped", v)
 	}
@@ -47,7 +46,7 @@ func (f *flagEnvDirs) Set(v string) error {
 func init() {
 	defaultEnvDir := flagEnvDirs{}
 
-	ServerRunFlagsTemplate = &saultflags.FlagsTemplate{
+	serverRunFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:          "server run",
 		Name:        "run",
 		Help:        "run sault server.",
@@ -62,7 +61,7 @@ func init() {
 		},
 		ParseFunc: parseServerRunCommandFlags,
 	}
-	sault.Commands[ServerRunFlagsTemplate.ID] = &ServerRunCommand{}
+	sault.Commands[serverRunFlagsTemplate.ID] = &serverRunCommand{}
 }
 
 func parseServerRunCommandFlags(f *saultflags.Flags, args []string) error {
@@ -91,10 +90,10 @@ func parseServerRunCommandFlags(f *saultflags.Flags, args []string) error {
 	return nil
 }
 
-type ServerRunCommand struct {
+type serverRunCommand struct {
 }
 
-func (c *ServerRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *serverRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	var proxy *sault.Server
 	config := thisFlags.Values["Config"].(*sault.Config)
 
@@ -127,6 +126,6 @@ func (c *ServerRunCommand) Request(allFlags []*saultflags.Flags, thisFlags *saul
 	return nil
 }
 
-func (c *ServerRunCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
+func (c *serverRunCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) error {
 	return nil
 }

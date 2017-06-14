@@ -12,7 +12,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var UserLinkFlagsTemplate *saultflags.FlagsTemplate
+var userLinkFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "user link" | yellow }} will link the sault user to the host. For examples,
@@ -33,7 +33,7 @@ Such like appending '-' at the end of account name, this will disallow the user 
 		nil,
 	)
 
-	UserLinkFlagsTemplate = &saultflags.FlagsTemplate{
+	userLinkFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user link",
 		Name:         "link",
 		Help:         "link to the remote host",
@@ -44,7 +44,7 @@ Such like appending '-' at the end of account name, this will disallow the user 
 		ParseFunc:    parseUserLinkCommandFlags,
 	}
 
-	sault.Commands[UserLinkFlagsTemplate.ID] = &UserLinkCommand{}
+	sault.Commands[userLinkFlagsTemplate.ID] = &userLinkCommand{}
 }
 
 func parseUserLinkCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -60,7 +60,7 @@ func parseUserLinkCommandFlags(f *saultflags.Flags, args []string) (err error) {
 		return
 	}
 
-	data := UserLinkRequestData{UserID: userID}
+	data := userLinkRequestData{UserID: userID}
 
 	hostID, minus := saultcommon.ParseMinusName(subArgs[1])
 	if !saultcommon.CheckHostID(hostID) {
@@ -106,7 +106,7 @@ func parseUserLinkCommandFlags(f *saultflags.Flags, args []string) (err error) {
 	return nil
 }
 
-type UserLinkRequestData struct {
+type userLinkRequestData struct {
 	UserID         string
 	HostID         string
 	AccountsAdd    []string
@@ -115,14 +115,14 @@ type UserLinkRequestData struct {
 	LinkAll        bool
 }
 
-type UserLinkCommand struct{}
+type userLinkCommand struct{}
 
-func (c *UserLinkCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	var result UserListResponseUserData
+func (c *userLinkCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	var result userListResponseUserData
 	_, err = runCommand(
 		allFlags[0],
-		UserLinkFlagsTemplate.ID,
-		thisFlags.Values["Link"].(UserLinkRequestData),
+		userLinkFlagsTemplate.ID,
+		thisFlags.Values["Link"].(userLinkRequestData),
 		&result,
 	)
 
@@ -130,7 +130,7 @@ func (c *UserLinkCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, PrintUserData(
+	fmt.Fprintf(os.Stdout, printUserData(
 		"one-user-updated",
 		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 		result,
@@ -140,8 +140,8 @@ func (c *UserLinkCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *UserLinkCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data UserLinkRequestData
+func (c *userLinkCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data userLinkRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
@@ -214,7 +214,7 @@ func (c *UserLinkCommand) Response(u saultregistry.UserRegistry, channel saultss
 		}
 	}
 
-	var links []UserLinkAccountData
+	var links []userLinkAccountData
 	for hostID, link := range registry.GetLinksOfUser(user.ID) {
 		_, err := registry.GetHost(hostID, saultregistry.HostFilterNone)
 		if err != nil {
@@ -223,7 +223,7 @@ func (c *UserLinkCommand) Response(u saultregistry.UserRegistry, channel saultss
 		}
 		links = append(
 			links,
-			UserLinkAccountData{
+			userLinkAccountData{
 				Accounts: link.Accounts,
 				All:      link.All,
 				HostID:   hostID,
@@ -233,7 +233,7 @@ func (c *UserLinkCommand) Response(u saultregistry.UserRegistry, channel saultss
 
 	registry.Save()
 
-	result := UserListResponseUserData{
+	result := userListResponseUserData{
 		User:  user,
 		Links: links,
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var HostAddFlagsTemplate *saultflags.FlagsTemplate
+var hostAddFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host add" | yellow }} will add the new host in the registry of sault server.
@@ -25,7 +25,7 @@ By default, the sault server tries to check the connection to your host. If auth
 		nil,
 	)
 
-	HostAddFlagsTemplate = &saultflags.FlagsTemplate{
+	hostAddFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "host add",
 		Name:         "add",
 		Help:         "add new remote host",
@@ -47,7 +47,7 @@ By default, the sault server tries to check the connection to your host. If auth
 		ParseFunc: parseHostAddCommandFlags,
 	}
 
-	sault.Commands[HostAddFlagsTemplate.ID] = &HostAddCommand{}
+	sault.Commands[hostAddFlagsTemplate.ID] = &hostAddCommand{}
 }
 
 func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -88,7 +88,7 @@ func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 		return
 	}
 
-	f.Values["Host"] = HostAddRequestData{
+	f.Values["Host"] = hostAddRequestData{
 		ID:       hostID,
 		HostName: hostName,
 		Port:     port,
@@ -100,7 +100,7 @@ func parseHostAddCommandFlags(f *saultflags.Flags, args []string) (err error) {
 	return nil
 }
 
-type HostAddRequestData struct {
+type hostAddRequestData struct {
 	ID       string
 	HostName string
 	Port     uint64
@@ -110,20 +110,20 @@ type HostAddRequestData struct {
 	SkipTest bool
 }
 
-type HostAddCommand struct{}
+type hostAddCommand struct{}
 
-func (c *HostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
-	data := thisFlags.Values["Host"].(HostAddRequestData)
+func (c *hostAddCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+	data := thisFlags.Values["Host"].(hostAddRequestData)
 
 	var host saultregistry.HostRegistry
 	_, err = runCommand(
 		allFlags[0],
-		HostAddFlagsTemplate.ID,
+		hostAddFlagsTemplate.ID,
 		data,
 		&host,
 	)
 	if err == nil {
-		fmt.Fprintf(os.Stdout, PrintHostData(
+		fmt.Fprintf(os.Stdout, printHostData(
 			"host-added",
 			allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 			host,
@@ -148,8 +148,8 @@ failed to add host, because could not connect to the host.
 	return responseMsgErr
 }
 
-func (c *HostAddCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data HostAddRequestData
+func (c *hostAddCommand) Response(user saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data hostAddRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err

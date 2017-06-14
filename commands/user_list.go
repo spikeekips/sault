@@ -14,7 +14,7 @@ import (
 	"github.com/spikeekips/sault/saultssh"
 )
 
-var UserListFlagsTemplate *saultflags.FlagsTemplate
+var userListFlagsTemplate *saultflags.FlagsTemplate
 
 type flagUserFilters struct {
 	Combined saultregistry.UserFilter
@@ -135,7 +135,7 @@ By default, sault orders the sault users by the updated time, that is, the last 
 
 	publicKeyFlag := new(flagPublicKey)
 	userFilters := new(flagUserFilters)
-	UserListFlagsTemplate = &saultflags.FlagsTemplate{
+	userListFlagsTemplate = &saultflags.FlagsTemplate{
 		ID:           "user list",
 		Name:         "list",
 		Help:         "get users information",
@@ -162,7 +162,7 @@ By default, sault orders the sault users by the updated time, that is, the last 
 		ParseFunc: parseUserListCommandFlags,
 	}
 
-	sault.Commands[UserListFlagsTemplate.ID] = &UserListCommand{}
+	sault.Commands[userListFlagsTemplate.ID] = &userListCommand{}
 }
 
 func parseUserListCommandFlags(f *saultflags.Flags, args []string) (err error) {
@@ -180,49 +180,49 @@ func parseUserListCommandFlags(f *saultflags.Flags, args []string) (err error) {
 	return nil
 }
 
-type UserListRequestData struct {
+type userListRequestData struct {
 	Filters   saultregistry.UserFilter
 	UserIDs   []string
 	PublicKey []byte
 }
 
-type UserLinkAccountData struct {
+type userLinkAccountData struct {
 	HostID   string
 	Accounts []string
 	All      bool
 }
 
-type UserListResponseUserData struct {
+type userListResponseUserData struct {
 	User  saultregistry.UserRegistry
-	Links []UserLinkAccountData
+	Links []userLinkAccountData
 }
 
-type UserListResponseData []UserListResponseUserData
+type userListResponseData []userListResponseUserData
 
-func (s UserListResponseData) Len() int {
+func (s userListResponseData) Len() int {
 	return len(s)
 }
 
-func (s UserListResponseData) Less(i, j int) bool {
+func (s userListResponseData) Less(i, j int) bool {
 	return s[i].User.DateUpdated.Before(s[j].User.DateUpdated)
 }
 
-func (s UserListResponseData) Swap(i, j int) {
+func (s userListResponseData) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 	return
 }
 
-type UserListCommand struct{}
+type userListCommand struct{}
 
-func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
+func (c *userListCommand) Request(allFlags []*saultflags.Flags, thisFlags *saultflags.Flags) (err error) {
 	flagFilter := thisFlags.Values["Filter"].(flagUserFilters)
 	log.Debugf("get users, filters: %s UserIDs: %s PublicKey: %s", flagFilter.Args, thisFlags.Values["UserIDs"], thisFlags.Values["PublicKey"].(flagPublicKey).Path)
 
-	var users UserListResponseData
+	var users userListResponseData
 	_, err = runCommand(
 		allFlags[0],
-		UserListFlagsTemplate.ID,
-		UserListRequestData{
+		userListFlagsTemplate.ID,
+		userListRequestData{
 			Filters:   saultregistry.UserFilter(flagFilter.Combined),
 			UserIDs:   thisFlags.Values["UserIDs"].([]string),
 			PublicKey: thisFlags.Values["PublicKey"].(flagPublicKey).PublicKey,
@@ -239,7 +239,7 @@ func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 		sort.Sort(users)
 	}
 
-	fmt.Fprintf(os.Stdout, PrintUsersData(
+	fmt.Fprintf(os.Stdout, printUsersData(
 		allFlags[0].Values["Sault"].(saultcommon.FlagSaultServer).Address,
 		users,
 	))
@@ -247,8 +247,8 @@ func (c *UserListCommand) Request(allFlags []*saultflags.Flags, thisFlags *sault
 	return nil
 }
 
-func (c *UserListCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
-	var data UserListRequestData
+func (c *userListCommand) Response(u saultregistry.UserRegistry, channel saultssh.Channel, msg saultcommon.CommandMsg, registry *saultregistry.Registry, config *sault.Config) (err error) {
+	var data userListRequestData
 	err = msg.GetData(&data)
 	if err != nil {
 		return err
@@ -262,13 +262,13 @@ func (c *UserListCommand) Response(u saultregistry.UserRegistry, channel saultss
 		}
 	}
 
-	result := UserListResponseData{}
+	result := userListResponseData{}
 	for _, u := range registry.GetUsers(data.Filters, data.UserIDs...) {
 		if parsedPublicKey != nil && !u.HasPublicKey(parsedPublicKey) {
 			continue
 		}
 
-		var links []UserLinkAccountData
+		var links []userLinkAccountData
 		for hostID, link := range registry.GetLinksOfUser(u.ID) {
 			_, err := registry.GetHost(hostID, saultregistry.HostFilterNone)
 			if err != nil {
@@ -277,7 +277,7 @@ func (c *UserListCommand) Response(u saultregistry.UserRegistry, channel saultss
 			}
 			links = append(
 				links,
-				UserLinkAccountData{
+				userLinkAccountData{
 					Accounts: link.Accounts,
 					All:      link.All,
 					HostID:   hostID,
@@ -287,7 +287,7 @@ func (c *UserListCommand) Response(u saultregistry.UserRegistry, channel saultss
 
 		result = append(
 			result,
-			UserListResponseUserData{
+			userListResponseUserData{
 				User:  u,
 				Links: links,
 			},
