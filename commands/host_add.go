@@ -17,7 +17,10 @@ var HostAddFlagsTemplate *saultflags.FlagsTemplate
 
 func init() {
 	description, _ := saultcommon.SimpleTemplating(`{{ "host add" | yellow }} will add the new host in the registry of sault server.
-By default, the sault server tries to check the connection to your host. If failed, host will not be added. With {{ "-f" | yellow }} flag, you can force to add the host.
+By default, the sault server tries to check the connection to your host. If authentication error is orrucred, 
+
+* {{ "host inject" | yellow }} helps to inject the internal client key to remote host
+* or with {{ "-f" | yellow }} flag, you can force to add the host.
 		`,
 		nil,
 	)
