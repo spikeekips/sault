@@ -140,7 +140,6 @@ L:
 
 			break L
 		default:
-			// TODO updating public key and printing whoami by native ssh client
 			rlog.Debugf("request.Type: %v, but not allowed", t)
 
 			rendered, _ := saultcommon.SimpleTemplating(
@@ -162,13 +161,13 @@ func parseSaultCommandMsg(payload []byte) (saultcommon.CommandMsg, error) {
 	{
 		var msg saultcommon.CommandMsg
 		if err := saultssh.Unmarshal(payload, &msg); err == nil {
+			msg.IsSaultClient = true
 			return msg, nil
 		}
 	}
 
 	args := strings.Fields(string(payload))
 	msg, err := saultcommon.NewCommandMsg(args[0], args[1:])
-	msg.IsSaultClient = true
 
 	return *msg, err
 }
@@ -189,7 +188,7 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 		var ok bool
 		if command, ok = Commands[msg.Name]; !ok {
 			err = fmt.Errorf("unknown command name, '%s'", msg.Name)
-			if msg.IsSaultClient {
+			if !msg.IsSaultClient {
 				t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} {{ . }}\r\n", err)
 				channel.Write([]byte(t))
 				return
@@ -211,9 +210,22 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 			//
 		default:
 			if !c.user.IsAdmin {
-				t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} Prohibited\r\n", nil)
-				channel.Write([]byte(t))
-				err = errors.New("")
+				if !msg.IsSaultClient {
+					t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} Prohibited\r\n", nil)
+					fmt.Println(t)
+					channel.Write([]byte(t))
+					err = errors.New("")
+				} else {
+					response, _ := saultcommon.NewResponseMsg(
+						nil,
+						saultcommon.CommandErrorCommon,
+						fmt.Errorf("Prohibited"),
+					).ToJSON()
+					channel.Write(response)
+
+					sendExitStatusThruChannel(channel, 0)
+					err = nil
+				}
 				return
 			}
 		}
@@ -221,7 +233,7 @@ func (c *connection) handleCommandMsg(channel saultssh.Channel, request *saultss
 
 	err = command.Response(c.user, channel, msg, c.server.registry, c.server.config)
 	if err != nil {
-		if msg.IsSaultClient {
+		if !msg.IsSaultClient {
 			t, _ := saultcommon.SimpleTemplating("{{ \"error\" | red }} {{ . }}\r\n", err)
 			channel.Write([]byte(t))
 			return

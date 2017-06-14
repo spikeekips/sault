@@ -106,9 +106,8 @@ func (r *ResponseMsg) ToJSON() ([]byte, error) {
 }
 
 type CommandMsg struct {
-	Name string
-	Data []byte
-	// TODO check whether is request from sault client or native ssh client
+	Name          string
+	Data          []byte
 	IsSaultClient bool
 }
 
