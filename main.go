@@ -93,7 +93,10 @@ func init() {
 	log.Out = os.Stdout
 
 	identityFlag := saultcommon.FlagPrivateKey{}
-	saultServerFlag := new(saultcommon.FlagSaultServer)
+	saultServerFlag := &saultcommon.FlagSaultServer{
+		SaultServerName: sault.DefaultSaultServerName,
+		Address:         fmt.Sprintf("localhost:%d", sault.DefaultServerPort),
+	}
 
 	subCommands := []*saultflags.FlagsTemplate{
 		saultcommands.ServerFlagsTemplate,
