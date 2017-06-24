@@ -21,6 +21,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -394,19 +395,21 @@ func ParsePublicKey(b []byte) (saultssh.PublicKey, error) {
 	return saultssh.ParsePublicKey([]byte(key))
 }
 
-var reUserID = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
-var reUserIDOneChar = `^(?i)[0-9a-z]$`
+var reUserID = `^(?i)[\p{L}\d]+[\w\-]*[\p{L}\d]+$`
+var reUserIDOneChar = `^(?i)[\p{L}\d]$`
+var reAccountName = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
+var reAccountNameOneChar = `^(?i)[0-9a-z]$`
 
 // MaxLengthUserID is the maximum length of user id
 var MaxLengthUserID = 32
 
 // CheckUserID checkes whether UserRegistry.ID is valid or not
 func CheckUserID(s string) bool {
-	if len(s) == 1 {
+	if utf8.RuneCountInString(s) == 1 {
 		return regexp.MustCompile(reUserIDOneChar).MatchString(s)
 	}
 
-	if len(s) > MaxLengthUserID { // see `man useradd`
+	if utf8.RuneCountInString(s) > MaxLengthUserID { // see `man useradd`
 		return false
 	}
 
@@ -415,22 +418,30 @@ func CheckUserID(s string) bool {
 
 // CheckAccountName checkes whether user name is valid or not
 func CheckAccountName(s string) bool {
-	return CheckUserID(s)
+	if len(s) == 1 {
+		return regexp.MustCompile(reAccountNameOneChar).MatchString(s)
+	}
+
+	if len(s) > MaxLengthUserID { // see `man useradd`
+		return false
+	}
+
+	return regexp.MustCompile(reAccountName).MatchString(s)
 }
 
-var reHostID = `^(?i)[0-9a-z]+[\w\-]*[0-9a-z]+$`
-var reHostIDOneChar = `^(?i)[0-9a-z]$`
+var reHostID = `^(?i)[\p{L}\d]+[\w\-]*[\p{L}\d]+$`
+var reHostIDOneChar = `^(?i)[\p{L}\d]$`
 
 // MaxLengthHostID is the maximum length of host id
 var MaxLengthHostID = 64
 
 // CheckHostID checkes whether HostRegistry.ID is valid or not
 func CheckHostID(s string) bool {
-	if len(s) == 1 {
+	if utf8.RuneCountInString(s) == 1 {
 		return regexp.MustCompile(reHostIDOneChar).MatchString(s)
 	}
 
-	if len(s) > MaxLengthHostID { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
+	if utf8.RuneCountInString(s) > MaxLengthHostID { // see `$ getconf HOST_NAME_MAX`, in osx it will be 255
 		return false
 	}
 

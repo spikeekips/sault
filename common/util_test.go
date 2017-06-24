@@ -138,3 +138,57 @@ func TestUTCToLocal(t *testing.T) {
 		assert.Equal(t, a, u.In(time.Local))
 	}
 }
+
+func TestCheckUserID(t *testing.T) {
+	{
+		s := "findme"
+		assert.True(t, CheckUserID(s))
+	}
+	{
+		s := "-findme"
+		assert.False(t, CheckUserID(s))
+	}
+	{
+		s := "findme-"
+		assert.False(t, CheckUserID(s))
+	}
+	{
+		s := "findme+"
+		assert.False(t, CheckUserID(s))
+	}
+	{
+		s := "우"
+		assert.True(t, CheckUserID(s))
+	}
+	{
+		s := "우리나라"
+		assert.True(t, CheckUserID(s))
+	}
+}
+
+func TestCheckAccountName(t *testing.T) {
+	{
+		s := "findme"
+		assert.True(t, CheckAccountName(s))
+	}
+	{
+		s := "-findme"
+		assert.False(t, CheckAccountName(s))
+	}
+	{
+		s := "findme-"
+		assert.False(t, CheckAccountName(s))
+	}
+	{
+		s := "findme+"
+		assert.False(t, CheckAccountName(s))
+	}
+	{
+		s := "우"
+		assert.False(t, CheckAccountName(s))
+	}
+	{
+		s := "우리나라"
+		assert.False(t, CheckAccountName(s))
+	}
+}
