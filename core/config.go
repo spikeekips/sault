@@ -57,9 +57,8 @@ type configServer struct {
 }
 
 type configRegistry struct {
-	Source   []interface{}
-	source   []saultregistry.RegistrySource
-	registry *saultregistry.Registry
+	Source []interface{}
+	source []saultregistry.RegistrySource
 }
 
 func (c configRegistry) GetSources() []saultregistry.RegistrySource {
